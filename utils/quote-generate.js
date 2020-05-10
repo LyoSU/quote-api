@@ -54,7 +54,16 @@ const avatarImageLatters = async (letters, color) => {
 const downloadAvatarImage = async (user) => {
   let avatarImage
 
-  const nameLatters = runes(user.first_name || user.name)[0] + (user.last_name ? runes(user.last_name || '')[0] : '')
+  let nameLatters
+  if (user.first_name && user.last_name) nameLatters = runes(user.first_name)[0] + (runes(user.last_name || '')[0])
+  else {
+    let name = user.first_name || user.name
+    name = name.toUpperCase()
+    const nameWord = name.split(' ')
+
+    if (nameWord.length > 1) nameLatters = runes(nameWord[0])[0] + runes(nameWord.splice(-1)[0])[0]
+    else nameLatters = runes(nameWord[0])[0]
+  }
 
   const cacheKey = user.id
 
