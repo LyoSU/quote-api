@@ -1,6 +1,6 @@
 module.exports = {
   apps: [{
-    name: 'QuoteBot',
+    name: 'quote-api',
     script: './index.js',
     max_memory_restart: '2000M',
     instances: 2,
