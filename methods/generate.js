@@ -30,9 +30,11 @@ module.exports = async (parm) => {
   for (const key in parm.messages) {
     const data = parm.messages[key]
 
-    const canvasQuote = await generateQuote(parm.backgroundColor, data.message, data.replyMessage, data.entities, parm.width, parm.height, parm.scale)
+    if (data && data.message) {
+      const canvasQuote = await generateQuote(parm.backgroundColor, data.message, data.replyMessage, data.entities, parm.width, parm.height, parm.scale)
 
-    quoteImages.push(canvasQuote)
+      quoteImages.push(canvasQuote)
+    }
   }
 
   if (quoteImages.length === 0) {
