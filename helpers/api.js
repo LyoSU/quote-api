@@ -7,27 +7,19 @@ module.exports = async (ctx, next) => {
     if (!ctx.body) {
       ctx.assert(ctx.result, 404, 'Not Found')
 
-      if (ctx.result.image) {
-        ctx.type = 'text/plain; charset=utf-8'
-        ctx.type = 'image/png'
-        ctx.type = '.png'
-        ctx.type = 'png'
-        ctx.body = ctx.result.image
+      if (ctx.result.error) {
+        ctx.status = 400
+        ctx.body = {
+          ok: false,
+          error: {
+            code: 400,
+            message: ctx.result.error
+          }
+        }
       } else {
-        if (ctx.result.error) {
-          ctx.status = 400
-          ctx.body = {
-            ok: false,
-            error: {
-              code: 400,
-              message: ctx.result.error
-            }
-          }
-        } else {
-          ctx.body = {
-            ok: true,
-            result: ctx.result
-          }
+        ctx.body = {
+          ok: true,
+          result: ctx.result
         }
       }
     }
