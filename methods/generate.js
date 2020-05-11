@@ -74,7 +74,7 @@ module.exports = async (parm) => {
 
   let type = parm.type
 
-  if (type !== 'image' && canvasQuote.height > 1024 * 3) type = 'png'
+  if (type !== 'image' && canvasQuote.height > 1024 * 2) type = 'png'
 
   if (type === 'quote') {
     const downPadding = 75
