@@ -18,7 +18,10 @@ module.exports = async (ctx, next) => {
           ctx.status = 400
           ctx.body = {
             ok: false,
-            error: ctx.result.error
+            error: {
+              code: 400,
+              message: ctx.result.error
+            }
           }
         } else {
           ctx.body = {
