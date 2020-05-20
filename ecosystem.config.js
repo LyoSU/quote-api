@@ -2,7 +2,7 @@ module.exports = {
   apps: [{
     name: 'quote-api',
     script: './index.js',
-    max_memory_restart: '2000M',
+    max_memory_restart: '1000M',
     instances: 2,
     exec_mode: 'cluster',
     watch: true,
