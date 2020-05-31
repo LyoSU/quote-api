@@ -91,12 +91,16 @@ const downloadAvatarImage = async (user) => {
     try {
       let userPhoto, userPhotoUrl
 
-      const getChat = await telegram.getChat(user.id).catch(console.error)
-      if (getChat && getChat.photo && getChat.photo.small_file_id) userPhoto = getChat.photo.small_file_id
+      if (user.photo.big_file_id) {
+        userPhotoUrl = await telegram.getFileLink(user.photo.big_file_id).catch(console.error)
+      } else {
+        const getChat = await telegram.getChat(user.id).catch(console.error)
+        if (getChat && getChat.photo && getChat.photo.big_file_id) userPhoto = getChat.photo.big_file_id
 
-      if (userPhoto) userPhotoUrl = await telegram.getFileLink(userPhoto).catch(console.error)
-      else if (user.username) userPhotoUrl = `https://telega.one/i/userpic/320/${user.username}.jpg`
-      else userPhotoUrl = await avatarImageLatters(nameLatters, avatarColor)
+        if (userPhoto) userPhotoUrl = await telegram.getFileLink(userPhoto).catch(console.error)
+        else if (user.username) userPhotoUrl = `https://telega.one/i/userpic/320/${user.username}.jpg`
+        else userPhotoUrl = await avatarImageLatters(nameLatters, avatarColor)
+      }
 
       avatarImage = await loadCanvasImage(userPhotoUrl)
 
@@ -273,7 +277,7 @@ async function drawMultilineText (text, entities, fontSize, fontColor, textX, te
       }
 
       let fontType = ''
-      let fontName = 'NotoSansDisplay, NotoSans'
+      let fontName = 'SF-Pro-Text, SF-Pro'
       let fillStyle = fontColor
 
       if (styledWord.style.includes('bold')) {
@@ -283,7 +287,7 @@ async function drawMultilineText (text, entities, fontSize, fontColor, textX, te
         fontType += 'italic '
       }
       if (styledWord.style.includes('monospace')) {
-        fontName = 'NotoSansMono, NotoSans'
+        fontName = 'SF-Mono, SF-Pro'
         fillStyle = '#5887a7'
       }
       if (styledWord.style.includes('mention')) {
