@@ -10,7 +10,6 @@ const emojiJsonFile = path.resolve(__dirname, '../assets/emoji-image.json')
 let emojiImageJson = {}
 
 try {
-  console.log(emojiJsonFile)
   if (fs.existsSync(emojiJsonFile)) emojiImageJson = require(emojiJsonFile)
 } catch (error) {
   console.log(error)
@@ -78,6 +77,6 @@ async function downloadEmoji () {
   // })
 }
 
-downloadEmoji()
+// downloadEmoji()
 
 module.exports = emojiImageJson

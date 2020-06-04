@@ -33,7 +33,7 @@ app.use(ratelimit({
   max: 10,
   disableHeader: false,
   whitelist: (ctx) => {
-    return ctx.ip === '::1'
+    return ctx.hostname === 'localhost'
   },
   blacklist: (ctx) => {
   }
