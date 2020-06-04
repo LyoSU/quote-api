@@ -22,6 +22,7 @@ const lighten = (color, amount) => {
 }
 
 module.exports = async (parm) => {
+  // console.log(JSON.stringify(parm, null, 2))
   if (!parm) return { error: 'query_empty' }
   if (!parm.messages || parm.messages.length < 1) return { error: 'messages_empty' }
 
