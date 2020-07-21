@@ -71,7 +71,7 @@ module.exports = async (parm) => {
     canvasQuote = quoteImages[0]
   }
 
-  let quoteImage, width, height
+  let quoteImage
 
   let type = parm.type
 
@@ -94,10 +94,12 @@ module.exports = async (parm) => {
 
     canvasPaddingCtx.drawImage(canvasImage, 0, 0)
 
-    width = canvasImage.width
-    height = canvasImage.height
+    const imageSharp = sharp(canvasPadding.toBuffer())
 
-    quoteImage = await sharp(canvasPadding.toBuffer()).webp({ lossless: true, force: true }).toBuffer()
+    if (canvasPadding.height >= canvasPadding.width) imageSharp.resize({ height: maxHeight })
+    else imageSharp.resize({ width: maxWidth })
+
+    quoteImage = await imageSharp.webp({ lossless: true, force: true }).toBuffer()
   } else if (type === 'image') {
     const padding = 25
 
@@ -118,16 +120,16 @@ module.exports = async (parm) => {
 
     canvasPicCtx.drawImage(canvasImage, padding, padding)
 
-    width = canvasImage.width
-    height = canvasImage.height
-
     quoteImage = await sharp(canvasPic.toBuffer()).png({ lossless: true, force: true }).toBuffer()
   } else {
-    width = canvasQuote.width
-    height = canvasQuote.height
 
     quoteImage = canvasQuote.toBuffer()
   }
+
+  const imageMetadata = await sharp(quoteImage).metadata()
+
+  const width = imageMetadata.width
+  const height = imageMetadata.height
 
   return {
     image: quoteImage.toString('base64'),
