@@ -688,7 +688,7 @@ module.exports = async (backgroundColor, message, width = 512, height = 512, sca
   let mediaCanvas
   if (message.media) {
     let media
-    if (message.media.length > 0) media = message.media[1]
+    if (message.media.length > 1) media = message.media[1]
     else media = message.media[0]
     mediaCanvas = await downloadMediaImage(media)
   }
