@@ -2,6 +2,8 @@ const fs = require('fs')
 const { createCanvas, registerFont } = require('canvas')
 const EmojiDbLib = require('emoji-db')
 const loadCanvasImage = require('./canvas-image-load')
+const loadImageFromUrl = require('./image-load-url')
+const sharp = require('sharp')
 const runes = require('runes')
 const { Telegram } = require('telegraf')
 
@@ -117,7 +119,10 @@ const downloadAvatarImage = async (user) => {
 
 const downloadMediaImage = async (mediaFileId) => {
   const mediaUrl = await telegram.getFileLink(mediaFileId).catch(console.error)
-  return loadCanvasImage(mediaUrl)
+  const imageSharp = sharp(await loadImageFromUrl(mediaUrl))
+  const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
+
+  return loadCanvasImage(sharpPng)
 }
 
 // https://codepen.io/andreaswik/pen/YjJqpK
