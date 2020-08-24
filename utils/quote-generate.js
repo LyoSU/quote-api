@@ -93,7 +93,9 @@ const downloadAvatarImage = async (user) => {
 
       if (user.photo.big_file_id) {
         userPhotoUrl = await telegram.getFileLink(user.photo.big_file_id).catch(console.error)
-      } else {
+      }
+
+      if (!userPhotoUrl) {
         const getChat = await telegram.getChat(user.id).catch(console.error)
         if (getChat && getChat.photo && getChat.photo.big_file_id) userPhoto = getChat.photo.big_file_id
 
@@ -111,6 +113,11 @@ const downloadAvatarImage = async (user) => {
   }
 
   return avatarImage
+}
+
+const downloadMediaImage = async (mediaFileId) => {
+  const mediaUrl = await telegram.getFileLink(mediaFileId).catch(console.error)
+  return loadCanvasImage(mediaUrl)
 }
 
 // https://codepen.io/andreaswik/pen/YjJqpK
@@ -387,6 +394,33 @@ function drawRoundRect (color, w, h, r) {
   return canvas
 }
 
+function roundImage (image, round) {
+  const h = image.height
+  const w = image.width
+
+  const canvas = createCanvas(h, w)
+  const canvasCtx = canvas.getContext('2d')
+
+  let r = round
+  const x = 0
+  const y = 0
+
+  if (w < 2 * r) r = w / 2
+  if (h < 2 * r) r = h / 2
+  canvasCtx.beginPath()
+  canvasCtx.moveTo(x + r, y)
+  canvasCtx.arcTo(x + w, y, x + w, y + h, r)
+  canvasCtx.arcTo(x + w, y + h, x, y + h, r)
+  canvasCtx.arcTo(x, y + h, x, y, r)
+  canvasCtx.arcTo(x, y, x + w, y, r)
+  canvasCtx.clip()
+  canvasCtx.closePath()
+  canvasCtx.restore()
+  canvasCtx.drawImage(image, x, y, h, w)
+
+  return canvas
+}
+
 function deawReplyLine (lineWidth, height, color) {
   const canvas = createCanvas(20, height)
   const context = canvas.getContext('2d')
@@ -401,27 +435,29 @@ function deawReplyLine (lineWidth, height, color) {
 }
 
 async function drawAvatar (user) {
-  const avatar = await downloadAvatarImage(user)
+  const avatarImage = await downloadAvatarImage(user)
 
-  const avatarSize = avatar.naturalHeight
+  if (avatarImage) {
+    const avatarSize = avatarImage.naturalHeight
 
-  const canvas = createCanvas(avatarSize, avatarSize)
-  const canvasCtx = canvas.getContext('2d')
+    const canvas = createCanvas(avatarSize, avatarSize)
+    const canvasCtx = canvas.getContext('2d')
 
-  const avatarX = 0
-  const avatarY = 0
+    const avatarX = 0
+    const avatarY = 0
 
-  canvasCtx.beginPath()
-  canvasCtx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2, true)
-  canvasCtx.clip()
-  canvasCtx.closePath()
-  canvasCtx.restore()
-  canvasCtx.drawImage(avatar, avatarX, avatarY, avatarSize, avatarSize)
+    canvasCtx.beginPath()
+    canvasCtx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2, true)
+    canvasCtx.clip()
+    canvasCtx.closePath()
+    canvasCtx.restore()
+    canvasCtx.drawImage(avatarImage, avatarX, avatarY, avatarSize, avatarSize)
 
-  return canvas
+    return canvas
+  }
 }
 
-async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyText, name, text) {
+async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyText, name, text, media) {
   const blockPosX = 55 * scale
   const blockPosY = 0
 
@@ -431,16 +467,25 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
   const avatarPosY = 15
   const avatarSize = 50 * scale
 
+  const mediaSize = 75 * scale
+
   let width = 0
   if (name) width = name.width
-  if (width < text.width) width = text.width + indent
+  if (text && width < text.width) width = text.width + indent
   if (replyName) {
     if (width < replyName.width) width = replyName.width + indent
     if (width < replyText.width) width = replyText.width + indent
   }
 
-  let height = text.height + indent
-  if (name) height = name.height + text.height
+  let height = indent
+  if (text) height += text.height
+  else height += indent
+
+  if (name) {
+    height = name.height
+    if (text) height = text.height + name.height
+    else height += indent
+  }
 
   width += blockPosX + (indent * 2)
   height += blockPosY
@@ -474,6 +519,33 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
     height += replyNameHeight + replyTextHeight
   }
 
+  let mediaPosX = 0
+  let mediaPosY = 0
+
+  let mediaWidth, mediaHeight
+  if (media) {
+    mediaWidth = media.width * (mediaSize / media.height)
+    mediaHeight = mediaSize
+
+    if (mediaWidth > (width - blockPosX - indent - 15 * scale)) {
+      const maxMediaWidth = width - blockPosX - indent - 15 * scale
+      mediaHeight = mediaHeight * (maxMediaWidth / mediaWidth)
+      mediaWidth = maxMediaWidth
+    }
+
+    height += mediaHeight
+
+    if (name) {
+      mediaPosX = namePosX
+      mediaPosY = name.height
+    } else {
+      mediaPosX = blockPosX + indent
+      mediaPosY = indent
+    }
+    if (replyName) mediaPosY += replyNamePosY
+    textPosY += mediaHeight
+  }
+
   const canvas = createCanvas(width, height)
   const canvasCtx = canvas.getContext('2d')
 
@@ -489,6 +561,7 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
   if (rect) canvasCtx.drawImage(rect, rectPosX, rectPosY)
   if (name) canvasCtx.drawImage(name, namePosX, namePosY)
   if (text) canvasCtx.drawImage(text, textPosX, textPosY)
+  if (media) canvasCtx.drawImage(media, mediaPosX, mediaPosY, mediaWidth, mediaHeight)
 
   if (replyName) {
     const backStyle = lightOrDark(backgroundColor)
@@ -513,7 +586,7 @@ const normalizeColor = (color) => {
   return color
 }
 
-module.exports = async (backgroundColor, message, replyMessage, entities, width = 512, height = 512, scale) => {
+module.exports = async (backgroundColor, message, width = 512, height = 512, scale) => {
   if (!scale) scale = 2
   if (scale > 20) scale = 20
   width *= scale
@@ -590,25 +663,34 @@ module.exports = async (backgroundColor, message, replyMessage, entities, width 
   let textColor = '#fff'
   if (backStyle === 'light') textColor = '#000'
 
-  const drawTextCanvas = await drawMultilineText(message.text, entities, fontSize, textColor, 0, fontSize, width, height - fontSize)
+  let drawTextCanvas
+  if (message.text) drawTextCanvas = await drawMultilineText(message.text, message.entities, fontSize, textColor, 0, fontSize, width, height - fontSize)
 
   let avatarCanvas
   if (message.avatar) avatarCanvas = await drawAvatar(message.from)
 
   let replyName, replyText
-  if (replyMessage.name && replyMessage.text) {
-    const replyNameIndex = Math.abs(replyMessage.chatId) % 7
+  if (message.replyMessage.name && message.replyMessage.text) {
+    const replyNameIndex = Math.abs(message.replyMessage.chatId) % 7
     let replyNameColor = nameColorDark[nameMap[replyNameIndex]]
     if (backStyle === 'light') replyNameColor = nameColorLight[nameMap[replyNameIndex]]
 
     const replyNameFontSize = 16 * scale
-    if (replyMessage.name) replyName = await drawMultilineText(replyMessage.name, 'bold', replyNameFontSize, replyNameColor, 0, replyNameFontSize, width * 0.9, replyNameFontSize)
+    if (message.replyMessage.name) replyName = await drawMultilineText(message.replyMessage.name, 'bold', replyNameFontSize, replyNameColor, 0, replyNameFontSize, width * 0.9, replyNameFontSize)
 
     let textColor = '#fff'
     if (backStyle === 'light') textColor = '#000'
 
     const replyTextFontSize = 21 * scale
-    replyText = await drawMultilineText(replyMessage.text, null, replyTextFontSize, textColor, 0, replyTextFontSize, width * 0.9, replyTextFontSize)
+    replyText = await drawMultilineText(message.replyMessage.text, null, replyTextFontSize, textColor, 0, replyTextFontSize, width * 0.9, replyTextFontSize)
+  }
+
+  let mediaCanvas
+  if (message.media) {
+    let media
+    if (message.media.length > 0) media = message.media[1]
+    else media = message.media[0]
+    mediaCanvas = await downloadMediaImage(media)
   }
 
   const quote = drawQuote(
@@ -616,7 +698,8 @@ module.exports = async (backgroundColor, message, replyMessage, entities, width 
     backgroundColor,
     avatarCanvas,
     replyName, replyText,
-    nameCanvas, drawTextCanvas
+    nameCanvas, drawTextCanvas,
+    mediaCanvas
   )
 
   return quote
