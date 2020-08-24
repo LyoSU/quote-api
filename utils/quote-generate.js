@@ -467,7 +467,7 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
   const avatarPosY = 15
   const avatarSize = 50 * scale
 
-  const mediaSize = 75 * scale
+  const mediaSize = 500 * scale
 
   let width = 0
   if (name) width = name.width
@@ -537,13 +537,13 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
 
     if (name) {
       mediaPosX = namePosX
-      mediaPosY = name.height
+      mediaPosY = name.height + 5 * scale
     } else {
       mediaPosX = blockPosX + indent
       mediaPosY = indent
     }
     if (replyName) mediaPosY += replyNamePosY
-    textPosY += mediaHeight
+    textPosY += mediaHeight + 5 * scale
   }
 
   const canvas = createCanvas(width, height)
