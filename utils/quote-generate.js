@@ -528,12 +528,17 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
   let mediaPosY = 0
 
   let mediaWidth, mediaHeight
+
   if (media) {
     mediaWidth = media.width * (mediaSize / media.height)
     mediaHeight = mediaSize
 
     if (mediaWidth > (width - blockPosX - indent - 15 * scale)) {
-      const maxMediaWidth = width - blockPosX - indent - 15 * scale
+      let maxMediaWidth = width - blockPosX - indent - 15 * scale
+      if (maxMediaWidth === 0) {
+        maxMediaWidth = mediaSize - indent - 15 * scale
+        width = mediaSize + 55 * scale
+      }
       mediaHeight = mediaHeight * (maxMediaWidth / mediaWidth)
       mediaWidth = maxMediaWidth
     }
