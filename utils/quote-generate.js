@@ -91,7 +91,7 @@ const downloadAvatarImage = async (user) => {
     try {
       let userPhoto, userPhotoUrl
 
-      if (user.photo.big_file_id) {
+      if (user.photo && user.photo.big_file_id) {
         userPhotoUrl = await telegram.getFileLink(user.photo.big_file_id).catch(console.error)
       }
 

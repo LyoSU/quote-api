@@ -122,7 +122,6 @@ module.exports = async (parm) => {
 
     quoteImage = await sharp(canvasPic.toBuffer()).png({ lossless: true, force: true }).toBuffer()
   } else {
-
     quoteImage = canvasQuote.toBuffer()
   }
 
