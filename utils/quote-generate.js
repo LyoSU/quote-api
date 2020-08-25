@@ -399,14 +399,13 @@ function drawRoundRect (color, w, h, r) {
   return canvas
 }
 
-function roundImage (image, round) {
-  const h = image.height
+function roundImage (image, r) {
   const w = image.width
+  const h = image.height
 
-  const canvas = createCanvas(h, w)
+  const canvas = createCanvas(w, h)
   const canvasCtx = canvas.getContext('2d')
 
-  let r = round
   const x = 0
   const y = 0
 
@@ -421,7 +420,7 @@ function roundImage (image, round) {
   canvasCtx.clip()
   canvasCtx.closePath()
   canvasCtx.restore()
-  canvasCtx.drawImage(image, x, y, h, w)
+  canvasCtx.drawImage(image, x, y)
 
   return canvas
 }
@@ -462,11 +461,11 @@ async function drawAvatar (user) {
   }
 }
 
-async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyText, name, text, media) {
+async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyText, name, text, media, mediaType) {
   const blockPosX = 55 * scale
   const blockPosY = 0
 
-  const indent = 15 * scale
+  const indent = 10 * scale
 
   const avatarPosX = 0
   const avatarPosY = 15
@@ -512,7 +511,7 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
   let replyTextPosY = 0
 
   if (replyName) {
-    replyPosX = textPosX + 15 * scale
+    replyPosX = textPosX + indent
 
     const replyNameHeight = replyName.height * 1.2
     const replyTextHeight = replyText.height * 0.5
@@ -533,10 +532,10 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
     mediaWidth = media.width * (mediaSize / media.height)
     mediaHeight = mediaSize
 
-    if (mediaWidth > (width - blockPosX - indent - 15 * scale)) {
-      let maxMediaWidth = width - blockPosX - indent - 15 * scale
+    if (mediaWidth > (width - blockPosX - indent - indent)) {
+      let maxMediaWidth = width - blockPosX - indent - indent
       if (maxMediaWidth === 0) {
-        maxMediaWidth = mediaSize - indent - 15 * scale
+        maxMediaWidth = mediaSize - indent * 2
         width = mediaSize + 55 * scale
       }
       mediaHeight = mediaHeight * (maxMediaWidth / mediaWidth)
@@ -556,14 +555,21 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
     textPosY += mediaHeight + 5 * scale
   }
 
+  if (mediaType === 'sticker') {
+    mediaPosY += indent * 2
+    height += indent * 2
+  }
+
   const canvas = createCanvas(width, height)
   const canvasCtx = canvas.getContext('2d')
 
   const rectWidth = width - blockPosX
-  const rectHeight = height
+  let rectHeight = height
   const rectPosX = blockPosX
   const rectPosY = blockPosY
   const rectRoundRadius = 25 * scale
+
+  if (mediaType === 'sticker') rectHeight -= mediaHeight + indent * 2
 
   const rect = drawRoundRect(backgroundColor, rectWidth, rectHeight, rectRoundRadius)
 
@@ -571,7 +577,7 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
   if (rect) canvasCtx.drawImage(rect, rectPosX, rectPosY)
   if (name) canvasCtx.drawImage(name, namePosX, namePosY)
   if (text) canvasCtx.drawImage(text, textPosX, textPosY)
-  if (media) canvasCtx.drawImage(media, mediaPosX, mediaPosY, mediaWidth, mediaHeight)
+  if (media) canvasCtx.drawImage(roundImage(media, 10 * scale), mediaPosX, mediaPosY, mediaWidth, mediaHeight)
 
   if (replyName) {
     const backStyle = lightOrDark(backgroundColor)
@@ -695,12 +701,13 @@ module.exports = async (backgroundColor, message, width = 512, height = 512, sca
     replyText = await drawMultilineText(message.replyMessage.text, null, replyTextFontSize, textColor, 0, replyTextFontSize, width * 0.9, replyTextFontSize)
   }
 
-  let mediaCanvas
+  let mediaCanvas, mediaType
   if (message.media) {
     let media
     if (message.media.length > 1) media = message.media[1]
     else media = message.media[0]
     mediaCanvas = await downloadMediaImage(media)
+    mediaType = message.mediaType
   }
 
   const quote = drawQuote(
@@ -709,7 +716,7 @@ module.exports = async (backgroundColor, message, width = 512, height = 512, sca
     avatarCanvas,
     replyName, replyText,
     nameCanvas, drawTextCanvas,
-    mediaCanvas
+    mediaCanvas, mediaType
   )
 
   return quote
