@@ -4,6 +4,7 @@ const EmojiDbLib = require('emoji-db')
 const loadCanvasImage = require('./canvas-image-load')
 const loadImageFromUrl = require('./image-load-url')
 const sharp = require('sharp')
+const Jimp = require('jimp')
 const runes = require('runes')
 const { Telegram } = require('telegraf')
 
@@ -120,9 +121,17 @@ const downloadAvatarImage = async (user) => {
 const downloadMediaImage = async (mediaFileId) => {
   const mediaUrl = await telegram.getFileLink(mediaFileId).catch(console.error)
   const imageSharp = sharp(await loadImageFromUrl(mediaUrl))
+  const imageMetadata = await imageSharp.metadata()
   const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
 
-  return loadCanvasImage(sharpPng)
+  const jimpImage = await Jimp.read(sharpPng)
+
+  let croppedImage
+
+  if (imageMetadata.format === 'webp') croppedImage = await jimpImage.autocrop(false).getBufferAsync(Jimp.MIME_PNG)
+  else croppedImage = await jimpImage.autocrop({ tolerance: 0.4, cropSymmetric: true }).getBufferAsync(Jimp.MIME_PNG)
+
+  return loadCanvasImage(croppedImage)
 }
 
 // https://codepen.io/andreaswik/pen/YjJqpK
@@ -582,7 +591,7 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
   if (rect) canvasCtx.drawImage(rect, rectPosX, rectPosY)
   if (name) canvasCtx.drawImage(name, namePosX, namePosY)
   if (text) canvasCtx.drawImage(text, textPosX, textPosY)
-  if (media) canvasCtx.drawImage(roundImage(media, 10 * scale), mediaPosX, mediaPosY, mediaWidth, mediaHeight)
+  if (media) canvasCtx.drawImage(roundImage(media, 5 * scale), mediaPosX, mediaPosY, mediaWidth, mediaHeight)
 
   if (replyName) {
     const backStyle = lightOrDark(backgroundColor)
