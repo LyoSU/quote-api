@@ -546,8 +546,8 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
     if (mediaWidth > (width - blockPosX - indent - indent)) {
       let maxMediaWidth = width - blockPosX - indent - indent
       if (maxMediaWidth === 0) {
-        maxMediaWidth = mediaSize - indent * 2
-        width = mediaSize + 55 * scale
+        maxMediaWidth = mediaSize / 2 - indent * 2
+        width = mediaSize / 2 + 55 * scale
       }
       mediaHeight = mediaHeight * (maxMediaWidth / mediaWidth)
       mediaWidth = maxMediaWidth
