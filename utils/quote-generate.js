@@ -465,13 +465,15 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
   const blockPosX = 55 * scale
   const blockPosY = 0
 
-  const indent = 10 * scale
+  const indent = 15 * scale
 
   const avatarPosX = 0
   const avatarPosY = 15
   const avatarSize = 50 * scale
 
   const mediaSize = 500 * scale
+
+  if (mediaType === 'sticker') name = undefined
 
   let width = 0
   if (name) width = name.width
@@ -551,27 +553,30 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
       mediaPosX = blockPosX + indent
       mediaPosY = indent
     }
-    if (replyName) mediaPosY += replyNamePosY
-    textPosY += mediaHeight + 5 * scale
+    if (replyName) mediaPosY += replyNamePosY + indent / 2
+    textPosY = mediaPosY + mediaHeight + 5 * scale
   }
 
-  if (mediaType === 'sticker') {
-    mediaPosY += indent * 2
+  if (mediaType === 'sticker' && (name || replyName)) {
+    mediaPosY += indent * 4
     height += indent * 2
   }
 
   const canvas = createCanvas(width, height)
   const canvasCtx = canvas.getContext('2d')
 
-  const rectWidth = width - blockPosX
+  let rectWidth = width - blockPosX
   let rectHeight = height
   const rectPosX = blockPosX
   const rectPosY = blockPosY
   const rectRoundRadius = 25 * scale
 
-  if (mediaType === 'sticker') rectHeight -= mediaHeight + indent * 2
+  let rect
+  if (mediaType === 'sticker' && (name || replyName)) {
+    rectHeight -= mediaHeight + indent * 2
+  }
 
-  const rect = drawRoundRect(backgroundColor, rectWidth, rectHeight, rectRoundRadius)
+  if (mediaType !== 'sticker' || name || replyName) rect = drawRoundRect(backgroundColor, rectWidth, rectHeight, rectRoundRadius)
 
   if (avatar) canvasCtx.drawImage(avatar, avatarPosX, avatarPosY, avatarSize, avatarSize)
   if (rect) canvasCtx.drawImage(rect, rectPosX, rectPosY)
