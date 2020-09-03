@@ -488,7 +488,7 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
   const avatarPosY = 15
   const avatarSize = 50 * scale
 
-  const mediaSize = 300 * scale
+  const mediaSize = 500 * scale
 
   if (mediaType === 'sticker') name = undefined
 
@@ -731,7 +731,7 @@ module.exports = async (backgroundColor, message, width = 512, height = 512, sca
     if (message.media.length > 1) media = message.media[1]
     else media = message.media[0]
 
-    let maxMediaSize = 300 * scale
+    let maxMediaSize = 500 * scale
     if (message.text && maxMediaSize < textCanvas.width) maxMediaSize = textCanvas.width
 
     mediaCanvas = await downloadMediaImage(media, maxMediaSize)
