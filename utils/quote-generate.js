@@ -732,7 +732,7 @@ module.exports = async (backgroundColor, message, width = 512, height = 512, sca
     else media = message.media[0]
 
     let maxMediaSize = 500 * scale
-    if (message.text) maxMediaSize = textCanvas.width
+    if (message.text && maxMediaSize < textCanvas.width) maxMediaSize = textCanvas.width
 
     mediaCanvas = await downloadMediaImage(media, maxMediaSize)
     mediaType = message.mediaType
