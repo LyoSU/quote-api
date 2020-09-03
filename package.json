@@ -1,6 +1,6 @@
 {
   "name": "quote-api",
-  "version": "0.5.9",
+  "version": "0.5.10",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -23,7 +23,7 @@
     "crypto": "^1.0.1",
     "dotenv": "^7.0.0",
     "emoji-db": "^1.10.0",
-    "jimp": "^0.16.0",
+    "jimp": "^0.16.1",
     "koa": "^2.11.0",
     "koa-bodyparser": "^4.2.1",
     "koa-logger": "^3.2.1",
@@ -34,6 +34,7 @@
     "object-sizeof": "^1.6.0",
     "runes": "^0.4.3",
     "sharp": "^0.25.2",
+    "smartcrop-sharp": "^2.0.3",
     "telegraf": "^3.38.0"
   },
   "devDependencies": {
