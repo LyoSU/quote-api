@@ -119,7 +119,7 @@ const downloadAvatarImage = async (user) => {
   return avatarImage
 }
 
-const downloadMediaImage = async (mediaFileId, maxMediaSize) => {
+const downloadMediaImage = async (mediaFileId, mediaSize) => {
   const mediaUrl = await telegram.getFileLink(mediaFileId).catch(console.error)
   const imageSharp = sharp(await loadImageFromUrl(mediaUrl))
   const imageMetadata = await imageSharp.metadata()
@@ -132,7 +132,7 @@ const downloadMediaImage = async (mediaFileId, maxMediaSize) => {
 
     croppedImage = await jimpImage.autocrop(false).getBufferAsync(Jimp.MIME_PNG)
   } else {
-    const smartcropResult = await smartcrop.crop(sharpPng, { width: maxMediaSize, height: imageMetadata.height })
+    const smartcropResult = await smartcrop.crop(sharpPng, { width: mediaSize, height: imageMetadata.height })
     const crop = smartcropResult.topCrop
 
     croppedImage = imageSharp.extract({ width: crop.width, height: crop.height, left: crop.x, top: crop.y })
@@ -478,7 +478,7 @@ async function drawAvatar (user) {
   }
 }
 
-async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyText, name, text, media, mediaType) {
+async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyText, name, text, media, mediaType, maxMediaSize) {
   const blockPosX = 55 * scale
   const blockPosY = 0
 
@@ -487,8 +487,6 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
   const avatarPosX = 0
   const avatarPosY = 15
   const avatarSize = 50 * scale
-
-  const mediaSize = 500 * scale
 
   if (mediaType === 'sticker') name = undefined
 
@@ -548,22 +546,20 @@ async function drawQuote (scale = 1, backgroundColor, avatar, replyName, replyTe
   let mediaWidth, mediaHeight
 
   if (media) {
-    mediaWidth = media.width * (mediaSize / media.height)
-    mediaHeight = mediaSize
+    mediaWidth = media.width * (maxMediaSize / media.height)
+    mediaHeight = maxMediaSize
 
-    if (!text || text.width <= mediaSize) width = mediaWidth - indent
+    if (mediaWidth >= maxMediaSize) {
+      mediaWidth = maxMediaSize
+      mediaHeight = media.height * (maxMediaSize / media.width)
+    }
 
-    if (mediaWidth > (width - blockPosX - indent - indent)) {
-      let maxMediaWidth = width - blockPosX - indent - indent
-      if (maxMediaWidth === 0) {
-        maxMediaWidth = mediaSize / 2 - indent * 2
-        width = mediaSize / 2 + 55 * scale
-      }
-      mediaHeight = mediaHeight * (maxMediaWidth / mediaWidth)
-      mediaWidth = maxMediaWidth
+    if (!text || text.width <= mediaWidth || mediaWidth > (width - blockPosX)) {
+      width = mediaWidth + indent * 6
     }
 
     height += mediaHeight
+    if (!text) height += indent
 
     if (name) {
       mediaPosX = namePosX
@@ -725,13 +721,13 @@ module.exports = async (backgroundColor, message, width = 512, height = 512, sca
     replyText = await drawMultilineText(message.replyMessage.text, null, replyTextFontSize, textColor, 0, replyTextFontSize, width * 0.9, replyTextFontSize)
   }
 
-  let mediaCanvas, mediaType
+  let mediaCanvas, mediaType, maxMediaSize
   if (message.media) {
     let media
     if (message.media.length > 1) media = message.media[1]
     else media = message.media[0]
 
-    let maxMediaSize = 500 * scale
+    maxMediaSize = width / 3 * scale
     if (message.text && maxMediaSize < textCanvas.width) maxMediaSize = textCanvas.width
 
     mediaCanvas = await downloadMediaImage(media, maxMediaSize)
@@ -744,7 +740,7 @@ module.exports = async (backgroundColor, message, width = 512, height = 512, sca
     avatarCanvas,
     replyName, replyText,
     nameCanvas, textCanvas,
-    mediaCanvas, mediaType
+    mediaCanvas, mediaType, maxMediaSize
   )
 
   return quote
