@@ -628,8 +628,6 @@ module.exports = async (backgroundColor, message, width = 512, height = 512, sca
   width *= scale
   height *= scale
 
-  backgroundColor = normalizeColor(backgroundColor)
-
   // check background style color black/light
   const backStyle = lightOrDark(backgroundColor)
 
