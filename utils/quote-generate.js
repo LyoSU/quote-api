@@ -8,6 +8,8 @@ const Jimp = require('jimp')
 const smartcrop = require('smartcrop-sharp')
 const runes = require('runes')
 const { Telegram } = require('telegraf')
+const lottie = require('lottie-node')
+const zlib = require('zlib')
 
 const emojiDb = new EmojiDbLib({ useDefaultDb: true })
 
@@ -119,27 +121,47 @@ const downloadAvatarImage = async (user) => {
   return avatarImage
 }
 
+const ungzip = (input, options) => {
+  return new Promise((resolve, reject) => {
+    zlib.gunzip(input, options, (error, result) => {
+      if (!error) resolve(result)
+      else reject(Error(error))
+    })
+  })
+}
+
 const downloadMediaImage = async (mediaFileId, mediaSize) => {
   const mediaUrl = await telegram.getFileLink(mediaFileId).catch(console.error)
-  const imageSharp = sharp(await loadImageFromUrl(mediaUrl))
-  const imageMetadata = await imageSharp.metadata()
-  const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
+  const load = await loadImageFromUrl(mediaUrl)
+  if (mediaUrl.match(/.tgs/)) {
+    const jsonLottie = await ungzip(load)
+    const canvas = createCanvas(512, 512)
+    const animation = lottie(JSON.parse(jsonLottie.toString()), canvas)
+    const middleFrame = Math.floor(animation.getDuration(true) / 2)
+    animation.goToAndStop(middleFrame, true)
 
-  let croppedImage
-
-  if (imageMetadata.format === 'webp') {
-    const jimpImage = await Jimp.read(sharpPng)
-
-    croppedImage = await jimpImage.autocrop(false).getBufferAsync(Jimp.MIME_PNG)
+    return canvas
   } else {
-    const smartcropResult = await smartcrop.crop(sharpPng, { width: mediaSize, height: imageMetadata.height })
-    const crop = smartcropResult.topCrop
+    const imageSharp = sharp(load)
+    const imageMetadata = await imageSharp.metadata()
+    const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
 
-    croppedImage = imageSharp.extract({ width: crop.width, height: crop.height, left: crop.x, top: crop.y })
-    croppedImage = await imageSharp.png({ lossless: true, force: true }).toBuffer()
+    let croppedImage
+
+    if (imageMetadata.format === 'webp') {
+      const jimpImage = await Jimp.read(sharpPng)
+
+      croppedImage = await jimpImage.autocrop(false).getBufferAsync(Jimp.MIME_PNG)
+    } else {
+      const smartcropResult = await smartcrop.crop(sharpPng, { width: mediaSize, height: imageMetadata.height })
+      const crop = smartcropResult.topCrop
+
+      croppedImage = imageSharp.extract({ width: crop.width, height: crop.height, left: crop.x, top: crop.y })
+      croppedImage = await imageSharp.png({ lossless: true, force: true }).toBuffer()
+    }
+
+    return loadCanvasImage(croppedImage)
   }
-
-  return loadCanvasImage(croppedImage)
 }
 
 // https://codepen.io/andreaswik/pen/YjJqpK

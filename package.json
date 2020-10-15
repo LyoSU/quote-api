@@ -1,6 +1,6 @@
 {
   "name": "quote-api",
-  "version": "0.5.14",
+  "version": "0.6.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -24,12 +24,15 @@
     "dotenv": "^7.0.0",
     "emoji-db": "^1.10.0",
     "jimp": "^0.16.1",
+    "jsdom": "^16.4.0",
     "koa": "^2.11.0",
     "koa-bodyparser": "^4.2.1",
     "koa-logger": "^3.2.1",
     "koa-ratelimit": "^4.2.1",
     "koa-response-time": "^2.1.0",
     "koa-router": "^7.4.0",
+    "lottie-node": "^1.0.0",
+    "lottie-web": "^5.7.3",
     "lru-cache": "^5.1.1",
     "object-sizeof": "^1.6.0",
     "runes": "^0.4.3",
