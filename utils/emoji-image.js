@@ -77,6 +77,6 @@ async function downloadEmoji () {
   // })
 }
 
-downloadEmoji()
+// downloadEmoji()
 
 module.exports = emojiImageJson
