@@ -85,7 +85,7 @@ module.exports = async (parm) => {
 
   let quoteImage
 
-  let type = parm.type
+  let { type, format } = parm
 
   if (type !== 'image' && canvasQuote.height > 1024 * 2) type = 'png'
 
@@ -111,7 +111,8 @@ module.exports = async (parm) => {
     if (canvasPadding.height >= canvasPadding.width) imageSharp.resize({ height: maxHeight })
     else imageSharp.resize({ width: maxWidth })
 
-    quoteImage = await imageSharp.webp({ lossless: true, force: true }).toBuffer()
+    if (format === 'png') quoteImage = await imageSharp.png().toBuffer()
+    else quoteImage = await imageSharp.webp({ lossless: true, force: true }).toBuffer()
   } else if (type === 'image') {
     const padding = 25
 
