@@ -11,43 +11,91 @@ POST/GET /generate
 ```json
 {
   "type": "quote",
-  "backgroundColor": "#130f1c",
+  "backgroundColor": "#1b1429",
   "width": 512,
   "height": 768,
   "scale": 2,
   "messages": [
     {
-      "message": {
-        "chatId": 66478514,
-        "avatar": true,
-        "from": {
-          "id": 66478514,
-          "name": "Yuri 💜 Ly",
-          "username": "LyoSU",
-          "photo": {
-            "small_file_id": "AQADAgADxakxG7Jh9gMACLP-UJEuAAMCAAOyYfYDAATieVimvJOu7MNPBAABGQQ",
-            "small_file_unique_id": "AQADs_5QkS4AA8NPBAAB",
-            "big_file_id": "AQADAgADxakxG7Jh9gMACLP-UJEuAAMDAAOyYfYDAATieVimvJOu7MVPBAABGQQ",
-            "big_file_unique_id": "AQADs_5QkS4AA8VPBAAB"
-          }
+      "entities": {},
+      "chatId": 66478514,
+      "avatar": true,
+      "from": {
+        "id": 66478514,
+        "first_name": "Yuri",
+        "last_name": "💜 Ly",
+        "username": "LyoSU",
+        "language_code": "ru",
+        "title": "Yuri 💜 Ly",
+        "photo": {
+          "small_file_id": "AQADAgAD-qkxG7Jh9gMACIreFJguAAMCAAOyYfYDAATieVimvJOu7CjBAQABGQQ",
+          "small_file_unique_id": "AQADit4UmC4AAyjBAQAB",
+          "big_file_id": "AQADAgAD-qkxG7Jh9gMACIreFJguAAMDAAOyYfYDAATieVimvJOu7CrBAQABGQQ",
+          "big_file_unique_id": "AQADit4UmC4AAyrBAQAB"
         },
-        "text": "Hello world!"
+        "type": "private",
+        "name": "Yuri 💜 Ly"
       },
-      "replyMessage": {},
-      "entities": []
-    },
+      "text": "Hello",
+      "replyMessage": {}
+    }
+  ]
+}
+```
+
+Медиа:
+```
+{
+  "type": "quote",
+  "backgroundColor": "#1b1429",
+  "width": 512,
+  "height": 768,
+  "scale": 2,
+  "messages": [
     {
-      "message": {
-        "chatId": 66478514,
-        "from": {
-          "id": 66478514,
-          "name": false,
-          "username": "LyoSU"
+      "entities": [],
+      "media": [
+        {
+          "file_id": "AgACAgIAAxkBAAIqWl-gczsNnJRCvw8lFjxcq20emvL3AAKLsjEbNigAAUk02TM0mPO1SxhxZpouAAMBAAMCAANtAAMDUwACGQQ",
+          "file_unique_id": "AQADGHFmmi4AAwNTAAI",
+          "file_size": 17115,
+          "height": 180,
+          "width": 320
         },
-        "text": "Я люблю тебя ❤️"
+        {
+          "file_id": "AgACAgIAAxkBAAIqWl-gczsNnJRCvw8lFjxcq20emvL3AAKLsjEbNigAAUk02TM0mPO1SxhxZpouAAMBAAMCAAN4AAMEUwACGQQ",
+          "file_unique_id": "AQADGHFmmi4AAwRTAAI",
+          "file_size": 70933,
+          "height": 450,
+          "width": 800
+        },
+        {
+          "file_id": "AgACAgIAAxkBAAIqWl-gczsNnJRCvw8lFjxcq20emvL3AAKLsjEbNigAAUk02TM0mPO1SxhxZpouAAMBAAMCAAN5AAMFUwACGQQ",
+          "file_unique_id": "AQADGHFmmi4AAwVTAAI",
+          "file_size": 133413,
+          "height": 720,
+          "width": 1280
+        }
+      ],
+      "chatId": 66478514,
+      "avatar": true,
+      "from": {
+        "id": 66478514,
+        "first_name": "Yuri",
+        "last_name": "💜 Ly",
+        "username": "LyoSU",
+        "language_code": "ru",
+        "title": "Yuri 💜 Ly",
+        "photo": {
+          "small_file_id": "AQADAgAD-qkxG7Jh9gMACIreFJguAAMCAAOyYfYDAATieVimvJOu7CjBAQABGQQ",
+          "small_file_unique_id": "AQADit4UmC4AAyjBAQAB",
+          "big_file_id": "AQADAgAD-qkxG7Jh9gMACIreFJguAAMDAAOyYfYDAATieVimvJOu7CrBAQABGQQ",
+          "big_file_unique_id": "AQADit4UmC4AAyrBAQAB"
+        },
+        "type": "private",
+        "name": "Yuri 💜 Ly"
       },
-      "replyMessage": {},
-      "entities": []
+      "replyMessage": {}
     }
   ]
 }
