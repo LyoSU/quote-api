@@ -44,7 +44,7 @@ POST/GET /generate
 ```
 
 Медиа:
-```
+```json
 {
   "type": "quote",
   "backgroundColor": "#1b1429",
