@@ -97,9 +97,7 @@ const downloadAvatarImage = async (user) => {
     try {
       let userPhoto, userPhotoUrl
 
-      if (user.photo && user.photo.big_file_id) {
-        userPhotoUrl = await telegram.getFileLink(user.photo.big_file_id).catch(console.error)
-      }
+      if (user.photo && user.photo.big_file_id) userPhotoUrl = await telegram.getFileLink(user.photo.big_file_id).catch(console.error)
 
       if (!userPhotoUrl) {
         const getChat = await telegram.getChat(user.id).catch(console.error)
@@ -107,8 +105,9 @@ const downloadAvatarImage = async (user) => {
 
         if (userPhoto) userPhotoUrl = await telegram.getFileLink(userPhoto).catch(console.error)
         else if (user.username) userPhotoUrl = `https://telega.one/i/userpic/320/${user.username}.jpg`
-        else userPhotoUrl = await avatarImageLatters(nameLatters, avatarColor)
       }
+
+      if (!userPhotoUrl) avatarImage = await loadCanvasImage(await avatarImageLatters(nameLatters, avatarColor))
 
       avatarImage = await loadCanvasImage(userPhotoUrl)
 
