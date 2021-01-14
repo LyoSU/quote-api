@@ -103,20 +103,14 @@ POST/GET /generate
       "media": {
         "url": "https://via.placeholder.com/1000"
       },
-      "chatId": 66478514,
       "avatar": true,
       "from": {
-        "id": 66478514,
-        "first_name": "Yuri 💜",
-        "last_name": "Ly",
+        "id": 1,
+        "first_name": "Mike",
         "username": "LyoSU",
-        "language_code": "ru",
-        "title": "Yuri 💜 Ly",
         "photo": {
           "url": "https://via.placeholder.com/100"
         },
-        "type": "private",
-        "name": "Yuri 💜 Ly"
       },
       "text": "Hey",
       "replyMessage": {}
