@@ -106,7 +106,7 @@ POST/GET /generate
       "avatar": true,
       "from": {
         "id": 1,
-        "first_name": "Mike",
+        "name": "Mike",
         "username": "LyoSU",
         "photo": {
           "url": "https://via.placeholder.com/100"
