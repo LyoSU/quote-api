@@ -93,6 +93,8 @@ const downloadAvatarImage = async (user) => {
 
   if (avatarImageCache) {
     avatarImage = avatarImageCache
+  } else if (user.photo && user.photo.url) {
+    avatarImage = await loadCanvasImage(user.photo.url)
   } else {
     try {
       let userPhoto, userPhotoUrl
@@ -128,8 +130,10 @@ const ungzip = (input, options) => {
   })
 }
 
-const downloadMediaImage = async (mediaFileId, mediaSize) => {
-  const mediaUrl = await telegram.getFileLink(mediaFileId).catch(console.error)
+const downloadMediaImage = async (media, mediaSize, type = 'id') => {
+  let mediaUrl
+  if (type === 'id') mediaUrl = await telegram.getFileLink(media).catch(console.error)
+  else mediaUrl = media
   const load = await loadImageFromUrl(mediaUrl)
   if (mediaUrl.match(/.tgs/)) {
     const jsonLottie = await ungzip(load)
@@ -692,7 +696,8 @@ module.exports = async (backgroundColor, message, width = 512, height = 512, sca
   // https://github.com/telegramdesktop/tdesktop/blob/67d08c2d4064e04bec37454b5b32c5c6e606420a/Telegram/SourceFiles/data/data_peer.cpp#L43
   const nameMap = [0, 7, 4, 1, 6, 3, 5]
 
-  const nameIndex = Math.abs(message.chatId) % 7
+  let nameIndex = 1
+  if (message.chatId) nameIndex = Math.abs(message.chatId) % 7
 
   const nameColorIndex = nameMap[nameIndex]
   const nameColorPalette = backStyle === 'light' ? nameColorLight : nameColorDark
@@ -741,14 +746,21 @@ module.exports = async (backgroundColor, message, width = 512, height = 512, sca
 
   let mediaCanvas, mediaType, maxMediaSize
   if (message.media) {
-    let media
-    if (message.media.length > 1) media = message.media[1]
-    else media = message.media[0]
+    let media, type
+
+    if (message.media.url) {
+      type = 'url'
+      media = message.media.url
+    } else {
+      type = 'id'
+      if (message.media.length > 1) media = message.media[1]
+      else media = message.media[0]
+    }
 
     maxMediaSize = width / 3 * scale
     if (message.text && maxMediaSize < textCanvas.width) maxMediaSize = textCanvas.width
 
-    mediaCanvas = await downloadMediaImage(media, maxMediaSize)
+    mediaCanvas = await downloadMediaImage(media, maxMediaSize, type)
     mediaType = message.mediaType
   }
 
