@@ -100,9 +100,9 @@ POST/GET /generate
   "messages": [
     {
       "entities": [],
-      "media": [
+      "media": {
         "url": "https://via.placeholder.com/1000"
-      ],
+      },
       "chatId": 66478514,
       "avatar": true,
       "from": {
