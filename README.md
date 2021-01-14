@@ -107,7 +107,6 @@ POST/GET /generate
       "from": {
         "id": 1,
         "name": "Mike",
-        "username": "LyoSU",
         "photo": {
           "url": "https://via.placeholder.com/100"
         },
