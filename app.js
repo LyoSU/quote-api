@@ -30,7 +30,7 @@ app.use(ratelimit({
     reset: 'Rate-Limit-Reset',
     total: 'Rate-Limit-Total'
   },
-  max: 10,
+  max: 30,
   disableHeader: false,
   whitelist: (ctx) => {
     return ctx.hostname === 'localhost'
