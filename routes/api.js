@@ -8,7 +8,6 @@ const apiHandle = async (ctx) => {
 }
 
 api
-  .get('/', apiHandle)
-  .post('/', apiHandle)
+  .all('/', apiHandle)
 
 module.exports = api

@@ -16,7 +16,7 @@ const ratelimitВb = new Map()
 app.use(ratelimit({
   driver: 'memory',
   db: ratelimitВb,
-  duration: 1000 * 30,
+  duration: 1000 * 60,
   errorMessage: {
     ok: false,
     error: {
