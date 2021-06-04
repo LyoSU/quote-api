@@ -7,7 +7,7 @@
 ## Методы
 ##### Создание цитаты
 ```http
-POST/GET /generate
+POST /generate
 ```
 
 Пример JSON запроса:
