@@ -112,7 +112,7 @@ POST/GET /generate
         "name": "Mike",
         "photo": {
           "url": "https://via.placeholder.com/100"
-        },
+        }
       },
       "text": "Hey",
       "replyMessage": {}
