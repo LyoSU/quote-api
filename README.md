@@ -2,7 +2,7 @@
 
 [![wakatime](https://wakatime.com/badge/github/LyoSU/quote-api.svg)](https://wakatime.com/badge/github/LyoSU/quote-api)
 
-Апи для генерерации Telegram цитат
+Апи для генерации Telegram цитат
 
 ## Методы
 ##### Создание цитаты
@@ -129,7 +129,7 @@ POST /generate
 |  messages | array | Массив из сообщений |
 | width | number | Максимальная ширина |
 | height | number | Максимальная высота |
-| scale | number | Маштаб |
+| scale | number | Маcштаб |
 
 Пример ответа:
 
