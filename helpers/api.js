@@ -22,7 +22,7 @@ module.exports = async (ctx, next) => {
           ctx.response.set('quote-type', ctx.result.type)
           ctx.response.set('quote-width', ctx.result.width)
           ctx.response.set('quote-height', ctx.result.height)
-          ctx.body = ctx.result
+          ctx.body = ctx.result.image
         } else {
           ctx.body = {
             ok: true,

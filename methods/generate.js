@@ -148,8 +148,12 @@ module.exports = async (parm) => {
   const width = imageMetadata.width
   const height = imageMetadata.height
 
+  let image
+  if (ext) image = quoteImage
+  else image = quoteImage.toString('base64')
+
   return {
-    image: quoteImage.toString('base64'),
+    image,
     type,
     width,
     height,
