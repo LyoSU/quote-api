@@ -4,10 +4,11 @@ const api = new Router()
 const method = require('../methods')
 
 const apiHandle = async (ctx) => {
-  ctx.result = await method(ctx.params[0], ctx.props)
+  const methodWithExt = ctx.params[0].match(/(.*).(png)/)
+  if (methodWithExt) ctx.props.ext = methodWithExt[2]
+  ctx.result = await method(methodWithExt ? methodWithExt[1] : ctx.params[0], ctx.props)
 }
 
-api
-  .post('/', apiHandle)
+api.post('/', apiHandle)
 
 module.exports = api

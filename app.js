@@ -16,12 +16,12 @@ const ratelimitВb = new Map()
 app.use(ratelimit({
   driver: 'memory',
   db: ratelimitВb,
-  duration: 1000 * 60,
+  duration: 1000 * 55,
   errorMessage: {
     ok: false,
     error: {
       code: 429,
-      message: 'rate limit'
+      message: 'Rate limit exceeded. See "Retry-After"'
     }
   },
   id: (ctx) => ctx.ip,
@@ -30,10 +30,10 @@ app.use(ratelimit({
     reset: 'Rate-Limit-Reset',
     total: 'Rate-Limit-Total'
   },
-  max: 30,
+  max: 3,
   disableHeader: false,
   whitelist: (ctx) => {
-    return ctx.hostname === 'localhost'
+    return ctx.query.botToken === process.env.BOT_TOKEN
   },
   blacklist: (ctx) => {
   }

@@ -17,9 +17,17 @@ module.exports = async (ctx, next) => {
           }
         }
       } else {
-        ctx.body = {
-          ok: true,
-          result: ctx.result
+        if (ctx.result.ext) {
+          ctx.response.set('content-type', 'image/png')
+          ctx.response.set('quote-type', ctx.result.type)
+          ctx.response.set('quote-width', ctx.result.width)
+          ctx.response.set('quote-height', ctx.result.height)
+          ctx.body = ctx.result
+        } else {
+          ctx.body = {
+            ok: true,
+            result: ctx.result
+          }
         }
       }
     }

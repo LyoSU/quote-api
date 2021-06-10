@@ -1,5 +1,5 @@
 const {
-  generateQuote,
+  QuoteGenerate,
   loadCanvasImage
 } = require('../utils')
 const { createCanvas } = require('canvas')
@@ -36,6 +36,10 @@ module.exports = async (parm) => {
   if (!parm) return { error: 'query_empty' }
   if (!parm.messages || parm.messages.length < 1) return { error: 'messages_empty' }
 
+  let botToken = parm.botToken || process.env.BOT_TOKEN
+
+  const quoteGenerate = new QuoteGenerate(botToken)
+
   parm.backgroundColor = normalizeColor(parm.backgroundColor)
 
   const quoteImages = []
@@ -44,7 +48,7 @@ module.exports = async (parm) => {
     const message = parm.messages[key]
 
     if (message) {
-      const canvasQuote = await generateQuote(parm.backgroundColor, message, parm.width, parm.height, parm.scale)
+      const canvasQuote = await quoteGenerate.generate(parm.backgroundColor, message, parm.width, parm.height, parm.scale)
 
       quoteImages.push(canvasQuote)
     }
@@ -85,8 +89,9 @@ module.exports = async (parm) => {
 
   let quoteImage
 
-  let { type, format } = parm
+  let { type, format, ext } = parm
 
+  if (!type && ext) type = 'png'
   if (type !== 'image' && canvasQuote.height > 1024 * 2) type = 'png'
 
   if (type === 'quote') {
@@ -147,6 +152,7 @@ module.exports = async (parm) => {
     image: quoteImage.toString('base64'),
     type,
     width,
-    height
+    height,
+    ext
   }
 }
