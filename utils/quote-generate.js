@@ -332,7 +332,7 @@ class QuoteGenerate {
       }
 
       let fontType = ''
-      let fontName = 'SF-Pro-Text, SF-Pro'
+      let fontName = 'Noto'
       let fillStyle = fontColor
 
       if (styledWord.style.includes('bold')) {
@@ -342,7 +342,7 @@ class QuoteGenerate {
         fontType += 'italic '
       }
       if (styledWord.style.includes('monospace')) {
-        fontName = 'SF-Mono, SF-Pro'
+        fontName = 'SF'
         fillStyle = '#5887a7'
       }
       if (styledWord.style.includes('mention')) {
