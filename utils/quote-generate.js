@@ -342,7 +342,7 @@ class QuoteGenerate {
         fontType += 'italic '
       }
       if (styledWord.style.includes('monospace')) {
-        fontName = 'SF'
+        fontName = 'SFNSMono'
         fillStyle = '#5887a7'
       }
       if (styledWord.style.includes('mention')) {
