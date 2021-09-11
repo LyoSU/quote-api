@@ -20,7 +20,7 @@ function loadFont () {
   fs.readdir(fontsDir, (_err, files) => {
     files.forEach((file) => {
       try {
-        registerFont(`${fontsDir}${file}`, { family: file })
+        registerFont(`${fontsDir}${file}`, { family: file.replace(/\.[^/.]+$/, '') })
       } catch (error) {
         console.error(`${fontsDir}${file} not font file`)
       }
@@ -332,7 +332,7 @@ class QuoteGenerate {
       }
 
       let fontType = ''
-      let fontName = 'Noto'
+      let fontName = 'NotoSans'
       let fillStyle = fontColor
 
       if (styledWord.style.includes('bold')) {
