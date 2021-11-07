@@ -1,6 +1,6 @@
 {
   "name": "quote-api",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -22,7 +22,7 @@
     "canvas": "^2.7.0",
     "crypto": "^1.0.1",
     "dotenv": "^7.0.0",
-    "emoji-db": "^1.11.1",
+    "emoji-db": "^1.14.0",
     "jimp": "^0.16.1",
     "jsdom": "^16.5.3",
     "koa": "^2.11.0",
