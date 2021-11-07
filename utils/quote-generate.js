@@ -503,6 +503,42 @@ class QuoteGenerate {
     }
   }
 
+  drawLineSegment (ctx, x, y, width, isEven) {
+    ctx.lineWidth = 35 // how thick the line is
+    ctx.strokeStyle = '#aec6cf' // what color our line is
+    ctx.beginPath()
+    y = isEven ? y : -y
+    ctx.moveTo(x, 0)
+    ctx.lineTo(x, y)
+    ctx.arc(x + width / 2, y, width / 2, Math.PI, 0, isEven)
+    ctx.lineTo(x + width, 0)
+    ctx.stroke()
+  }
+
+  drawWaveform (data) {
+    const normalizedData = data.map(i => i / 32)
+
+    const canvas = createCanvas(4500, 500)
+    const padding = 20
+    canvas.height = (canvas.height + padding * 2)
+    const ctx = canvas.getContext('2d')
+    ctx.translate(0, canvas.height / 2 + padding)
+
+    // draw the line segments
+    const width = canvas.width / normalizedData.length
+    for (let i = 0; i < normalizedData.length; i++) {
+      const x = width * i
+      let height = normalizedData[i] * canvas.height - padding
+      if (height < 0) {
+        height = 0
+      } else if (height > canvas.height / 2) {
+        height = height > canvas.height / 2
+      }
+      this.drawLineSegment(ctx, x, height, width, (i + 1) % 2)
+    }
+    return canvas
+  }
+
   async drawQuote (scale = 1, backgroundColor, avatar, replyName, replyText, name, text, media, mediaType, maxMediaSize) {
     const blockPosX = 55 * scale
     const blockPosY = 0
@@ -763,6 +799,11 @@ class QuoteGenerate {
 
       mediaCanvas = await this.downloadMediaImage(media, maxMediaSize, type)
       mediaType = message.mediaType
+    }
+
+    if (message.voice) {
+      mediaCanvas = this.drawWaveform(message.voice.waveform)
+      maxMediaSize = width / 3 * scale
     }
 
     const quote = this.drawQuote(
