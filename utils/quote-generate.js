@@ -133,7 +133,7 @@ class QuoteGenerate {
     })
   }
 
-  async downloadMediaImage (media, mediaSize, type = 'id') {
+  async downloadMediaImage (media, mediaSize, type = 'id', crop = true) {
     let mediaUrl
     if (type === 'id') mediaUrl = await this.telegram.getFileLink(media).catch(console.error)
     else mediaUrl = media
@@ -146,7 +146,7 @@ class QuoteGenerate {
       animation.goToAndStop(middleFrame, true)
 
       return canvas
-    } else {
+    } else if (crop) {
       const imageSharp = sharp(load)
       const imageMetadata = await imageSharp.metadata()
       const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
@@ -166,6 +166,8 @@ class QuoteGenerate {
       }
 
       return loadCanvasImage(croppedImage)
+    } else {
+      return loadCanvasImage(load)
     }
   }
 
@@ -216,7 +218,7 @@ class QuoteGenerate {
     const canvasCtx = canvas.getContext('2d')
 
     text = text.slice(0, 4096)
-    text = text.replace(/і/g, 'i')
+    text = text.replace(/і/g, 'i') // замена украинской буквы і на английскую, так как она отсутствует в шрифтах Noto
     const chars = text.split('')
 
     const lineHeight = 4 * (fontSize * 0.3)
@@ -519,7 +521,7 @@ class QuoteGenerate {
     const normalizedData = data.map(i => i / 32)
 
     const canvas = createCanvas(4500, 500)
-    const padding = 20
+    const padding = 50
     canvas.height = (canvas.height + padding * 2)
     const ctx = canvas.getContext('2d')
     ctx.translate(0, canvas.height / 2 + padding)
@@ -785,19 +787,25 @@ class QuoteGenerate {
     if (message.media) {
       let media, type
 
+      let crop = true
+      if (message.media.crop) crop = message.media
+      else if (scale > 2) crop = false
+
       if (message.media.url) {
         type = 'url'
         media = message.media.url
       } else {
         type = 'id'
-        if (message.media.length > 1) media = message.media[1]
-        else media = message.media[0]
+        if (message.media.length > 1) {
+          if (crop) media = message.media[1]
+          else media = message.media.pop()
+        } else media = message.media[0]
       }
 
       maxMediaSize = width / 3 * scale
       if (message.text && maxMediaSize < textCanvas.width) maxMediaSize = textCanvas.width
 
-      mediaCanvas = await this.downloadMediaImage(media, maxMediaSize, type)
+      mediaCanvas = await this.downloadMediaImage(media, maxMediaSize, type, crop)
       mediaType = message.mediaType
     }
 
