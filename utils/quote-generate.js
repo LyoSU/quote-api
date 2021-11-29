@@ -66,7 +66,7 @@ class QuoteGenerate {
     let nameLatters
     if (user.first_name && user.last_name) nameLatters = runes(user.first_name)[0] + (runes(user.last_name || '')[0])
     else {
-      let name = user.first_name || user.name
+      let name = user.first_name || user.name || user.title
       name = name.toUpperCase()
       const nameWord = name.split(' ')
 
