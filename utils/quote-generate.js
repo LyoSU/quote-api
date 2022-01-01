@@ -171,6 +171,13 @@ class QuoteGenerate {
     }
   }
 
+  hexToRgb (hex) {
+    return hex.replace(/^#?([a-f\d])([a-f\d])([a-f\d])$/i
+      , (m, r, g, b) => '#' + r + r + g + g + b + b)
+      .substring(1).match(/.{2}/g)
+      .map(x => parseInt(x, 16))
+  }
+
   // https://codepen.io/andreaswik/pen/YjJqpK
   lightOrDark (color) {
     let r, g, b
@@ -243,14 +250,16 @@ class QuoteGenerate {
         const entity = entities[entityIndex]
         const style = []
 
-        if (entity.type === 'bold') style.push('bold')
-        if (entity.type === 'italic') style.push('italic')
-        if (entity.type === 'strikethrough') style.push('strikethrough')
-        if (entity.type === 'underline') style.push('underline')
         if (['pre', 'code'].includes(entity.type)) {
           style.push('monospace')
+        } else if (
+          ['mention', 'text_mention', 'hashtag', 'email', 'phone_number', 'bot_command', 'url', 'text_link']
+            .includes(entity.type)
+        ) {
+          style.push('mention')
+        } else {
+          style.push(entity.type)
         }
-        if (['mention', 'text_mention', 'hashtag', 'email', 'phone_number', 'bot_command', 'url', 'text_link'].includes(entity.type)) style.push('mention')
 
         for (let charIndex = entity.offset; charIndex < entity.offset + entity.length; charIndex++) {
           styledChar[charIndex].style = styledChar[charIndex].style.concat(style)
@@ -349,6 +358,10 @@ class QuoteGenerate {
       }
       if (styledWord.style.includes('mention')) {
         fillStyle = '#6ab7ec'
+      }
+      if (styledWord.style.includes('spoiler')) {
+        const rbaColor = this.hexToRgb(this.normalizeColor(fontColor))
+        fillStyle = `rgba(${rbaColor[0]}, ${rbaColor[1]}, ${rbaColor[2]}, 0.4)`
       }
       // else {
       //   canvasCtx.font = `${fontSize}px OpenSans`
@@ -599,8 +612,8 @@ class QuoteGenerate {
       replyNamePosY = namePosY + replyNameHeight
       replyTextPosY = replyNamePosY + replyTextHeight
 
-      textPosY += replyNameHeight + replyTextHeight
-      height += replyNameHeight + replyTextHeight
+      textPosY += replyNameHeight + replyTextHeight + (indent / 2)
+      height += replyNameHeight + replyTextHeight + (indent / 2)
     }
 
     let mediaPosX = 0
@@ -666,7 +679,7 @@ class QuoteGenerate {
       const backStyle = this.lightOrDark(backgroundColor)
       let lineColor = '#fff'
       if (backStyle === 'light') lineColor = '#000'
-      canvasCtx.drawImage(this.deawReplyLine(3 * scale, replyName.height + replyText.height * 0.4, lineColor), textPosX, replyNamePosY)
+      canvasCtx.drawImage(this.deawReplyLine(3 * scale, replyName.height + replyText.height * 0.4, lineColor), textPosX - 7, replyNamePosY)
 
       canvasCtx.drawImage(replyName, replyPosX, replyNamePosY)
       canvasCtx.drawImage(replyText, replyPosX, replyTextPosY)
@@ -780,7 +793,7 @@ class QuoteGenerate {
       if (backStyle === 'light') textColor = '#000'
 
       const replyTextFontSize = 21 * scale
-      replyText = await this.drawMultilineText(message.replyMessage.text, null, replyTextFontSize, textColor, 0, replyTextFontSize, width * 0.9, replyTextFontSize)
+      replyText = await this.drawMultilineText(message.replyMessage.text, message.replyMessage.entities, replyTextFontSize, textColor, 0, replyTextFontSize, width * 0.9, replyTextFontSize)
     }
 
     let mediaCanvas, mediaType, maxMediaSize
