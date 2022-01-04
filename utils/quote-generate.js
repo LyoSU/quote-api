@@ -800,9 +800,8 @@ class QuoteGenerate {
     if (message.media) {
       let media, type
 
-      let crop = true
-      if (message.media.crop) crop = message.media
-      else if (scale > 2) crop = false
+      let crop = false
+      if (message.mediaCrop) crop = true
 
       if (message.media.url) {
         type = 'url'
