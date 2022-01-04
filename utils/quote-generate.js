@@ -361,7 +361,7 @@ class QuoteGenerate {
       }
       if (styledWord.style.includes('spoiler')) {
         const rbaColor = this.hexToRgb(this.normalizeColor(fontColor))
-        fillStyle = `rgba(${rbaColor[0]}, ${rbaColor[1]}, ${rbaColor[2]}, 0.3)`
+        fillStyle = `rgba(${rbaColor[0]}, ${rbaColor[1]}, ${rbaColor[2]}, 0.1)`
       }
       // else {
       //   canvasCtx.font = `${fontSize}px OpenSans`
