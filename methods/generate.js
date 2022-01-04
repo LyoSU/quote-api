@@ -1,8 +1,7 @@
 const {
-  QuoteGenerate,
-  loadCanvasImage
+  QuoteGenerate
 } = require('../utils')
-const { createCanvas } = require('canvas')
+const { createCanvas, loadImage } = require('canvas')
 const sharp = require('sharp')
 
 // https://codepen.io/jreyesgs/pen/yadmge
@@ -104,7 +103,7 @@ module.exports = async (parm) => {
     if (canvasQuote.height > canvasQuote.width) imageQuoteSharp.resize({ height: maxHeight })
     else imageQuoteSharp.resize({ width: maxWidth })
 
-    const canvasImage = await loadCanvasImage(await imageQuoteSharp.toBuffer())
+    const canvasImage = await loadImage(await imageQuoteSharp.toBuffer())
 
     const canvasPadding = createCanvas(canvasImage.width, canvasImage.height + downPadding)
     const canvasPaddingCtx = canvasPadding.getContext('2d')
@@ -121,7 +120,7 @@ module.exports = async (parm) => {
   } else if (type === 'image') {
     const padding = 25
 
-    const canvasImage = await loadCanvasImage(canvasQuote.toBuffer())
+    const canvasImage = await loadImage(canvasQuote.toBuffer())
 
     const canvasPic = createCanvas(canvasImage.width + padding * 2, canvasImage.height + padding * 2)
     const canvasPicCtx = canvasPic.getContext('2d')
@@ -129,8 +128,8 @@ module.exports = async (parm) => {
     canvasPicCtx.fillStyle = lighten(parm.backgroundColor, 20)
     canvasPicCtx.fillRect(0, 0, canvasPic.width + padding, canvasPic.height + padding)
 
-    const canvasPatternImage = await loadCanvasImage('./assets/pattern_02.png')
-    // const canvasPatternImage = await loadCanvasImage('./assets/pattern_ny.png')
+    const canvasPatternImage = await loadImage('./assets/pattern_02.png')
+    // const canvasPatternImage = await loadImage('./assets/pattern_ny.png')
 
     const pattern = canvasPicCtx.createPattern(canvasPatternImage, 'repeat')
     canvasPicCtx.fillStyle = pattern

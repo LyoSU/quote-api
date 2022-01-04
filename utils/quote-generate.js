@@ -1,7 +1,7 @@
 const fs = require('fs')
 const { createCanvas, registerFont } = require('canvas')
 const EmojiDbLib = require('emoji-db')
-const loadCanvasImage = require('./canvas-image-load')
+const { loadImage } = require('canvas')
 const loadImageFromUrl = require('./image-load-url')
 const sharp = require('sharp')
 const Jimp = require('jimp')
@@ -97,7 +97,7 @@ class QuoteGenerate {
     if (avatarImageCache) {
       avatarImage = avatarImageCache
     } else if (user.photo && user.photo.url) {
-      avatarImage = await loadCanvasImage(user.photo.url)
+      avatarImage = await loadImage(user.photo.url)
     } else {
       try {
         let userPhoto, userPhotoUrl
@@ -110,14 +110,14 @@ class QuoteGenerate {
 
           if (userPhoto) userPhotoUrl = await this.telegram.getFileLink(userPhoto)
           else if (user.username) userPhotoUrl = `https://telega.one/i/userpic/320/${user.username}.jpg`
-          else avatarImage = await loadCanvasImage(await this.avatarImageLatters(nameLatters, avatarColor))
+          else avatarImage = await loadImage(await this.avatarImageLatters(nameLatters, avatarColor))
         }
 
-        if (userPhotoUrl) avatarImage = await loadCanvasImage(userPhotoUrl)
+        if (userPhotoUrl) avatarImage = await loadImage(userPhotoUrl)
 
         avatarCache.set(cacheKey, avatarImage)
       } catch (error) {
-        avatarImage = await loadCanvasImage(await this.avatarImageLatters(nameLatters, avatarColor))
+        avatarImage = await loadImage(await this.avatarImageLatters(nameLatters, avatarColor))
       }
     }
 
@@ -165,9 +165,9 @@ class QuoteGenerate {
         croppedImage = await imageSharp.png({ lossless: true, force: true }).toBuffer()
       }
 
-      return loadCanvasImage(croppedImage)
+      return loadImage(croppedImage)
     } else {
-      return loadCanvasImage(load)
+      return loadImage(load)
     }
   }
 
@@ -330,13 +330,13 @@ class QuoteGenerate {
 
       if (styledWord.emoji) {
         if (emojiImageJson && emojiImageJson[styledWord.emoji.code]) {
-          emojiImage = await loadCanvasImage(Buffer.from(emojiImageJson[styledWord.emoji.code], 'base64'))
+          emojiImage = await loadImage(Buffer.from(emojiImageJson[styledWord.emoji.code], 'base64'))
         } else {
           const emojiDataDir = 'assets/emojis/'
           const emojiPng = `${emojiDataDir}${styledWord.emoji.code}.png`
 
           try {
-            emojiImage = await loadCanvasImage(emojiPng)
+            emojiImage = await loadImage(emojiPng)
           } catch (error) {
           }
         }
