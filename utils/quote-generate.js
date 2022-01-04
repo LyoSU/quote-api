@@ -146,7 +146,7 @@ class QuoteGenerate {
       animation.goToAndStop(middleFrame, true)
 
       return canvas
-    } else if (crop) {
+    } else if (crop || mediaUrl.match(/.webp/)) {
       const imageSharp = sharp(load)
       const imageMetadata = await imageSharp.metadata()
       const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()

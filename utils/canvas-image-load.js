@@ -1,10 +1,9 @@
-const { Image } = require('canvas')
+const { loadImage } = require('canvas')
 
 module.exports = (image) => {
   return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = reject
-    img.src = image
+    loadImage(image).then((image) => {
+      resolve(image)
+    })
   })
 }
