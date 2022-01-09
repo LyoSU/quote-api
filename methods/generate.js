@@ -47,7 +47,14 @@ module.exports = async (parm) => {
     const message = parm.messages[key]
 
     if (message) {
-      const canvasQuote = await quoteGenerate.generate(parm.backgroundColor, message, parm.width, parm.height, parm.scale)
+      const canvasQuote = await quoteGenerate.generate(
+        parm.backgroundColor,
+        message,
+        parm.width,
+        parm.height,
+        parm.scale,
+        parm.emojiBrand
+      )
 
       quoteImages.push(canvasQuote)
     }

@@ -32,7 +32,7 @@ function loadFont () {
 
 loadFont()
 
-const emojiImageJson = require('./emoji-image')
+const emojiImageByBrand = require('./emoji-image')
 
 const LRU = require('lru-cache')
 
@@ -54,7 +54,18 @@ class QuoteGenerate {
 
     context.fillStyle = color
     context.fillRect(0, 0, canvas.width, canvas.height)
-    const drawLetters = await this.drawMultilineText(letters, null, size / 2, '#FFF', 0, size, size * 5, size * 5)
+
+    const drawLetters = await this.drawMultilineText(
+      letters,
+      null,
+      size / 2,
+      '#FFF',
+      0,
+      size,
+      size * 5,
+      size * 5
+    )
+
     context.drawImage(drawLetters, (canvas.width - drawLetters.width) / 2, (canvas.height - drawLetters.height) / 1.5)
 
     return canvas.toBuffer()
@@ -217,9 +228,11 @@ class QuoteGenerate {
     }
   }
 
-  async drawMultilineText (text, entities, fontSize, fontColor, textX, textY, maxWidth, maxHeight) {
+  async drawMultilineText (text, entities, fontSize, fontColor, textX, textY, maxWidth, maxHeight, emijiBrand) {
     if (maxWidth > 10000) maxWidth = 10000
     if (maxHeight > 10000) maxHeight = 10000
+
+    const emojiImageJson = emojiImageByBrand[emijiBrand]
 
     const canvas = createCanvas(maxWidth + fontSize, maxHeight + fontSize)
     const canvasCtx = canvas.getContext('2d')
@@ -361,7 +374,7 @@ class QuoteGenerate {
       }
       if (styledWord.style.includes('spoiler')) {
         const rbaColor = this.hexToRgb(this.normalizeColor(fontColor))
-        fillStyle = `rgba(${rbaColor[0]}, ${rbaColor[1]}, ${rbaColor[2]}, 0.1)`
+        fillStyle = `rgba(${rbaColor[0]}, ${rbaColor[1]}, ${rbaColor[2]}, 0.15)`
       }
       // else {
       //   canvasCtx.font = `${fontSize}px OpenSans`
@@ -698,7 +711,7 @@ class QuoteGenerate {
     return color
   }
 
-  async generate (backgroundColor, message, width = 512, height = 512, scale) {
+  async generate (backgroundColor, message, width = 512, height = 512, scale = 2, emojiBrand = 'apple') {
     if (!scale) scale = 2
     if (scale > 20) scale = 20
     width *= scale
@@ -759,7 +772,19 @@ class QuoteGenerate {
     const nameSize = 22 * scale
 
     let nameCanvas
-    if (message.from.name) nameCanvas = await this.drawMultilineText(message.from.name, 'bold', nameSize, nameColor, 0, nameSize, width, nameSize)
+    if (message.from.name) {
+      nameCanvas = await this.drawMultilineText(
+        message.from.name,
+        'bold',
+        nameSize,
+        nameColor,
+        0,
+        nameSize,
+        width,
+        nameSize,
+        emojiBrand
+      )
+    }
 
     // const minFontSize = 18
     // const maxFontSize = 28
@@ -775,7 +800,19 @@ class QuoteGenerate {
     if (backStyle === 'light') textColor = '#000'
 
     let textCanvas
-    if (message.text) textCanvas = await this.drawMultilineText(message.text, message.entities, fontSize, textColor, 0, fontSize, width, height - fontSize)
+    if (message.text) {
+      textCanvas = await this.drawMultilineText(
+        message.text,
+        message.entities,
+        fontSize,
+        textColor,
+        0,
+        fontSize,
+        width,
+        height - fontSize,
+        emojiBrand
+      )
+    }
 
     let avatarCanvas
     if (message.avatar) avatarCanvas = await this.drawAvatar(message.from)
@@ -787,13 +824,35 @@ class QuoteGenerate {
       if (backStyle === 'light') replyNameColor = nameColorLight[nameMap[replyNameIndex]]
 
       const replyNameFontSize = 16 * scale
-      if (message.replyMessage.name) replyName = await this.drawMultilineText(message.replyMessage.name, 'bold', replyNameFontSize, replyNameColor, 0, replyNameFontSize, width * 0.9, replyNameFontSize)
+      if (message.replyMessage.name) {
+        replyName = await this.drawMultilineText(
+          message.replyMessage.name,
+          'bold',
+          replyNameFontSize,
+          replyNameColor,
+          0,
+          replyNameFontSize,
+          width * 0.9,
+          replyNameFontSize,
+          emojiBrand
+        )
+      }
 
       let textColor = '#fff'
       if (backStyle === 'light') textColor = '#000'
 
       const replyTextFontSize = 21 * scale
-      replyText = await this.drawMultilineText(message.replyMessage.text, message.replyMessage.entities, replyTextFontSize, textColor, 0, replyTextFontSize, width * 0.9, replyTextFontSize)
+      replyText = await this.drawMultilineText(
+        message.replyMessage.text,
+        message.replyMessage.entities,
+        replyTextFontSize,
+        textColor,
+        0,
+        replyTextFontSize,
+        width * 0.9,
+        replyTextFontSize,
+        emojiBrand
+      )
     }
 
     let mediaCanvas, mediaType, maxMediaSize
