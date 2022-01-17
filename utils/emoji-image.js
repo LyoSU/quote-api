@@ -11,19 +11,25 @@ const emojiJFilesDir = '../assets/emoji/'
 const brandFoledIds = {
   apple: 285,
   google: 313,
-  twitter: 282
+  twitter: 282,
+  joypixels: 291,
+  blob: 56
 }
 
 const emojiJsonByBrand = {
   apple: 'emoji-apple-image.json',
   google: 'emoji-google-image.json',
-  twitter: 'emoji-twitter-image.json'
+  twitter: 'emoji-twitter-image.json',
+  joypixels: 'emoji-joypixels-image.json',
+  blob: 'emoji-blob-image.json'
 }
 
 let emojiImageByBrand = {
   apple: [],
   google: [],
-  twitter: []
+  twitter: [],
+  joypixels: [],
+  blob: []
 }
 
 for (const brand in emojiJsonByBrand) {
@@ -37,7 +43,7 @@ for (const brand in emojiJsonByBrand) {
   } catch (error) {
     console.log(error)
   }
-  if (brand === 'google') downloadEmoji(brand)
+  if (brand === 'joypixels') downloadEmoji(brand)
 }
 
 async function downloadEmoji (brand) {
@@ -59,7 +65,10 @@ async function downloadEmoji (brand) {
 
     if (!emoji.qualified && !emojiImage[key]) {
       emojiPromiseArray.push(async () => {
-        const fileUrl = `${process.env.EMOJI_DOMAIN}/thumbs/60/${brand}/${brandFoledIds[brand]}/${emoji.image.file_name}`
+        let brandFolderName = brand
+        if (brand === 'blob') brandFolderName = 'google'
+
+        const fileUrl = `${process.env.EMOJI_DOMAIN}/thumbs/60/${brandFolderName}/${brandFoledIds[brand]}/${emoji.image.file_name}`
 
         const img = await loadImageFromUrl(fileUrl)
 
