@@ -228,7 +228,7 @@ class QuoteGenerate {
     }
   }
 
-  async drawMultilineText (text, entities, fontSize, fontColor, textX, textY, maxWidth, maxHeight, emojiBrand) {
+  async drawMultilineText (text, entities, fontSize, fontColor, textX, textY, maxWidth, maxHeight, emojiBrand = 'apple') {
     if (maxWidth > 10000) maxWidth = 10000
     if (maxHeight > 10000) maxHeight = 10000
 
