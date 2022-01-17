@@ -3,6 +3,10 @@ const https = require('https')
 module.exports = (url) => {
   return new Promise((resolve, reject) => {
     https.get(url, (res) => {
+      if (!res.headers['content-type'].match(/image/)) {
+        resolve(Buffer.concat([]))
+      }
+
       const chunks = []
 
       res.on('error', (err) => {

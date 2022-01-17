@@ -228,11 +228,16 @@ class QuoteGenerate {
     }
   }
 
-  async drawMultilineText (text, entities, fontSize, fontColor, textX, textY, maxWidth, maxHeight, emijiBrand) {
+  async drawMultilineText (text, entities, fontSize, fontColor, textX, textY, maxWidth, maxHeight, emojiBrand) {
     if (maxWidth > 10000) maxWidth = 10000
     if (maxHeight > 10000) maxHeight = 10000
 
-    const emojiImageJson = emojiImageByBrand[emijiBrand]
+    const emojiImageJson = emojiImageByBrand[emojiBrand]
+
+    let fallbackEmojiBrand = 'apple'
+    if (emojiBrand === 'blob') fallbackEmojiBrand = 'google'
+
+    const fallbackEmojiImageJson = emojiImageByBrand[fallbackEmojiBrand]
 
     const canvas = createCanvas(maxWidth + fontSize, maxHeight + fontSize)
     const canvasCtx = canvas.getContext('2d')
@@ -342,16 +347,16 @@ class QuoteGenerate {
       let emojiImage
 
       if (styledWord.emoji) {
-        if (emojiImageJson && emojiImageJson[styledWord.emoji.code]) {
-          emojiImage = await loadImage(Buffer.from(emojiImageJson[styledWord.emoji.code], 'base64'))
-        } else {
-          const emojiDataDir = 'assets/emojis/'
-          const emojiPng = `${emojiDataDir}${styledWord.emoji.code}.png`
-
-          try {
-            emojiImage = await loadImage(emojiPng)
-          } catch (error) {
-          }
+        const emojiImageBase = emojiImageJson[styledWord.emoji.code]
+        if (emojiImageBase) {
+          emojiImage = await loadImage(
+            Buffer.from(emojiImageBase, 'base64')
+          ).catch(() => {})
+        }
+        if (!emojiImage) {
+          emojiImage = await loadImage(
+            Buffer.from(fallbackEmojiImageJson[styledWord.emoji.code], 'base64')
+          ).catch(() => {})
         }
       }
 

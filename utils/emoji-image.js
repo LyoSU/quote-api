@@ -43,7 +43,7 @@ for (const brand in emojiJsonByBrand) {
   } catch (error) {
     console.log(error)
   }
-  if (brand === 'joypixels') downloadEmoji(brand)
+  if (brand === 'blob') downloadEmoji(brand)
 }
 
 async function downloadEmoji (brand) {
@@ -72,9 +72,13 @@ async function downloadEmoji (brand) {
 
         const img = await loadImageFromUrl(fileUrl)
 
-        return {
-          key,
-          base64: img.toString('base64')
+        const base64 = img.toString('base64')
+
+        if (base64) {
+          return {
+            key,
+            base64
+          }
         }
       })
     }
@@ -83,7 +87,7 @@ async function downloadEmoji (brand) {
   const donwloadResult = await promiseAllStepN(200)(emojiPromiseArray)
 
   for (const emojiData of donwloadResult) {
-    emojiImage[emojiData.key] = emojiData.base64
+    if (emojiData) emojiImage[emojiData.key] = emojiData.base64
   }
 
   if (Object.keys(emojiImage).length > 0) {
