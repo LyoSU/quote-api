@@ -43,7 +43,7 @@ for (const brand in emojiJsonByBrand) {
   } catch (error) {
     console.log(error)
   }
-  // if (brand === 'blob') downloadEmoji(brand)
+  if (brand === 'blob') downloadEmoji(brand)
 }
 
 async function downloadEmoji (brand) {
@@ -70,7 +70,9 @@ async function downloadEmoji (brand) {
 
         const fileUrl = `${process.env.EMOJI_DOMAIN}/thumbs/60/${brandFolderName}/${brandFoledIds[brand]}/${emoji.image.file_name}`
 
-        const img = await loadImageFromUrl(fileUrl)
+        const img = await loadImageFromUrl(fileUrl, (headers) => {
+          return !headers['content-type'].match(/image/)
+        })
 
         const base64 = img.toString('base64')
 
