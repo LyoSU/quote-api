@@ -1,6 +1,6 @@
 const https = require('https')
 
-module.exports = (url, filter = null) => {
+module.exports = (url, filter = false) => {
   return new Promise((resolve, reject) => {
     https.get(url, (res) => {
       if (filter(res.headers)) {
