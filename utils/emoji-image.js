@@ -43,7 +43,7 @@ for (const brand in emojiJsonByBrand) {
   } catch (error) {
     console.log(error)
   }
-  if (brand === 'blob') downloadEmoji(brand)
+  // if (brand === 'blob') downloadEmoji(brand)
 }
 
 async function downloadEmoji (brand) {
