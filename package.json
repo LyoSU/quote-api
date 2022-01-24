@@ -19,7 +19,7 @@
   },
   "homepage": "https://github.com/LyoSU/quote-api#readme",
   "dependencies": {
-    "canvas": "github:Automattic/node-canvas#198080580a0e3938c48daae357b88a1638a9ddcd",
+    "canvas": "git+https://github.com/Automattic/node-canvas#198080580a0e3938c48daae357b88a1638a9ddcd",
     "dotenv": "^7.0.0",
     "emoji-db": "^1.14.0",
     "jimp": "^0.16.1",
