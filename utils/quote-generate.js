@@ -242,7 +242,7 @@ class QuoteGenerate {
     const canvas = createCanvas(maxWidth + fontSize, maxHeight + fontSize)
     const canvasCtx = canvas.getContext('2d')
 
-    text = text.slice(0, 4096)
+    // text = text.slice(0, 4096)
     text = text.replace(/і/g, 'i') // замена украинской буквы і на английскую, так как она отсутствует в шрифтах Noto
     const chars = text.split('')
 
