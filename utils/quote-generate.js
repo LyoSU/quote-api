@@ -304,7 +304,8 @@ class QuoteGenerate {
         }
       }
     }
-    let styledWords = []
+
+    const styledWords = []
 
     let stringNum = 0
 
@@ -348,7 +349,7 @@ class QuoteGenerate {
 
     let textWidth = 0
     
-    if(isRTL(text)) styledWords = styledWords.reverse()
+    if(isRTL(text)) styledWords.reverse()
     let breakWrite = false
     for (let index = 0; index < styledWords.length; index++) {
       const styledWord = styledWords[index]
