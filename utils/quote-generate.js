@@ -90,20 +90,18 @@ class QuoteGenerate {
     const avatarImageCache = avatarCache.get(cacheKey)
 
     const avatarColorArray = [
-      '#c03d33',
-      '#4fad2d',
-      '#d09306',
-      '#168acd',
-      '#8544d6',
-      '#cd4073',
-      '#2996ad',
-      '#ce671b'
+      '#FF516A',
+      '#FFA85C',
+      '#665FFF',
+      '#54CB68',
+      '#28C9B7',
+      '#2A9EF1',
+      '#D669ED'
     ]
 
-    const colorMapId = [0, 7, 4, 1, 6, 3, 5]
     const nameIndex = Math.abs(user.id) % 7
 
-    const avatarColor = avatarColorArray[colorMapId[nameIndex]]
+    const avatarColor = avatarColorArray[nameIndex]
 
     if (avatarImageCache) {
       avatarImage = avatarImageCache
@@ -725,54 +723,22 @@ class QuoteGenerate {
     // check background style color black/light
     const backStyle = this.lightOrDark(backgroundColor)
 
-    // defsult color from tdesktop
-    // https://github.com/telegramdesktop/tdesktop/blob/67d08c2d4064e04bec37454b5b32c5c6e606420a/Telegram/SourceFiles/data/data_peer.cpp#L43
-    // const nameColor = [
-    //   '#c03d33',
-    //   '#4fad2d',
-    //   '#d09306',
-    //   '#168acd',
-    //   '#8544d6',
-    //   '#cd4073',
-    //   '#2996ad',
-    //   '#ce671b'
-    // ]
-
     // name light style color
-    const nameColorLight = [
-      '#862a23',
-      '#37791f',
-      '#916604',
-      '#0f608f',
-      '#5d2f95',
-      '#8f2c50',
-      '#1c6979',
-      '#904812'
-    ]
-
-    // name dark style color
-    const nameColorDark = [
-      '#fb6169',
-      '#85de85',
-      '#f3bc5c',
-      '#65bdf3',
-      '#b48bf2',
-      '#ff5694',
-      '#62d4e3',
-      '#faa357'
+    const nameColorArray = [
+      '#FC5C51',
+      '#FA790F',
+      '#895DD5',
+      '#0FB297',
+      '#00C1A6',
+      '#3CA5EC',
+      '#3D72ED'
     ]
 
     // user name  color
-    // https://github.com/telegramdesktop/tdesktop/blob/67d08c2d4064e04bec37454b5b32c5c6e606420a/Telegram/SourceFiles/data/data_peer.cpp#L43
-    const nameMap = [0, 7, 4, 1, 6, 3, 5]
-
     let nameIndex = 1
     if (message.chatId) nameIndex = Math.abs(message.chatId) % 7
 
-    const nameColorIndex = nameMap[nameIndex]
-    const nameColorPalette = backStyle === 'light' ? nameColorLight : nameColorDark
-
-    const nameColor = nameColorPalette[nameColorIndex]
+    const nameColor = nameColorArray[nameIndex]
 
     const nameSize = 22 * scale
 
@@ -825,8 +791,7 @@ class QuoteGenerate {
     let replyName, replyText
     if (message.replyMessage.name && message.replyMessage.text) {
       const replyNameIndex = Math.abs(message.replyMessage.chatId) % 7
-      let replyNameColor = nameColorDark[nameMap[replyNameIndex]]
-      if (backStyle === 'light') replyNameColor = nameColorLight[nameMap[replyNameIndex]]
+      const replyNameColor = nameColorArray[replyNameIndex]
 
       const replyNameFontSize = 16 * scale
       if (message.replyMessage.name) {
