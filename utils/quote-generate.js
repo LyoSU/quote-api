@@ -755,7 +755,7 @@ class QuoteGenerate {
     const nameSize = 22 * scale
 
     let nameCanvas
-    if (message.from.name) {
+    if (message?.from?.name) {
       nameCanvas = await this.drawMultilineText(
         message.from.name,
         'bold',
@@ -801,7 +801,7 @@ class QuoteGenerate {
     if (message.avatar) avatarCanvas = await this.drawAvatar(message.from)
 
     let replyName, replyText
-    if (message.replyMessage.name && message.replyMessage.text) {
+    if (message.replyMessage && message.replyMessage.name && message.replyMessage.text) {
       const replyNameIndex = Math.abs(message.replyMessage.chatId) % 7
       const replyNameColor = nameColorArray[replyNameIndex]
 
