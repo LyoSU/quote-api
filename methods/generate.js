@@ -125,7 +125,7 @@ module.exports = async (parm) => {
     if (format === 'png') quoteImage = await imageSharp.png().toBuffer()
     else quoteImage = await imageSharp.webp({ lossless: true, force: true }).toBuffer()
   } else if (type === 'image') {
-    const padding = 25
+    const padding = 25 * parm.scale
 
     const canvasImage = await loadImage(canvasQuote.toBuffer())
 
