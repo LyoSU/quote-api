@@ -13,6 +13,14 @@ const { Telegram } = require('telegraf')
 
 const emojiDb = new EmojiDbLib({ useDefaultDb: true })
 
+function isRTL(s){           
+  var ltrChars    = 'A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02B8\u0300-\u0590\u0800-\u1FFF'+'\u2C00-\uFB1C\uFDFE-\uFE6F\uFEFD-\uFFFF',
+      rtlChars    = '\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC',
+      rtlDirCheck = new RegExp('^[^'+ltrChars+']*['+rtlChars+']');
+
+  return rtlDirCheck.test(s);
+};
+
 function loadFont () {
   console.log('font load start')
   const fontsDir = 'assets/fonts/'
@@ -242,6 +250,7 @@ class QuoteGenerate {
 
     // text = text.slice(0, 4096)
     text = text.replace(/і/g, 'i') // замена украинской буквы і на английскую, так как она отсутствует в шрифтах Noto
+
     const chars = text.split('')
 
     const lineHeight = 4 * (fontSize * 0.3)
@@ -337,7 +346,8 @@ class QuoteGenerate {
     let lineY = textY
 
     let textWidth = 0
-
+    
+    if(isRTL(text)) styledWords.reverse()
     let breakWrite = false
     for (let index = 0; index < styledWords.length; index++) {
       const styledWord = styledWords[index]
@@ -383,7 +393,6 @@ class QuoteGenerate {
       //   canvasCtx.font = `${fontSize}px OpenSans`
       //   canvasCtx.fillStyle = fontColor
       // }
-
       canvasCtx.font = `${fontType} ${fontSize}px ${fontName}`
       canvasCtx.fillStyle = fillStyle
 
@@ -394,7 +403,7 @@ class QuoteGenerate {
         }
         styledWord.word += '…'
       }
-
+      
       let lineWidth
       const wordlWidth = canvasCtx.measureText(styledWord.word).width
 
