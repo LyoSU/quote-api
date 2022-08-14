@@ -369,11 +369,15 @@ class QuoteGenerate {
         const getFileLink = await this.telegram.getFileLink(sticker.thumb.file_id).catch(() => {})
 
         if (getFileLink) {
-          const load = await loadImageFromUrl(getFileLink)
-          const imageSharp = sharp(load)
-          const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
+          try {
+            const load = await loadImageFromUrl(getFileLink)
+            const imageSharp = sharp(load)
+            const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
 
-          customEmojiStickers[sticker.custom_emoji_id] = await loadImage(sharpPng).catch(() => {})
+            customEmojiStickers[sticker.custom_emoji_id] = await loadImage(sharpPng)
+          } catch (e) {
+            console.error(e)
+          }
         }
       })())
     }
