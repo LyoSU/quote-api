@@ -387,7 +387,7 @@ class QuoteGenerate {
       let emojiImage
 
       if (styledWord.emoji) {
-        if (styledWord.customEmojiId) {
+        if (styledWord.customEmojiId && customEmojiStickers[styledWord.customEmojiId]) {
           emojiImage = customEmojiStickers[styledWord.customEmojiId]
         } else {
           const emojiImageBase = emojiImageJson[styledWord.emoji.code]
