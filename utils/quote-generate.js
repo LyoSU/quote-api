@@ -369,20 +369,16 @@ class QuoteGenerate {
         const getFileLink = await this.telegram.getFileLink(sticker.thumb.file_id).catch(() => {})
 
         if (getFileLink) {
-          try {
-            const load = await loadImageFromUrl(getFileLink)
-            const imageSharp = sharp(load)
-            const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
+          const load = await loadImageFromUrl(getFileLink).catch(() => {})
+          const imageSharp = sharp(load)
+          const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
 
-            customEmojiStickers[sticker.custom_emoji_id] = await loadImage(sharpPng)
-          } catch (e) {
-            console.error(e)
-          }
+          customEmojiStickers[sticker.custom_emoji_id] = await loadImage(sharpPng).catch(() => {})
         }
       })())
     }
 
-    await Promise.all(loadCustomEmojiStickerPromises)
+    await Promise.all(loadCustomEmojiStickerPromises).catch(() => {})
 
     let breakWrite = false
     for (let index = 0; index < styledWords.length; index++) {
@@ -464,7 +460,7 @@ class QuoteGenerate {
           lineWidth = lineX + canvasCtx.measureText(styledWord.word).width
           breakWrite = true
         } else {
-          if (styledWord.emoji) lineWidth = textX + fontSize + (fontSize * 0.15)
+          if (styledWord.emoji) lineWidth = textX + fontSize + (fontSize * 0.2)
           else lineWidth = textX + canvasCtx.measureText(styledWord.word).width
 
           lineX = textX
@@ -472,11 +468,13 @@ class QuoteGenerate {
         }
       }
 
+      if (styledWord.emoji) lineWidth += (fontSize * 0.2)
+
       if (lineWidth > textWidth) textWidth = lineWidth
       if (textWidth > maxWidth) textWidth = maxWidth
 
       if (emojiImage) {
-        canvasCtx.drawImage(emojiImage, lineX, lineY - fontSize + (fontSize * 0.15), fontSize, fontSize)
+        canvasCtx.drawImage(emojiImage, lineX, lineY - fontSize + (fontSize * 0.15), fontSize + (fontSize * 0.22), fontSize + (fontSize * 0.22))
       } else {
         canvasCtx.fillText(styledWord.word, lineX, lineY)
 
