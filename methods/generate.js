@@ -129,7 +129,7 @@ module.exports = async (parm) => {
 
     const canvasImage = await loadImage(canvasQuote.toBuffer())
 
-    const canvasPic = createCanvas(canvasImage.width + padding * 2, canvasImage.height + padding * 2)
+    const canvasPic = createCanvas(canvasImage.width + padding * 1.7, canvasImage.height + padding * 1.7)
     const canvasPicCtx = canvasPic.getContext('2d')
 
     canvasPicCtx.fillStyle = lighten(parm.backgroundColor, 20)
