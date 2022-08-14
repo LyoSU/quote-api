@@ -356,7 +356,7 @@ class QuoteGenerate {
 
     const getCustomEmojiStickers = await this.telegram.callApi('getCustomEmojiStickers', {
       custom_emoji_ids: customEmojiIds
-    })
+    }).catch(() => {})
 
     const customEmojiStickers = {}
 
@@ -366,13 +366,15 @@ class QuoteGenerate {
       const sticker = getCustomEmojiStickers[index]
 
       loadCustomEmojiStickerPromises.push((async () => {
-        const getFileLink = await this.telegram.getFileLink(sticker.thumb.file_id)
+        const getFileLink = await this.telegram.getFileLink(sticker.thumb.file_id).catch(() => {})
 
-        const load = await loadImageFromUrl(getFileLink)
-        const imageSharp = sharp(load)
-        const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
+        if (getFileLink) {
+          const load = await loadImageFromUrl(getFileLink)
+          const imageSharp = sharp(load)
+          const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
 
-        customEmojiStickers[sticker.custom_emoji_id] = await loadImage(sharpPng).catch(() => {})
+          customEmojiStickers[sticker.custom_emoji_id] = await loadImage(sharpPng).catch(() => {})
+        }
       })())
     }
 
