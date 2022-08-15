@@ -35,7 +35,7 @@
     "lru-cache": "^5.1.1",
     "object-sizeof": "^1.6.0",
     "runes": "^0.4.3",
-    "sharp": "^0.29.3",
+    "sharp": "^0.30.5",
     "smartcrop-sharp": "^2.0.4",
     "telegraf": "^3.38.0"
   },
