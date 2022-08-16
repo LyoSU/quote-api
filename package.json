@@ -1,6 +1,6 @@
 {
   "name": "quote-api",
-  "version": "0.11.4",
+  "version": "0.11.5",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -21,7 +21,7 @@
   "dependencies": {
     "canvas": "git+https://github.com/Automattic/node-canvas#198080580a0e3938c48daae357b88a1638a9ddcd",
     "dotenv": "^7.0.0",
-    "emoji-db": "^1.14.0",
+    "emoji-db": "^14.0.1",
     "jimp": "^0.16.1",
     "jsdom": "^16.5.3",
     "koa": "^2.11.0",

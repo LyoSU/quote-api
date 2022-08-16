@@ -9,10 +9,10 @@ const emojiDb = new EmojiDbLib({ useDefaultDb: true })
 const emojiJFilesDir = '../assets/emoji/'
 
 const brandFoledIds = {
-  apple: 285,
+  apple: 325,
   google: 313,
-  twitter: 282,
-  joypixels: 291,
+  twitter: 322,
+  joypixels: 340,
   blob: 56
 }
 
@@ -30,20 +30,6 @@ let emojiImageByBrand = {
   twitter: [],
   joypixels: [],
   blob: []
-}
-
-for (const brand in emojiJsonByBrand) {
-  const emojiJsonFile = path.resolve(
-    __dirname,
-    emojiJFilesDir + emojiJsonByBrand[brand]
-  )
-
-  try {
-    if (fs.existsSync(emojiJsonFile)) emojiImageByBrand[brand] = require(emojiJsonFile)
-  } catch (error) {
-    console.log(error)
-  }
-  // downloadEmoji(brand)
 }
 
 async function downloadEmoji (brand) {
@@ -101,25 +87,20 @@ async function downloadEmoji (brand) {
   }
 
   console.log('emoji image load end')
+}
 
-  // const emojiDataDir = 'assets/emojis/'
+for (const brand in emojiJsonByBrand) {
+  const emojiJsonFile = path.resolve(
+    __dirname,
+    emojiJFilesDir + emojiJsonByBrand[brand]
+  )
 
-  // Object.keys(dbData).map(async (key) => {
-  //   const emoji = dbData[key]
-
-  //   if (emoji.image) {
-  //     const fileName = `${emoji.code}.png`
-  //     if (!fs.existsSync(`${emojiDataDir}${fileName}`)) {
-  //       const fileUrl = `${process.env.EMOJI_DOMAIN}/thumbs/60/${emoji.image.brand}/${emoji.image.folder_id}/${emoji.image.file_name}`
-
-  //       const img = await loadImageFromUrl(fileUrl)
-
-  //       fs.writeFile(`${emojiDataDir}${fileName}`, img, (err) => {
-  //         if (err) return console.log(err)
-  //       })
-  //     }
-  //   }
-  // })
+  try {
+    if (fs.existsSync(emojiJsonFile)) emojiImageByBrand[brand] = require(emojiJsonFile)
+  } catch (error) {
+    console.log(error)
+  }
+  // downloadEmoji(brand)
 }
 
 module.exports = emojiImageByBrand
