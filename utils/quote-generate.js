@@ -804,7 +804,8 @@ class QuoteGenerate {
 
     let nameCanvas
     if (message?.from?.name) {
-      let name = message.from.name
+      let name = message.from.name.trim()
+
       const nameEntities = [
         {
           type: 'bold',
