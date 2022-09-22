@@ -804,9 +804,29 @@ class QuoteGenerate {
 
     let nameCanvas
     if (message?.from?.name) {
+      let name = message.from.name
+      const nameEntities = [
+        {
+          type: 'bold',
+          offset: 0,
+          length: name.length
+        }
+      ]
+
+      if (message.from.emoji_status) {
+        name += ' 🤡'
+
+        nameEntities.push({
+          type: 'custom_emoji',
+          offset: name.length - 2,
+          length: 2,
+          custom_emoji_id: message.from.emoji_status
+        })
+      }
+
       nameCanvas = await this.drawMultilineText(
-        message.from.name,
-        'bold',
+        name,
+        nameEntities,
         nameSize,
         nameColor,
         0,
