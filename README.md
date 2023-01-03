@@ -145,3 +145,88 @@ POST /generate
 }
 
 ```
+
+## Примеры запросов:
+> JavaScript
+```js
+const axios = require('axios')
+const fs = require('fs')
+
+const text = "Hello World"
+const username = "Alι_Aryαɴ"
+const avatar = "https://telegra.ph/file/59952c903fdfb10b752b3.jpg"
+
+const json = {
+  "type": "quote",
+  "format": "png",
+  "backgroundColor": "#FFFFFF",
+  "width": 512,
+  "height": 768,
+  "scale": 2,
+  "messages": [
+    {
+      "entities": [],
+      "avatar": true,
+      "from": {
+        "id": 1,
+        "name": username,
+        "photo": {
+          "url": avatar
+        }
+      },
+      "text": text,
+      "replyMessage": {}
+    }
+  ]
+};
+        const response = axios.post('https://bot.lyo.su/quote/generate', json, {
+        headers: {'Content-Type': 'application/json'}
+}).then(res => {
+    const buffer = Buffer.from(res.data.result.image, 'base64')
+       fs.writeFile('Quotly.png', buffer, (err) => {
+      if (err) throw err;
+    })
+});
+```
+
+> Python
+```py
+import requests
+import base64
+
+text = "Hello World"
+username = "Alι_Aryαɴ" 
+avatar = "https://telegra.ph/file/59952c903fdfb10b752b3.jpg"
+
+json = {
+  "type": "quote",
+  "format": "webp",
+  "backgroundColor": "#FFFFFF",
+  "width": 512,
+  "height": 768,
+  "scale": 2,
+  "messages": [
+    {
+      "entities": [],
+      "avatar": True,
+      "from": {
+        "id": 1,
+        "name": username,
+        "photo": {
+          "url": avatar
+        }
+      },
+      "text": text,
+      "replyMessage": {}
+    }
+  ]
+}
+
+response = requests.post('https://bot.lyo.su/quote/generate', json=json).json()
+buffer = base64.b64decode(response['result']['image'].encode('utf-8'))
+open('Quotly.png', 'wb').write(buffer)
+print('Quotly.png')
+```
+### Response
+
+![Quotly.png](assets/Quotly.png)
