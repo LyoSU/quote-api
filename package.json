@@ -19,7 +19,7 @@
   },
   "homepage": "https://github.com/LyoSU/quote-api#readme",
   "dependencies": {
-    "canvas": "git+https://github.com/Automattic/node-canvas#198080580a0e3938c48daae357b88a1638a9ddcd",
+    "canvas": "2.11.0",
     "dotenv": "^7.0.0",
     "emoji-db": "^14.0.1",
     "jimp": "^0.16.1",
@@ -35,8 +35,8 @@
     "lru-cache": "^5.1.1",
     "object-sizeof": "^1.6.0",
     "runes": "^0.4.3",
-    "sharp": "^0.30.5",
-    "smartcrop-sharp": "^2.0.4",
+    "sharp": "^0.31.3",
+    "smartcrop-sharp": "^2.0.7",
     "telegraf": "^3.38.0"
   },
   "devDependencies": {
