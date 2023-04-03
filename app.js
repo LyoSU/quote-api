@@ -1,3 +1,4 @@
+require('dotenv').config()
 const logger = require('koa-logger')
 const responseTime = require('koa-response-time')
 const bodyParser = require('koa-bodyparser')
