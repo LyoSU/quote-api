@@ -1,6 +1,6 @@
 {
   "name": "quote-api",
-  "version": "0.12.1",
+  "version": "0.12.2",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -35,7 +35,11 @@
     "lru-cache": "^5.1.1",
     "object-sizeof": "^1.6.0",
     "runes": "^0.4.3",
+<<<<<<< HEAD
     "sharp": "^0.31.3",
+=======
+    "sharp": "^0.32.0",
+>>>>>>> 5aafc8a (0.12.2)
     "smartcrop-sharp": "^2.0.7",
     "telegraf": "^3.38.0"
   },

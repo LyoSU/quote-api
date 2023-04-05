@@ -50,9 +50,12 @@ class QuoteGenerate {
     const canvas = createCanvas(size, size)
     const context = canvas.getContext('2d')
 
-    color = color || '#' + (Math.random() * 0xFFFFFF << 0).toString(16)
+    const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height)
 
-    context.fillStyle = color
+    gradient.addColorStop(0, color[0])
+    gradient.addColorStop(1, color[1])
+
+    context.fillStyle = gradient
     context.fillRect(0, 0, canvas.width, canvas.height)
 
     const drawLetters = await this.drawMultilineText(
@@ -90,13 +93,13 @@ class QuoteGenerate {
     const avatarImageCache = avatarCache.get(cacheKey)
 
     const avatarColorArray = [
-      '#FF516A',
-      '#FFA85C',
-      '#665FFF',
-      '#54CB68',
-      '#28C9B7',
-      '#2A9EF1',
-      '#D669ED'
+      [ '#FF885E', '#FF516A' ],
+      [ '#FFCD6A', '#FFA85C' ],
+      [ '#82B1FF', '#665FFF' ],
+      [ '#A0DE7E', '#54CB68' ],
+      [ '#53EDD6', '#28C9B7' ],
+      [ '#72D5FD', '#2A9EF1' ],
+      [ '#E0A2F3', '#D669ED' ]
     ]
 
     const nameIndex = Math.abs(user.id) % 7
@@ -362,23 +365,25 @@ class QuoteGenerate {
 
     const loadCustomEmojiStickerPromises = []
 
-    for (let index = 0; index < getCustomEmojiStickers.length; index++) {
-      const sticker = getCustomEmojiStickers[index]
+    if (getCustomEmojiStickers) {
+      for (let index = 0; index < getCustomEmojiStickers.length; index++) {
+        const sticker = getCustomEmojiStickers[index]
 
-      loadCustomEmojiStickerPromises.push((async () => {
-        const getFileLink = await this.telegram.getFileLink(sticker.thumb.file_id).catch(() => {})
+        loadCustomEmojiStickerPromises.push((async () => {
+          const getFileLink = await this.telegram.getFileLink(sticker.thumb.file_id).catch(() => {})
 
-        if (getFileLink) {
-          const load = await loadImageFromUrl(getFileLink).catch(() => {})
-          const imageSharp = sharp(load)
-          const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
+          if (getFileLink) {
+            const load = await loadImageFromUrl(getFileLink).catch(() => {})
+            const imageSharp = sharp(load)
+            const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
 
-          customEmojiStickers[sticker.custom_emoji_id] = await loadImage(sharpPng).catch(() => {})
-        }
-      })())
+            customEmojiStickers[sticker.custom_emoji_id] = await loadImage(sharpPng).catch(() => {})
+          }
+        })())
+      }
+
+      await Promise.all(loadCustomEmojiStickerPromises).catch(() => {})
     }
-
-    await Promise.all(loadCustomEmojiStickerPromises).catch(() => {})
 
     let breakWrite = false
     for (let index = 0; index < styledWords.length; index++) {
@@ -518,6 +523,56 @@ class QuoteGenerate {
     canvasCtx.fill()
 
     return canvas
+  }
+
+  drawGradientRoundRect (color, w, h, r) {
+    const x = 0
+    const y = 0
+
+    const canvas = createCanvas(w, h)
+    const canvasCtx = canvas.getContext('2d')
+
+    const gradient = canvasCtx.createLinearGradient(0, 0, w, h)
+    gradient.addColorStop(0, this.colorLuminance(color, 0.2))
+    gradient.addColorStop(1, this.colorLuminance(color, -0.2))
+
+
+
+    canvasCtx.fillStyle = gradient
+
+    if (w < 2 * r) r = w / 2
+    if (h < 2 * r) r = h / 2
+    canvasCtx.beginPath()
+    canvasCtx.moveTo(x + r, y)
+    canvasCtx.arcTo(x + w, y, x + w, y + h, r)
+    canvasCtx.arcTo(x + w, y + h, x, y + h, r)
+    canvasCtx.arcTo(x, y + h, x, y, r)
+    canvasCtx.arcTo(x, y, x + w, y, r)
+    canvasCtx.closePath()
+
+    canvasCtx.fill()
+
+    return canvas
+  }
+
+  colorLuminance (hex, lum) {
+    hex = String(hex).replace(/[^0-9a-f]/gi, '')
+    if (hex.length < 6) {
+      hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2]
+    }
+    lum = lum || 0
+
+    // convert to decimal and change luminosity
+    let rgb = '#'
+    let c
+    let i
+    for (i = 0; i < 3; i++) {
+      c = parseInt(hex.substr(i * 2, 2), 16)
+      c = Math.round(Math.min(Math.max(0, c + (c * lum)), 255)).toString(16)
+      rgb += ('00' + c).substr(c.length)
+    }
+
+    return rgb
   }
 
   roundImage (image, r) {
@@ -731,7 +786,8 @@ class QuoteGenerate {
       rectHeight -= mediaHeight + indent * 2
     }
 
-    if (mediaType !== 'sticker' || name || replyName) rect = this.drawRoundRect(backgroundColor, rectWidth, rectHeight, rectRoundRadius)
+    // if (mediaType !== 'sticker' || name || replyName) rect = this.drawRoundRect(backgroundColor, rectWidth, rectHeight, rectRoundRadius)
+    if (mediaType !== 'sticker' || name || replyName) rect = this.drawGradientRoundRect(backgroundColor, rectWidth, rectHeight, rectRoundRadius)
 
     if (avatar) canvasCtx.drawImage(avatar, avatarPosX, avatarPosY, avatarSize, avatarSize)
     if (rect) canvasCtx.drawImage(rect, rectPosX, rectPosY)
@@ -804,7 +860,7 @@ class QuoteGenerate {
 
     let nameCanvas
     if (message?.from?.name) {
-      let name = message.from.name.trim()
+      let name = message.from.name
 
       const nameEntities = [
         {
