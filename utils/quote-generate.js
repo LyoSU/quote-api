@@ -910,7 +910,8 @@ class QuoteGenerate {
     let nameColor = nameColorArray[nameIndex]
 
     // change name color based on background color by contrast
-    if (this.contrast(backgroundColor, nameColor) > 90) {
+    const contrast = this.contrast(backgroundColor, nameColor)
+    if (contrast > 90 || contrast < 30) {
       nameColor = this.blendColors(backgroundColor, nameColor)
     }
 
