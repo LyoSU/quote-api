@@ -141,7 +141,7 @@ class QuoteGenerate {
 
   ungzip (input, options) {
     return new Promise((resolve, reject) => {
-      gunzip(input, options, (error, result) => {
+      zlib.gunzip(input, options, (error, result) => {
         if (!error) resolve(result)
         else reject(Error(error))
       })
@@ -169,11 +169,11 @@ class QuoteGenerate {
       let croppedImage
 
       if (imageMetadata.format === 'webp') {
-        const jimpImage = await read(sharpPng)
+        const jimpImage = await Jimp.read(sharpPng)
 
-        croppedImage = await jimpImage.autocrop(false).getBufferAsync(MIME_PNG)
+        croppedImage = await jimpImage.autocrop(false).getBufferAsync(Jimp.MIME_PNG)
       } else {
-        const smartcropResult = await crop(sharpPng, { width: mediaSize, height: imageMetadata.height })
+        const smartcropResult = await smartcrop.crop(sharpPng, { width: mediaSize, height: imageMetadata.height })
         const crop = smartcropResult.topCrop
 
         croppedImage = imageSharp.extract({ width: crop.width, height: crop.height, left: crop.x, top: crop.y })
