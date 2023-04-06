@@ -866,28 +866,15 @@ class QuoteGenerate {
     // check background style color black/light
     const backStyle = this.lightOrDark(backgroundColor)
 
-    // name light style color
-    const nameColorLight = [
-      '#FC5C51',
-      '#FA790F',
-      '#895DD5',
-      '#0FB297',
-      '#00C1A6',
-      '#3CA5EC',
-      '#3D72ED'
+    const nameColorArray = [
+      '#FF516A',
+      '#FFA85C',
+      '#665FFF',
+      '#54CB68',
+      '#28C9B7',
+      '#2A9EF1',
+      '#D669ED'
     ]
-
-    const nameColorDark = [
-      '#FF8E86',
-      '#FFA357',
-      '#BF9AFF',
-      '#4DD6BF',
-      '#45E8D1',
-      '#7AC9FF',
-      '#7AA2FF'
-    ]
-
-    const nameColorArray = backStyle === 'light' ? nameColorLight : nameColorDark
 
     // user name  color
     let nameIndex = 1
