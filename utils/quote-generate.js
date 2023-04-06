@@ -614,6 +614,21 @@ class QuoteGenerate {
     return `#${blendedHex}`
   }
 
+  // returns the contrast level based on 2 colors
+  contrast (color1, color2) {
+    // Convert hexadecimal colors to CIELAB color space
+    const lab1 = convertHexToLab(color1);
+    const lab2 = convertHexToLab(color2);
+
+    // Calculate the difference between the two colors in CIELAB space
+    const deltaL = lab1[0] - lab2[0];
+    const deltaA = lab1[1] - lab2[1];
+    const deltaB = lab1[2] - lab2[2];
+    const deltaE = Math.sqrt(deltaL**2 + deltaA**2 + deltaB**2);
+
+    return deltaE
+  }
+
   roundImage (image, r) {
     const w = image.width
     const h = image.height
@@ -866,24 +881,38 @@ class QuoteGenerate {
     // check background style color black/light
     const backStyle = this.lightOrDark(backgroundColor)
 
-    const nameColorArray = [
-      '#FF516A',
-      '#FFA85C',
-      '#665FFF',
-      '#54CB68',
-      '#28C9B7',
-      '#2A9EF1',
-      '#D669ED'
+    const nameColorLight = [
+      '#FC5C51',
+      '#FA790F',
+      '#895DD5',
+      '#0FB297',
+      '#00C1A6',
+      '#3CA5EC',
+      '#3D72ED'
+    ]
+
+    const nameColorDark = [
+      '#FF8E86',
+      '#FFA357',
+      '#BF9AFF',
+      '#4DD6BF',
+      '#45E8D1',
+      '#7AC9FF',
+      '#7AA2FF'
     ]
 
     // user name  color
     let nameIndex = 1
     if (message.from.id) nameIndex = Math.abs(message.from.id) % 7
 
+    const nameColorArray = backStyle === 'light' ? nameColorLight : nameColorDark
+
     let nameColor = nameColorArray[nameIndex]
 
     // change name color based on background color by contrast
-    nameColor = this.blendColors(backgroundColor, nameColor)
+    if (this.contrast(backgroundColor, nameColor) > 90) {
+      nameColor = this.blendColors(backgroundColor, nameColor)
+    }
 
     const nameSize = 22 * scale
 
