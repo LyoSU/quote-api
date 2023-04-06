@@ -11,6 +11,9 @@ const lottie = require('lottie-node')
 const zlib = require('zlib')
 const { Telegram } = require('telegraf')
 
+const convertHexToLab = require('color-convert').hex.lab;
+const convertLabToHex = require('color-convert').lab.hex;
+
 const emojiDb = new EmojiDbLib({ useDefaultDb: true })
 
 function loadFont () {
@@ -138,7 +141,7 @@ class QuoteGenerate {
 
   ungzip (input, options) {
     return new Promise((resolve, reject) => {
-      zlib.gunzip(input, options, (error, result) => {
+      gunzip(input, options, (error, result) => {
         if (!error) resolve(result)
         else reject(Error(error))
       })
@@ -166,11 +169,11 @@ class QuoteGenerate {
       let croppedImage
 
       if (imageMetadata.format === 'webp') {
-        const jimpImage = await Jimp.read(sharpPng)
+        const jimpImage = await read(sharpPng)
 
-        croppedImage = await jimpImage.autocrop(false).getBufferAsync(Jimp.MIME_PNG)
+        croppedImage = await jimpImage.autocrop(false).getBufferAsync(MIME_PNG)
       } else {
-        const smartcropResult = await smartcrop.crop(sharpPng, { width: mediaSize, height: imageMetadata.height })
+        const smartcropResult = await crop(sharpPng, { width: mediaSize, height: imageMetadata.height })
         const crop = smartcropResult.topCrop
 
         croppedImage = imageSharp.extract({ width: crop.width, height: crop.height, left: crop.x, top: crop.y })
@@ -575,6 +578,42 @@ class QuoteGenerate {
     return rgb
   }
 
+  blendColors (color1, color2) {
+    // Convert hexadecimal colors to CIELAB color space
+    const lab1 = convertHexToLab(color1);
+    const lab2 = convertHexToLab(color2);
+
+    // Calculate the difference between the two colors in CIELAB space
+    const deltaL = lab1[0] - lab2[0];
+    const deltaA = lab1[1] - lab2[1];
+    const deltaB = lab1[2] - lab2[2];
+    const deltaE = Math.sqrt(deltaL**2 + deltaA**2 + deltaB**2);
+
+    // Determine the base blending ratio based on the color difference
+    const ratio = deltaE / 100;
+
+    // Adjust the blending ratio based on the lightness of color1 and color2
+    const avgL = (lab1[0] + lab2[0]) / 2;
+    const ratioAdjustment = Math.abs((avgL - 50) / 50);
+    const adjustedRatio = ratio + ratio * ratioAdjustment;
+
+    // Calculate the lightness adjustment based on the lightness of color1 and the blending ratio
+    const adjustedL = lab1[0] - deltaL * adjustedRatio;
+
+    // Blend the two colors using the adjusted blending ratio and adjusted lightness
+    const blendedLab = [
+      adjustedL,
+      lab1[1] - deltaA * adjustedRatio,
+      lab1[2] - deltaB * adjustedRatio,
+    ];
+
+    // Convert the blended color back to hexadecimal
+    const blendedHex = convertLabToHex(blendedLab);
+
+    // Return the blended hexadecimal color
+    return `#${blendedHex}`
+  }
+
   roundImage (image, r) {
     const w = image.width
     const h = image.height
@@ -852,9 +891,12 @@ class QuoteGenerate {
 
     // user name  color
     let nameIndex = 1
-    if (message.chatId) nameIndex = Math.abs(message.chatId) % 7
+    if (message.from.id) nameIndex = Math.abs(message.from.id) % 7
 
-    const nameColor = nameColorArray[nameIndex]
+    let nameColor = nameColorArray[nameIndex]
+
+    // change name color based on background color by contrast
+    nameColor = this.blendColors(backgroundColor, nameColor)
 
     const nameSize = 22 * scale
 

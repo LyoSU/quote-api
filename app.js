@@ -30,7 +30,7 @@ app.use(ratelimit({
     reset: 'Rate-Limit-Reset',
     total: 'Rate-Limit-Total'
   },
-  max: 3,
+  max: 20,
   disableHeader: false,
   whitelist: (ctx) => {
     return ctx.query.botToken === process.env.BOT_TOKEN
