@@ -924,9 +924,9 @@ class QuoteGenerate {
     const colorContrast = new ColorContrast()
 
     // change name color based on background color by contrast
-    const contrast = colorContrast.getContrastRatio(this.colorLuminance(color, 0.55), nameColor)
+    const contrast = colorContrast.getContrastRatio(this.colorLuminance(backgroundColor, 0.55), nameColor)
     if (contrast > 90 || contrast < 30) {
-      nameColor = colorContrast.adjustContrast(this.colorLuminance(color, 0.55), nameColor)
+      nameColor = colorContrast.adjustContrast(this.colorLuminance(backgroundColor, 0.55), nameColor)
     }
 
     const nameSize = 22 * scale
