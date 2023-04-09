@@ -3,7 +3,7 @@ module.exports = {
     name: 'quote-api',
     script: './index.js',
     max_memory_restart: '1000M',
-    instances: 2,
+    instances: 3,
     exec_mode: 'cluster',
     watch: true,
     ignore_watch: ['node_modules', 'assets'],
