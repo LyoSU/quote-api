@@ -138,8 +138,8 @@ module.exports = async (parm) => {
 
     canvasPaddingCtx.shadowOffsetX = 5
     canvasPaddingCtx.shadowOffsetY = 5
-    canvasPaddingCtx.shadowBlur = 15
-    canvasPaddingCtx.shadowColor = 'rgba(0, 0, 0, 0.7)'
+    canvasPaddingCtx.shadowBlur = 10
+    canvasPaddingCtx.shadowColor = 'rgba(0, 0, 0, 0.5)'
 
     canvasPaddingCtx.drawImage(canvasImage, 0, 0)
 
@@ -187,7 +187,7 @@ module.exports = async (parm) => {
     canvasPicCtx.shadowOffsetX = 8
     canvasPicCtx.shadowOffsetY = 8
     canvasPicCtx.shadowBlur = 13
-    canvasPicCtx.shadowColor = 'rgba(0, 0, 0, 0.7)'
+    canvasPicCtx.shadowColor = 'rgba(0, 0, 0, 0.5)'
 
     canvasPicCtx.drawImage(canvasImage, padding, padding)
 
