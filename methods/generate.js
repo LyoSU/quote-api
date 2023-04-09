@@ -30,6 +30,26 @@ const lighten = (color, amount) => {
   return color
 }
 
+const colorLuminance = (hex, lum) => {
+  hex = String(hex).replace(/[^0-9a-f]/gi, '')
+  if (hex.length < 6) {
+    hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2]
+  }
+  lum = lum || 0
+
+  // convert to decimal and change luminosity
+  let rgb = '#'
+  let c
+  let i
+  for (i = 0; i < 3; i++) {
+    c = parseInt(hex.substr(i * 2, 2), 16)
+    c = Math.round(Math.min(Math.max(0, c + (c * lum)), 255)).toString(16)
+    rgb += ('00' + c).substr(c.length)
+  }
+
+  return rgb
+}
+
 module.exports = async (parm) => {
   // console.log(JSON.stringify(parm, null, 2))
   if (!parm) return { error: 'query_empty' }
@@ -102,6 +122,7 @@ module.exports = async (parm) => {
 
   if (type === 'quote') {
     const downPadding = 75
+    const rightPadding = 5
     const maxWidth = 512
     const maxHeight = 512
 
@@ -112,8 +133,13 @@ module.exports = async (parm) => {
 
     const canvasImage = await loadImage(await imageQuoteSharp.toBuffer())
 
-    const canvasPadding = createCanvas(canvasImage.width, canvasImage.height + downPadding)
+    const canvasPadding = createCanvas(canvasImage.width + rightPadding, canvasImage.height + downPadding)
     const canvasPaddingCtx = canvasPadding.getContext('2d')
+
+    canvasPaddingCtx.shadowOffsetX = 5
+    canvasPaddingCtx.shadowOffsetY = 5
+    canvasPaddingCtx.shadowBlur = 15
+    canvasPaddingCtx.shadowColor = 'rgba(0, 0, 0, 0.7)'
 
     canvasPaddingCtx.drawImage(canvasImage, 0, 0)
 
@@ -132,15 +158,36 @@ module.exports = async (parm) => {
     const canvasPic = createCanvas(canvasImage.width + padding * 1.7, canvasImage.height + padding * 1.7)
     const canvasPicCtx = canvasPic.getContext('2d')
 
-    canvasPicCtx.fillStyle = lighten(parm.backgroundColor, 20)
-    canvasPicCtx.fillRect(0, 0, canvasPic.width + padding, canvasPic.height + padding)
+    const color = lighten(parm.backgroundColor, 5)
+
+    // radial gradient background (top left)
+    const gradient = canvasPicCtx.createRadialGradient(
+      canvasPic.width / 2,
+      canvasPic.height / 2,
+      0,
+      canvasPic.width / 2,
+      canvasPic.height / 2,
+      canvasPic.width / 2
+    )
+
+    gradient.addColorStop(0, colorLuminance(color, 0.35))
+    gradient.addColorStop(1, color)
+
+    canvasPicCtx.fillStyle = gradient
+    canvasPicCtx.fillRect(0, 0, canvasPic.width, canvasPic.height)
 
     const canvasPatternImage = await loadImage('./assets/pattern_02.png')
-    // const canvasPatternImage = await loadImage('./assets/pattern_ny.png')
+    // const canvasPatternImage = await loadImage('./assets/pattern_ny.png');
 
     const pattern = canvasPicCtx.createPattern(canvasPatternImage, 'repeat')
     canvasPicCtx.fillStyle = pattern
     canvasPicCtx.fillRect(0, 0, canvasPic.width, canvasPic.height)
+
+    // Add shadow effect to the canvas image
+    canvasPicCtx.shadowOffsetX = 8
+    canvasPicCtx.shadowOffsetY = 8
+    canvasPicCtx.shadowBlur = 13
+    canvasPicCtx.shadowColor = 'rgba(0, 0, 0, 0.7)'
 
     canvasPicCtx.drawImage(canvasImage, padding, padding)
 
