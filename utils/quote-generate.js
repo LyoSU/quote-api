@@ -601,8 +601,8 @@ class QuoteGenerate {
     const canvasCtx = canvas.getContext('2d')
 
     const gradient = canvasCtx.createLinearGradient(0, 0, w, h)
-    gradient.addColorStop(0, this.colorLuminance(color, 0.25))
-    gradient.addColorStop(1, this.colorLuminance(color, -0.25))
+    gradient.addColorStop(0, this.colorLuminance(color, 0.55))
+    gradient.addColorStop(1, this.colorLuminance(color, -0.05))
 
     canvasCtx.fillStyle = gradient
 
