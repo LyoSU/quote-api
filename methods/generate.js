@@ -122,7 +122,6 @@ module.exports = async (parm) => {
 
   if (type === 'quote') {
     const downPadding = 75
-    const rightPadding = 5
     const maxWidth = 512
     const maxHeight = 512
 
@@ -133,13 +132,8 @@ module.exports = async (parm) => {
 
     const canvasImage = await loadImage(await imageQuoteSharp.toBuffer())
 
-    const canvasPadding = createCanvas(canvasImage.width + rightPadding, canvasImage.height + downPadding)
+    const canvasPadding = createCanvas(canvasImage.width, canvasImage.height + downPadding)
     const canvasPaddingCtx = canvasPadding.getContext('2d')
-
-    canvasPaddingCtx.shadowOffsetX = 5
-    canvasPaddingCtx.shadowOffsetY = 5
-    canvasPaddingCtx.shadowBlur = 10
-    canvasPaddingCtx.shadowColor = 'rgba(0, 0, 0, 0.5)'
 
     canvasPaddingCtx.drawImage(canvasImage, 0, 0)
 
