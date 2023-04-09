@@ -11,9 +11,6 @@ const lottie = require('lottie-node')
 const zlib = require('zlib')
 const { Telegram } = require('telegraf')
 
-const convertHexToLab = require('color-convert').hex.lab;
-const convertLabToHex = require('color-convert').lab.hex;
-
 const emojiDb = new EmojiDbLib({ useDefaultDb: true })
 
 function loadFont () {
@@ -43,6 +40,74 @@ const avatarCache = new LRU({
   max: 20,
   maxAge: 1000 * 60 * 5
 })
+
+// write a nodejs function that accepts 2 colors. the first is the background color and the second is the text color. as a result, the first color should come out brighter or darker depending on the contrast. for example, if the first text is dark, then make the second brighter and return it. you need to change not the background color, but the text color
+
+// here are all the possible colors that will be passed as the second argument. the first color can be any
+class ColorContrast {
+  constructor() {
+    this.brightnessThreshold = 175; // A threshold to determine when a color is considered bright or dark
+  }
+
+  getBrightness(color) {
+    // Calculates the brightness of a color using the formula from the WCAG 2.0
+    // See: https://www.w3.org/TR/WCAG20-TECHS/G18.html#G18-tests
+    const [r, g, b] = this.hexToRgb(color);
+    return (r * 299 + g * 587 + b * 114) / 1000;
+  }
+
+  hexToRgb(hex) {
+    // Converts a hex color string to an RGB array
+    const r = parseInt(hex.substring(1, 3), 16);
+    const g = parseInt(hex.substring(3, 5), 16);
+    const b = parseInt(hex.substring(5, 7), 16);
+    return [r, g, b];
+  }
+
+  rgbToHex([r, g, b]) {
+    // Converts an RGB array to a hex color string
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
+
+  adjustBrightness(color, amount) {
+    // Adjusts the brightness of a color by a specified amount
+    const [r, g, b] = this.hexToRgb(color);
+    const newR = Math.max(0, Math.min(255, r + amount));
+    const newG = Math.max(0, Math.min(255, g + amount));
+    const newB = Math.max(0, Math.min(255, b + amount));
+    return this.rgbToHex([newR, newG, newB]);
+  }
+
+  getContrastRatio(background, foreground) {
+    // Calculates the contrast ratio between two colors using the formula from the WCAG 2.0
+    // See: https://www.w3.org/TR/WCAG20-TECHS/G18.html#G18-tests
+    const brightness1 = this.getBrightness(background);
+    const brightness2 = this.getBrightness(foreground);
+    const lightest = Math.max(brightness1, brightness2);
+    const darkest = Math.min(brightness1, brightness2);
+    return (lightest + 0.05) / (darkest + 0.05);
+  }
+
+  adjustContrast(background, foreground) {
+    // Adjusts the brightness of the foreground color to meet the minimum contrast ratio
+    // with the background color
+    const contrastRatio = this.getContrastRatio(background, foreground);
+    const brightnessDiff = this.getBrightness(background) - this.getBrightness(foreground);
+    if (contrastRatio >= 4.5) {
+      return foreground; // The contrast ratio is already sufficient
+    } else if (brightnessDiff >= 0) {
+      // The background is brighter than the foreground
+      const amount = Math.ceil((this.brightnessThreshold - this.getBrightness(foreground)) / 2);
+      return this.adjustBrightness(foreground, amount);
+    } else {
+      // The background is darker than the foreground
+      const amount = Math.ceil((this.getBrightness(foreground) - this.brightnessThreshold) / 2);
+      return this.adjustBrightness(foreground, -amount);
+    }
+  }
+}
+
+
 class QuoteGenerate {
   constructor (botToken) {
     this.telegram = new Telegram(botToken)
@@ -537,9 +602,7 @@ class QuoteGenerate {
 
     const gradient = canvasCtx.createLinearGradient(0, 0, w, h)
     gradient.addColorStop(0, this.colorLuminance(color, 0.35))
-    gradient.addColorStop(1, color)
-
-
+    gradient.addColorStop(1, this.colorLuminance(color, -0.25))
 
     canvasCtx.fillStyle = gradient
 
@@ -576,57 +639,6 @@ class QuoteGenerate {
     }
 
     return rgb
-  }
-
-  blendColors (color1, color2) {
-    // Convert hexadecimal colors to CIELAB color space
-    const lab1 = convertHexToLab(color1);
-    const lab2 = convertHexToLab(color2);
-
-    // Calculate the difference between the two colors in CIELAB space
-    const deltaL = lab1[0] - lab2[0];
-    const deltaA = lab1[1] - lab2[1];
-    const deltaB = lab1[2] - lab2[2];
-    const deltaE = Math.sqrt(deltaL**2 + deltaA**2 + deltaB**2);
-
-    // Determine the base blending ratio based on the color difference
-    const ratio = deltaE / 100;
-
-    // Adjust the blending ratio based on the lightness of color1 and color2
-    const avgL = (lab1[0] + lab2[0]) / 2;
-    const ratioAdjustment = Math.abs((avgL - 50) / 50);
-    const adjustedRatio = ratio + ratio * ratioAdjustment;
-
-    // Calculate the lightness adjustment based on the lightness of color1 and the blending ratio
-    const adjustedL = lab1[0] - deltaL * adjustedRatio;
-
-    // Blend the two colors using the adjusted blending ratio and adjusted lightness
-    const blendedLab = [
-      adjustedL,
-      lab1[1] - deltaA * adjustedRatio,
-      lab1[2] - deltaB * adjustedRatio,
-    ];
-
-    // Convert the blended color back to hexadecimal
-    const blendedHex = convertLabToHex(blendedLab);
-
-    // Return the blended hexadecimal color
-    return `#${blendedHex}`
-  }
-
-  // returns the contrast level based on 2 colors
-  contrast (color1, color2) {
-    // Convert hexadecimal colors to CIELAB color space
-    const lab1 = convertHexToLab(color1);
-    const lab2 = convertHexToLab(color2);
-
-    // Calculate the difference between the two colors in CIELAB space
-    const deltaL = lab1[0] - lab2[0];
-    const deltaA = lab1[1] - lab2[1];
-    const deltaB = lab1[2] - lab2[2];
-    const deltaE = Math.sqrt(deltaL**2 + deltaA**2 + deltaB**2);
-
-    return deltaE
   }
 
   roundImage (image, r) {
@@ -909,10 +921,12 @@ class QuoteGenerate {
 
     let nameColor = nameColorArray[nameIndex]
 
+    const colorContrast = new ColorContrast()
+
     // change name color based on background color by contrast
-    const contrast = this.contrast(backgroundColor, nameColor)
+    const contrast = colorContrast.getContrastRatio(backgroundColor, nameColor)
     if (contrast > 90 || contrast < 30) {
-      nameColor = this.blendColors(backgroundColor, nameColor)
+      nameColor = colorContrast.adjustContrast(backgroundColor, nameColor)
     }
 
     const nameSize = 22 * scale

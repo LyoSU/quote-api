@@ -1,6 +1,6 @@
 {
   "name": "quote-api",
-  "version": "0.13.2",
+  "version": "0.13.3",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -20,7 +20,6 @@
   "homepage": "https://github.com/LyoSU/quote-api#readme",
   "dependencies": {
     "canvas": "2.11.0",
-    "color-convert": "^2.0.1",
     "dotenv": "^7.0.0",
     "emoji-db": "^14.0.1",
     "jimp": "^0.16.1",
