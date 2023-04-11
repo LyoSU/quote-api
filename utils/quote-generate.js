@@ -889,29 +889,11 @@ class QuoteGenerate {
     return color
   }
 
-  async generate (backgroundColor, message, width = 512, height = 512, scale = 2, emojiBrand = 'apple') {
+  async generate (backgroundColorOne, backgroundColorTwo, message, width = 512, height = 512, scale = 2, emojiBrand = 'apple') {
     if (!scale) scale = 2
     if (scale > 20) scale = 20
     width *= scale
     height *= scale
-
-    let backgroundColorOne
-    let backgroundColorTwo
-
-    const backgroundColorSplit = backgroundColor.split('/')
-
-    if (backgroundColorSplit && backgroundColorSplit.length > 1 && backgroundColorSplit[0] !== '') {
-      backgroundColorOne = this.normalizeColor(backgroundColorSplit[0])
-      backgroundColorTwo = this.normalizeColor(backgroundColorSplit[1])
-    } else if (backgroundColor.startsWith('//')) {
-      backgroundColor = this.normalizeColor(backgroundColor.replace('//', ''))
-      backgroundColorOne = this.colorLuminance(backgroundColor, 0.55)
-      backgroundColorTwo = this.colorLuminance(backgroundColor, -0.55)
-    } else {
-      backgroundColor = this.normalizeColor(backgroundColor)
-      backgroundColorOne = backgroundColor
-      backgroundColorTwo = backgroundColor
-    }
 
     // check background style color black/light
     const backStyle = this.lightOrDark(backgroundColorOne)

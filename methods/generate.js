@@ -12,6 +12,16 @@ const addLight = (color, amount) => {
   return c
 }
 
+const normalizeColor = (color) => {
+  const canvas = createCanvas(0, 0)
+  const canvasCtx = canvas.getContext('2d')
+
+  canvasCtx.fillStyle = color
+  color = canvasCtx.fillStyle
+
+  return color
+}
+
 const lighten = (color, amount) => {
   color = (color.indexOf('#') >= 0) ? color.substring(1, color.length) : color
   amount = parseInt((255 * amount) / 100)
@@ -51,12 +61,32 @@ module.exports = async (parm) => {
 
   const quoteImages = []
 
+  let backgroundColor = parm.backgroundColor || '#292232'
+  let backgroundColorOne
+  let backgroundColorTwo
+
+  const backgroundColorSplit = backgroundColor.split('/')
+
+  if (backgroundColorSplit && backgroundColorSplit.length > 1 && backgroundColorSplit[0] !== '') {
+    backgroundColorOne = normalizeColor(backgroundColorSplit[0])
+    backgroundColorTwo = normalizeColor(backgroundColorSplit[1])
+  } else if (backgroundColor.startsWith('//')) {
+    backgroundColor = normalizeColor(backgroundColor.replace('//', ''))
+    backgroundColorOne = colorLuminance(backgroundColor, 0.55)
+    backgroundColorTwo = colorLuminance(backgroundColor, -0.55)
+  } else {
+    backgroundColor = normalizeColor(backgroundColor)
+    backgroundColorOne = backgroundColor
+    backgroundColorTwo = backgroundColor
+  }
+
   for (const key in parm.messages) {
     const message = parm.messages[key]
 
     if (message) {
       const canvasQuote = await quoteGenerate.generate(
-        parm.backgroundColor,
+        backgroundColorOne,
+        backgroundColorTwo,
         message,
         parm.width,
         parm.height,
@@ -140,7 +170,7 @@ module.exports = async (parm) => {
     const canvasPic = createCanvas(canvasImage.width + padding * 1.7, canvasImage.height + padding * 1.7)
     const canvasPicCtx = canvasPic.getContext('2d')
 
-    const color = lighten(parm.backgroundColor, 5)
+    const color = lighten(backgroundColorOne, 3)
 
     // radial gradient background (top left)
     const gradient = canvasPicCtx.createRadialGradient(
