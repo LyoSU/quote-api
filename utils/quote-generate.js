@@ -593,7 +593,7 @@ class QuoteGenerate {
     return canvas
   }
 
-  drawGradientRoundRect (color, w, h, r) {
+  drawGradientRoundRect (colorOne, colorTwo, w, h, r) {
     const x = 0
     const y = 0
 
@@ -601,8 +601,8 @@ class QuoteGenerate {
     const canvasCtx = canvas.getContext('2d')
 
     const gradient = canvasCtx.createLinearGradient(0, 0, w, h)
-    gradient.addColorStop(0, this.colorLuminance(color, 0.55))
-    gradient.addColorStop(1, this.colorLuminance(color, -0.05))
+    gradient.addColorStop(0, colorOne)
+    gradient.addColorStop(1, colorTwo)
 
     canvasCtx.fillStyle = gradient
 
@@ -739,7 +739,7 @@ class QuoteGenerate {
     return canvas
   }
 
-  async drawQuote (scale = 1, backgroundColor, avatar, replyName, replyText, name, text, media, mediaType, maxMediaSize) {
+  async drawQuote (scale = 1, backgroundColorOne, backgroundColorTwo, avatar, replyName, replyText, name, text, media, mediaType, maxMediaSize) {
     const blockPosX = 55 * scale
     const blockPosY = 0
 
@@ -852,8 +852,13 @@ class QuoteGenerate {
       rectHeight -= mediaHeight + indent * 2
     }
 
-    // if (mediaType !== 'sticker' || name || replyName) rect = this.drawRoundRect(backgroundColor, rectWidth, rectHeight, rectRoundRadius)
-    if (mediaType !== 'sticker' || name || replyName) rect = this.drawGradientRoundRect(backgroundColor, rectWidth, rectHeight, rectRoundRadius)
+    if (mediaType !== 'sticker' || name || replyName) {
+      if (backgroundColorOne === backgroundColorTwo) {
+        rect = this.drawRoundRect(backgroundColorOne, rectWidth, rectHeight, rectRoundRadius)
+      } else {
+        rect = this.drawGradientRoundRect(backgroundColorOne, backgroundColorTwo, rectWidth, rectHeight, rectRoundRadius)
+      }
+    }
 
     if (avatar) canvasCtx.drawImage(avatar, avatarPosX, avatarPosY, avatarSize, avatarSize)
     if (rect) canvasCtx.drawImage(rect, rectPosX, rectPosY)
@@ -862,7 +867,7 @@ class QuoteGenerate {
     if (media) canvasCtx.drawImage(this.roundImage(media, 5 * scale), mediaPosX, mediaPosY, mediaWidth, mediaHeight)
 
     if (replyName) {
-      const backStyle = this.lightOrDark(backgroundColor)
+      const backStyle = this.lightOrDark(backgroundColorOne)
       let lineColor = '#fff'
       if (backStyle === 'light') lineColor = '#000'
       canvasCtx.drawImage(this.deawReplyLine(3 * scale, replyName.height + replyText.height * 0.4, lineColor), textPosX - 7, replyNamePosY)
@@ -890,8 +895,26 @@ class QuoteGenerate {
     width *= scale
     height *= scale
 
+    let backgroundColorOne
+    let backgroundColorTwo
+
+    const backgroundColorSplit = backgroundColor.split('/')
+
+    if (backgroundColorSplit && backgroundColorSplit.length > 1 && backgroundColorSplit[0] !== '') {
+      backgroundColorOne = this.normalizeColor(backgroundColorSplit[0])
+      backgroundColorTwo = this.normalizeColor(backgroundColorSplit[1])
+    } else if (backgroundColor.startsWith('//')) {
+      backgroundColor = this.normalizeColor(backgroundColor.replace('//', ''))
+      backgroundColorOne = this.colorLuminance(backgroundColor, 0.55)
+      backgroundColorTwo = this.colorLuminance(backgroundColor, -0.55)
+    } else {
+      backgroundColor = this.normalizeColor(backgroundColor)
+      backgroundColorOne = backgroundColor
+      backgroundColorTwo = backgroundColor
+    }
+
     // check background style color black/light
-    const backStyle = this.lightOrDark(backgroundColor)
+    const backStyle = this.lightOrDark(backgroundColorOne)
 
     const nameColorLight = [
       '#FC5C51',
@@ -924,9 +947,9 @@ class QuoteGenerate {
     const colorContrast = new ColorContrast()
 
     // change name color based on background color by contrast
-    const contrast = colorContrast.getContrastRatio(this.colorLuminance(backgroundColor, 0.55), nameColor)
+    const contrast = colorContrast.getContrastRatio(this.colorLuminance(backgroundColorOne, 0.55), nameColor)
     if (contrast > 90 || contrast < 30) {
-      nameColor = colorContrast.adjustContrast(this.colorLuminance(backgroundColor, 0.55), nameColor)
+      nameColor = colorContrast.adjustContrast(this.colorLuminance(backgroundColorTwo, 0.55), nameColor)
     }
 
     const nameSize = 22 * scale
@@ -1067,7 +1090,7 @@ class QuoteGenerate {
 
     const quote = this.drawQuote(
       scale,
-      backgroundColor,
+      backgroundColorOne, backgroundColorTwo,
       avatarCanvas,
       replyName, replyText,
       nameCanvas, textCanvas,

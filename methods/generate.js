@@ -12,16 +12,6 @@ const addLight = (color, amount) => {
   return c
 }
 
-const normalizeColor = (color) => {
-  const canvas = createCanvas(0, 0)
-  const canvasCtx = canvas.getContext('2d')
-
-  canvasCtx.fillStyle = color
-  color = canvasCtx.fillStyle
-
-  return color
-}
-
 const lighten = (color, amount) => {
   color = (color.indexOf('#') >= 0) ? color.substring(1, color.length) : color
   amount = parseInt((255 * amount) / 100)
@@ -58,8 +48,6 @@ module.exports = async (parm) => {
   let botToken = parm.botToken || process.env.BOT_TOKEN
 
   const quoteGenerate = new QuoteGenerate(botToken)
-
-  parm.backgroundColor = normalizeColor(parm.backgroundColor)
 
   const quoteImages = []
 
