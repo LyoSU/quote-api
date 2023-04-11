@@ -154,8 +154,6 @@ module.exports = async (parm) => {
     const canvasPic = createCanvas(canvasImage.width + padding * 1.7, canvasImage.height + padding * 1.7)
     const canvasPicCtx = canvasPic.getContext('2d')
 
-    const color = colorLuminance(backgroundColorOne, 0.15)
-
     // radial gradient background (top left)
     const gradient = canvasPicCtx.createRadialGradient(
       canvasPic.width / 2,
@@ -166,8 +164,11 @@ module.exports = async (parm) => {
       canvasPic.width / 2
     )
 
-    gradient.addColorStop(0, colorLuminance(color, 0.35))
-    gradient.addColorStop(1, color)
+    const patternColorOne = colorLuminance(backgroundColorTwo, 0.15)
+    const patternColorTwo = colorLuminance(backgroundColorOne, 0.15)
+
+    gradient.addColorStop(0, patternColorOne)
+    gradient.addColorStop(1, patternColorTwo)
 
     canvasPicCtx.fillStyle = gradient
     canvasPicCtx.fillRect(0, 0, canvasPic.width, canvasPic.height)
