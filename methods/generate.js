@@ -4,28 +4,12 @@ const {
 const { createCanvas, loadImage } = require('canvas')
 const sharp = require('sharp')
 
-// https://codepen.io/jreyesgs/pen/yadmge
-const addLight = (color, amount) => {
-  const cc = parseInt(color, 16) + amount
-  let c = (cc > 255) ? 255 : (cc)
-  c = (c.toString(16).length > 1) ? c.toString(16) : `0${c.toString(16)}`
-  return c
-}
-
 const normalizeColor = (color) => {
   const canvas = createCanvas(0, 0)
   const canvasCtx = canvas.getContext('2d')
 
   canvasCtx.fillStyle = color
   color = canvasCtx.fillStyle
-
-  return color
-}
-
-const lighten = (color, amount) => {
-  color = (color.indexOf('#') >= 0) ? color.substring(1, color.length) : color
-  amount = parseInt((255 * amount) / 100)
-  color = `#${addLight(color.substring(0, 2), amount)}${addLight(color.substring(2, 4), amount)}${addLight(color.substring(4, 6), amount)}`
 
   return color
 }
@@ -73,7 +57,7 @@ module.exports = async (parm) => {
   } else if (backgroundColor.startsWith('//')) {
     backgroundColor = normalizeColor(backgroundColor.replace('//', ''))
     backgroundColorOne = colorLuminance(backgroundColor, 0.55)
-    backgroundColorTwo = colorLuminance(backgroundColor, -0.55)
+    backgroundColorTwo = colorLuminance(backgroundColor, -0.05)
   } else {
     backgroundColor = normalizeColor(backgroundColor)
     backgroundColorOne = backgroundColor
@@ -170,7 +154,7 @@ module.exports = async (parm) => {
     const canvasPic = createCanvas(canvasImage.width + padding * 1.7, canvasImage.height + padding * 1.7)
     const canvasPicCtx = canvasPic.getContext('2d')
 
-    const color = lighten(backgroundColorOne, 3)
+    const color = colorLuminance(backgroundColorOne, 0.15)
 
     // radial gradient background (top left)
     const gradient = canvasPicCtx.createRadialGradient(
