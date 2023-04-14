@@ -209,10 +209,10 @@ module.exports = async (parm) => {
     canvasPicCtx.shadowColor = 'rgba(0, 0, 0, 0)'
 
     // write text button right
-    canvasPicCtx.fillStyle = `rgba(0, 0, 0, 0.5)`
+    canvasPicCtx.fillStyle = `rgba(0, 0, 0, 0.3)`
     canvasPicCtx.font = `${8 * parm.scale}px Noto Sans`
     canvasPicCtx.textAlign = 'right'
-    canvasPicCtx.fillText('@QuotLyBot', canvasPic.width - 20, canvasPic.height - 20)
+    canvasPicCtx.fillText('@QuotLyBot', canvasPic.width - 25, canvasPic.height - 25)
 
     quoteImage = await sharp(canvasPic.toBuffer()).png({ lossless: true, force: true }).toBuffer()
   } else {
