@@ -34,6 +34,18 @@ const colorLuminance = (hex, lum) => {
   return rgb
 }
 
+const imageAlpha = (image, alpha) => {
+  const canvas = createCanvas(image.width, image.height)
+
+  const canvasCtx = canvas.getContext('2d')
+
+  canvasCtx.globalAlpha = alpha
+
+  canvasCtx.drawImage(image, 0, 0)
+
+  return canvas
+}
+
 module.exports = async (parm) => {
   // console.log(JSON.stringify(parm, null, 2))
   if (!parm) return { error: 'query_empty' }
@@ -45,7 +57,7 @@ module.exports = async (parm) => {
 
   const quoteImages = []
 
-  let backgroundColor = parm.backgroundColor || '#292232'
+  let backgroundColor = parm.backgroundColor || '//#292232'
   let backgroundColorOne
   let backgroundColorTwo
 
@@ -56,8 +68,8 @@ module.exports = async (parm) => {
     backgroundColorTwo = normalizeColor(backgroundColorSplit[1])
   } else if (backgroundColor.startsWith('//')) {
     backgroundColor = normalizeColor(backgroundColor.replace('//', ''))
-    backgroundColorOne = colorLuminance(backgroundColor, 0.40)
-    backgroundColorTwo = colorLuminance(backgroundColor, -0.05)
+    backgroundColorOne = colorLuminance(backgroundColor, 0.45)
+    backgroundColorTwo = colorLuminance(backgroundColor, -0.15)
   } else {
     backgroundColor = normalizeColor(backgroundColor)
     backgroundColorOne = backgroundColor
@@ -99,7 +111,7 @@ module.exports = async (parm) => {
       height += quoteImages[index].height
     }
 
-    const quoteMargin = 5
+    const quoteMargin = 5 * parm.scale
 
     const canvas = createCanvas(width, height + (quoteMargin * quoteImages.length))
     const canvasCtx = canvas.getContext('2d')
@@ -147,11 +159,12 @@ module.exports = async (parm) => {
     if (format === 'png') quoteImage = await imageSharp.png().toBuffer()
     else quoteImage = await imageSharp.webp({ lossless: true, force: true }).toBuffer()
   } else if (type === 'image') {
-    const padding = 25 * parm.scale
+    const heightPadding = 30 * parm.scale
+    const widthPadding = 55 * parm.scale
 
     const canvasImage = await loadImage(canvasQuote.toBuffer())
 
-    const canvasPic = createCanvas(canvasImage.width + padding * 1.7, canvasImage.height + padding * 1.7)
+    const canvasPic = createCanvas(canvasImage.width + widthPadding * 1.7, canvasImage.height + heightPadding * 1.7)
     const canvasPicCtx = canvasPic.getContext('2d')
 
     // radial gradient background (top left)
@@ -176,7 +189,8 @@ module.exports = async (parm) => {
     const canvasPatternImage = await loadImage('./assets/pattern_02.png')
     // const canvasPatternImage = await loadImage('./assets/pattern_ny.png');
 
-    const pattern = canvasPicCtx.createPattern(canvasPatternImage, 'repeat')
+    const pattern = canvasPicCtx.createPattern(imageAlpha(canvasPatternImage, 0.15), 'repeat')
+
     canvasPicCtx.fillStyle = pattern
     canvasPicCtx.fillRect(0, 0, canvasPic.width, canvasPic.height)
 
@@ -186,7 +200,7 @@ module.exports = async (parm) => {
     canvasPicCtx.shadowBlur = 13
     canvasPicCtx.shadowColor = 'rgba(0, 0, 0, 0.5)'
 
-    canvasPicCtx.drawImage(canvasImage, padding, padding)
+    canvasPicCtx.drawImage(canvasImage, widthPadding / 1.25, heightPadding)
 
     quoteImage = await sharp(canvasPic.toBuffer()).png({ lossless: true, force: true }).toBuffer()
   } else {
