@@ -159,12 +159,12 @@ module.exports = async (parm) => {
     if (format === 'png') quoteImage = await imageSharp.png().toBuffer()
     else quoteImage = await imageSharp.webp({ lossless: true, force: true }).toBuffer()
   } else if (type === 'image') {
-    const heightPadding = 45 * parm.scale
-    const widthPadding = 60 * parm.scale
+    const heightPadding = 75 * parm.scale
+    const widthPadding = 95 * parm.scale
 
     const canvasImage = await loadImage(canvasQuote.toBuffer())
 
-    const canvasPic = createCanvas(canvasImage.width + widthPadding * 1.7, canvasImage.height + heightPadding * 1.7)
+    const canvasPic = createCanvas(canvasImage.width + widthPadding, canvasImage.height + heightPadding)
     const canvasPicCtx = canvasPic.getContext('2d')
 
     // radial gradient background (top left)
@@ -200,7 +200,19 @@ module.exports = async (parm) => {
     canvasPicCtx.shadowBlur = 13
     canvasPicCtx.shadowColor = 'rgba(0, 0, 0, 0.5)'
 
-    canvasPicCtx.drawImage(canvasImage, widthPadding / 1.25, heightPadding)
+    // Draw the image to the canvas with padding centered
+    canvasPicCtx.drawImage(canvasImage, widthPadding / 2, heightPadding / 2)
+
+    canvasPicCtx.shadowOffsetX = 0
+    canvasPicCtx.shadowOffsetY = 0
+    canvasPicCtx.shadowBlur = 0
+    canvasPicCtx.shadowColor = 'rgba(0, 0, 0, 0)'
+
+    // write text button right
+    canvasPicCtx.fillStyle = `rgba(0, 0, 0, 0.5)`
+    canvasPicCtx.font = `${8 * parm.scale}px Noto Sans`
+    canvasPicCtx.textAlign = 'right'
+    canvasPicCtx.fillText('@QuotLyBot', canvasPic.width - 20, canvasPic.height - 20)
 
     quoteImage = await sharp(canvasPic.toBuffer()).png({ lossless: true, force: true }).toBuffer()
   } else {
