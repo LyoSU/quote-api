@@ -160,7 +160,7 @@ module.exports = async (parm) => {
     else quoteImage = await imageSharp.webp({ lossless: true, force: true }).toBuffer()
   } else if (type === 'image') {
     const heightPadding = 30 * parm.scale
-    const widthPadding = 55 * parm.scale
+    const widthPadding = 50 * parm.scale
 
     const canvasImage = await loadImage(canvasQuote.toBuffer())
 
@@ -189,7 +189,7 @@ module.exports = async (parm) => {
     const canvasPatternImage = await loadImage('./assets/pattern_02.png')
     // const canvasPatternImage = await loadImage('./assets/pattern_ny.png');
 
-    const pattern = canvasPicCtx.createPattern(imageAlpha(canvasPatternImage, 0.15), 'repeat')
+    const pattern = canvasPicCtx.createPattern(imageAlpha(canvasPatternImage, 0.25), 'repeat')
 
     canvasPicCtx.fillStyle = pattern
     canvasPicCtx.fillRect(0, 0, canvasPic.width, canvasPic.height)
