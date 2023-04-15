@@ -755,8 +755,8 @@ class QuoteGenerate {
     if (name) width = name.width
     if (text && width < text.width) width = text.width + indent
     if (replyName) {
-      if (width < replyName.width) width = replyName.width + indent
-      if (width < replyText.width) width = replyText.width + indent
+      if (width < replyName.width) width = replyName.width + indent * 2
+      if (width < replyText.width) width = replyText.width + indent * 2
     }
 
     let height = indent
@@ -837,6 +837,9 @@ class QuoteGenerate {
       mediaPosY += indent * 4
       height += indent * 2
     }
+
+    // if width is less then name width then set width to name width
+    if (name && width < name.width) width = name.width + indent * 2
 
     const canvas = createCanvas(width, height)
     const canvasCtx = canvas.getContext('2d')
