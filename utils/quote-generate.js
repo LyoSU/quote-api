@@ -743,10 +743,10 @@ class QuoteGenerate {
     const blockPosX = 55 * scale
     const blockPosY = 0
 
-    const indent = 15 * scale
+    const indent = 20 * scale
 
-    const avatarPosX = 0
-    const avatarPosY = 15
+    const avatarPosX = 0 * scale
+    const avatarPosY = 5 * scale
     const avatarSize = 50 * scale
 
     if (mediaType === 'sticker') name = undefined
@@ -773,16 +773,16 @@ class QuoteGenerate {
     height += blockPosY
 
     let namePosX = blockPosX + indent
-    let namePosY = indent
+    let namePosY = indent / 1.4
 
     if (!name) {
       namePosX = 0
-      namePosY = -indent
+      namePosY = -indent / 1.4
     }
 
     const textPosX = blockPosX + indent
     let textPosY = indent
-    if (name) textPosY = name.height
+    if (name) textPosY = name.height + (8 * scale)
 
     let replyPosX = 0
     let replyNamePosY = 0

@@ -1,6 +1,6 @@
 {
   "name": "quote-api",
-  "version": "0.13.12",
+  "version": "0.13.13",
   "description": "",
   "main": "index.js",
   "scripts": {
