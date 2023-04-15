@@ -739,16 +739,15 @@ class QuoteGenerate {
     return canvas
   }
 
-  async drawQuote (scale = 1, backgroundColorOne, backgroundColorTwo, avatar, replyName, replyText, name, text, media, mediaType, maxMediaSize, fontSize) {
+  async drawQuote (scale = 1, backgroundColorOne, backgroundColorTwo, avatar, replyName, replyText, name, text, media, mediaType, maxMediaSize) {
     const avatarPosX = 0 * scale
     const avatarPosY = 5 * scale
     const avatarSize = 50 * scale
 
-
     const blockPosX = avatarSize + 10 * scale
     const blockPosY = scale
 
-    const indent = (fontSize / 2) * scale
+    const indent = 20 * scale
 
     if (mediaType === 'sticker') name = undefined
 
@@ -1069,8 +1068,7 @@ class QuoteGenerate {
       avatarCanvas,
       replyName, replyText,
       nameCanvas, textCanvas,
-      mediaCanvas, mediaType, maxMediaSize,
-      fontSize
+      mediaCanvas, mediaType, maxMediaSize
     )
 
     return quote
