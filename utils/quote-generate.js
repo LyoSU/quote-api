@@ -790,7 +790,7 @@ class QuoteGenerate {
     let replyTextPosY = 0
 
     if (replyName) {
-      replyPosX = textPosX + indent
+      replyPosX = textPosX + indent / 2
 
       const replyNameHeight = replyName.height * 1.2
       const replyTextHeight = replyText.height * 0.5
@@ -798,8 +798,8 @@ class QuoteGenerate {
       replyNamePosY = namePosY + replyNameHeight
       replyTextPosY = replyNamePosY + replyTextHeight
 
-      textPosY += replyNameHeight + replyTextHeight + (indent / 2)
-      height += replyNameHeight + replyTextHeight + (indent / 2)
+      textPosY += replyNameHeight + replyTextHeight + (indent / 4)
+      height += replyNameHeight + replyTextHeight + (indent / 4)
     }
 
     let mediaPosX = 0
