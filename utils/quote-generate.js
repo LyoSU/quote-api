@@ -739,15 +739,16 @@ class QuoteGenerate {
     return canvas
   }
 
-  async drawQuote (scale = 1, backgroundColorOne, backgroundColorTwo, avatar, replyName, replyText, name, text, media, mediaType, maxMediaSize) {
-    const blockPosX = 60 * scale
-    const blockPosY = scale
-
-    const indent = 18.5 * scale
-
+  async drawQuote (scale = 1, backgroundColorOne, backgroundColorTwo, avatar, replyName, replyText, name, text, media, mediaType, maxMediaSize, fontSize) {
     const avatarPosX = 0 * scale
     const avatarPosY = 5 * scale
     const avatarSize = 50 * scale
+
+
+    const blockPosX = avatarSize + 10 * scale
+    const blockPosY = scale
+
+    const indent = (fontSize / 2) * scale
 
     if (mediaType === 'sticker') name = undefined
 
@@ -773,11 +774,11 @@ class QuoteGenerate {
     height += blockPosY
 
     let namePosX = blockPosX + indent
-    let namePosY = indent / 1.35
+    let namePosY = indent / 2
 
     if (!name) {
       namePosX = 0
-      namePosY = -indent / 1.35
+      namePosY = -indent / 2
     }
 
     const textPosX = blockPosX + indent
@@ -974,20 +975,6 @@ class QuoteGenerate {
 
     let fontSize = 24 * scale
 
-    // if text leng < 20 then font size - 2
-    if (message.text) {
-      const textLength = message.text.length
-
-      if (textLength > 1000) fontSize -= 2 * scale
-      if (textLength > 500) fontSize -= 2 * scale
-      if (textLength < 200) fontSize += 3 * scale
-      if (textLength < 100) fontSize += 3 * scale
-      if (textLength < 50) fontSize += 3 * scale
-      if (textLength < 30) fontSize += 3 * scale
-      if (textLength < 20) fontSize += 3 * scale
-      if (textLength < 10) fontSize += 3 * scale
-    }
-
     let textColor = '#fff'
     if (backStyle === 'light') textColor = '#000'
 
@@ -1082,7 +1069,8 @@ class QuoteGenerate {
       avatarCanvas,
       replyName, replyText,
       nameCanvas, textCanvas,
-      mediaCanvas, mediaType, maxMediaSize
+      mediaCanvas, mediaType, maxMediaSize,
+      fontSize
     )
 
     return quote
