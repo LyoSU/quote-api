@@ -743,7 +743,7 @@ class QuoteGenerate {
     const blockPosX = 60 * scale
     const blockPosY = scale
 
-    const indent = 20 * scale
+    const indent = 18.5 * scale
 
     const avatarPosX = 0 * scale
     const avatarPosY = 5 * scale
@@ -773,16 +773,16 @@ class QuoteGenerate {
     height += blockPosY
 
     let namePosX = blockPosX + indent
-    let namePosY = indent / 1.4
+    let namePosY = indent / 1.35
 
     if (!name) {
       namePosX = 0
-      namePosY = -indent / 1.4
+      namePosY = -indent / 1.35
     }
 
     const textPosX = blockPosX + indent
     let textPosY = indent
-    if (name) textPosY = name.height + (8 * scale)
+    if (name) textPosY = name.height
 
     let replyPosX = 0
     let replyNamePosY = 0
