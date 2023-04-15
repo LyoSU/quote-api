@@ -740,8 +740,8 @@ class QuoteGenerate {
   }
 
   async drawQuote (scale = 1, backgroundColorOne, backgroundColorTwo, avatar, replyName, replyText, name, text, media, mediaType, maxMediaSize) {
-    const blockPosX = 55 * scale
-    const blockPosY = 0
+    const blockPosX = 60 * scale
+    const blockPosY = scale
 
     const indent = 20 * scale
 
@@ -769,7 +769,7 @@ class QuoteGenerate {
       else height += indent
     }
 
-    width += blockPosX + (indent * 2)
+    width += blockPosX + indent
     height += blockPosY
 
     let namePosX = blockPosX + indent
