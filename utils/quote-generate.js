@@ -972,15 +972,21 @@ class QuoteGenerate {
       )
     }
 
-    // const minFontSize = 18
-    // const maxFontSize = 28
+    let fontSize = 24 * scale
 
-    // let fontSize = 25 / ((text.length / 10) * 0.2)
+    // if text leng < 20 then font size - 2
+    if (message.text) {
+      const textLength = message.text.length
 
-    // if (fontSize < minFontSize) fontSize = minFontSize
-    // if (fontSize > maxFontSize) fontSize = maxFontSize
-
-    const fontSize = 24 * scale
+      if (textLength > 1000) fontSize -= 2 * scale
+      if (textLength > 500) fontSize -= 2 * scale
+      if (textLength < 200) fontSize += 3 * scale
+      if (textLength < 100) fontSize += 3 * scale
+      if (textLength < 50) fontSize += 3 * scale
+      if (textLength < 30) fontSize += 3 * scale
+      if (textLength < 20) fontSize += 3 * scale
+      if (textLength < 10) fontSize += 3 * scale
+    }
 
     let textColor = '#fff'
     if (backStyle === 'light') textColor = '#000'
