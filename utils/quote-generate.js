@@ -739,7 +739,7 @@ class QuoteGenerate {
     return canvas
   }
 
-  async drawQuote (scale = 1, backgroundColorOne, backgroundColorTwo, avatar, replyName, replyText, name, text, media, mediaType, maxMediaSize) {
+  async drawQuote (scale = 1, backgroundColorOne, backgroundColorTwo, avatar, replyName, replyNameColor, replyText, name, text, media, mediaType, maxMediaSize) {
     const avatarPosX = 0 * scale
     const avatarPosY = 5 * scale
     const avatarSize = 50 * scale
@@ -774,11 +774,11 @@ class QuoteGenerate {
     height += blockPosY
 
     let namePosX = blockPosX + indent
-    let namePosY = indent / 2
+    let namePosY = indent
 
     if (!name) {
       namePosX = 0
-      namePosY = -indent / 2
+      namePosY = -indent
     }
 
     const textPosX = blockPosX + indent
@@ -790,9 +790,9 @@ class QuoteGenerate {
     let replyTextPosY = 0
 
     if (replyName) {
-      replyPosX = textPosX + indent / 2
+      replyPosX = textPosX + indent * 0.7
 
-      const replyNameHeight = replyName.height * 1.2
+      const replyNameHeight = replyName.height
       const replyTextHeight = replyText.height * 0.5
 
       replyNamePosY = namePosY + replyNameHeight
@@ -868,10 +868,7 @@ class QuoteGenerate {
     if (media) canvasCtx.drawImage(this.roundImage(media, 5 * scale), mediaPosX, mediaPosY, mediaWidth, mediaHeight)
 
     if (replyName) {
-      const backStyle = this.lightOrDark(backgroundColorOne)
-      let lineColor = '#fff'
-      if (backStyle === 'light') lineColor = '#000'
-      canvasCtx.drawImage(this.deawReplyLine(3 * scale, replyName.height + replyText.height * 0.4, lineColor), textPosX - 7, replyNamePosY)
+      canvasCtx.drawImage(this.deawReplyLine(3 * scale, replyName.height + replyText.height * 0.4, replyNameColor), textPosX - 3, replyNamePosY)
 
       canvasCtx.drawImage(replyName, replyPosX, replyNamePosY)
       canvasCtx.drawImage(replyText, replyPosX, replyTextPosY)
@@ -996,10 +993,10 @@ class QuoteGenerate {
     let avatarCanvas
     if (message.avatar) avatarCanvas = await this.drawAvatar(message.from)
 
-    let replyName, replyText
+    let replyName, replyNameColor, replyText
     if (message.replyMessage && message.replyMessage.name && message.replyMessage.text) {
       const replyNameIndex = Math.abs(message.replyMessage.chatId) % 7
-      const replyNameColor = nameColorArray[replyNameIndex]
+      replyNameColor = nameColorArray[replyNameIndex]
 
       const replyNameFontSize = 16 * scale
       if (message.replyMessage.name) {
@@ -1067,7 +1064,7 @@ class QuoteGenerate {
       scale,
       backgroundColorOne, backgroundColorTwo,
       avatarCanvas,
-      replyName, replyText,
+      replyName, replyNameColor, replyText,
       nameCanvas, textCanvas,
       mediaCanvas, mediaType, maxMediaSize
     )
