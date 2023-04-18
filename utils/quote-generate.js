@@ -783,7 +783,10 @@ class QuoteGenerate {
 
     const textPosX = blockPosX + indent
     let textPosY = indent
-    if (name) textPosY = name.height
+    if (name) {
+      textPosY = name.height + indent * 0.2
+      height += indent * 0.2
+    }
 
     let replyPosX = 0
     let replyNamePosY = 0
