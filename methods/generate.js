@@ -86,7 +86,7 @@ module.exports = async (parm) => {
         message,
         parm.width,
         parm.height,
-        parseInt(parm.scale),
+        parseFloat(parm.scale),
         parm.emojiBrand
       )
 
