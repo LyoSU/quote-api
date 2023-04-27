@@ -745,7 +745,7 @@ class QuoteGenerate {
     const avatarSize = 50 * scale
 
     const blockPosX = avatarSize + 10 * scale
-    const blockPosY = scale
+    const blockPosY = 0
 
     const indent = 20 * scale
 
