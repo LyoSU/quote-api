@@ -747,7 +747,7 @@ class QuoteGenerate {
     const blockPosX = avatarSize + 10 * scale
     const blockPosY = 0
 
-    const indent = 20 * scale
+    const indent = 14 * scale
 
     if (mediaType === 'sticker') name = undefined
 
