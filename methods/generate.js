@@ -68,7 +68,7 @@ module.exports = async (parm) => {
     backgroundColorTwo = normalizeColor(backgroundColorSplit[1])
   } else if (backgroundColor.startsWith('//')) {
     backgroundColor = normalizeColor(backgroundColor.replace('//', ''))
-    backgroundColorOne = colorLuminance(backgroundColor, 0.45)
+    backgroundColorOne = colorLuminance(backgroundColor, 0.35)
     backgroundColorTwo = colorLuminance(backgroundColor, -0.15)
   } else {
     backgroundColor = normalizeColor(backgroundColor)
