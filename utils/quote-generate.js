@@ -161,13 +161,13 @@ class QuoteGenerate {
     const avatarImageCache = avatarCache.get(cacheKey)
 
     const avatarColorArray = [
-      [ '#FF885E', '#FF516A' ],
-      [ '#FFCD6A', '#FFA85C' ],
-      [ '#82B1FF', '#665FFF' ],
-      [ '#A0DE7E', '#54CB68' ],
-      [ '#53EDD6', '#28C9B7' ],
-      [ '#72D5FD', '#2A9EF1' ],
-      [ '#E0A2F3', '#D669ED' ]
+      [ '#FF885E', '#FF516A' ], // red
+      [ '#FFCD6A', '#FFA85C' ], // orange
+      [ '#E0A2F3', '#D669ED' ], // purple
+      [ '#A0DE7E', '#54CB68' ], // green
+      [ '#53EDD6', '#28C9B7' ], // sea
+      [ '#72D5FD', '#2A9EF1' ], // blue
+      [ '#FFA8A8', '#FF719A' ] // pink
     ]
 
     const nameIndex = Math.abs(user.id) % 7
@@ -793,7 +793,7 @@ class QuoteGenerate {
     let replyTextPosY = 0
 
     if (replyName) {
-      replyPosX = textPosX + indent * 0.7
+      replyPosX = textPosX + indent
 
       const replyNameHeight = replyName.height
       const replyTextHeight = replyText.height * 0.5
@@ -899,25 +899,48 @@ class QuoteGenerate {
     // check background style color black/light
     const backStyle = this.lightOrDark(backgroundColorOne)
 
+
+    // historyPeer1NameFg: #c03d33; // red
+    // historyPeer2NameFg: #4fad2d; // green
+    // historyPeer3NameFg: #d09306; // yellow
+    // historyPeer4NameFg: #168acd; // blue
+    // historyPeer5NameFg: #8544d6; // purple
+    // historyPeer6NameFg: #cd4073; // pink
+    // historyPeer7NameFg: #2996ad; // sea
+    // historyPeer8NameFg: #ce671b; // orange
+
+    // { 0, 7, 4, 1, 6, 3, 5 }
+    // const nameColor = [
+    //   '#c03d33', // red
+    //   '#ce671b', // orange
+    //   '#8544d6', // purple
+    //   '#4fad2d', // green
+    //   '#2996ad', // sea
+    //   '#168acd', // blue
+    //   '#cd4073' // pink
+    // ]
+
     const nameColorLight = [
-      '#FC5C51',
-      '#FA790F',
-      '#895DD5',
-      '#0FB297',
-      '#00C1A6',
-      '#3CA5EC',
-      '#3D72ED'
+      '#FC5C51', // red
+      '#FA790F', // orange
+      '#895DD5', // purple
+      '#0FB297', // green
+      '#0FC9D6', // sea
+      '#3CA5EC', // blue
+      '#D54FAF' // pink
     ]
 
     const nameColorDark = [
-      '#FF8E86',
-      '#FFA357',
-      '#BF9AFF',
-      '#4DD6BF',
-      '#45E8D1',
-      '#7AC9FF',
-      '#7AA2FF'
+      '#FF8E86', // red
+      '#FFA357', // orange
+      '#B18FFF', // purple
+      '#4DD6BF', // green
+      '#45E8D1', // sea
+      '#7AC9FF', // blue
+      '#FF7FD5' // pink
     ]
+
+    console.log(Math.abs(message.from.id) % 7)
 
     // user name  color
     let nameIndex = 1
