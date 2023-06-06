@@ -1,5 +1,5 @@
 const fs = require('fs')
-const { createCanvas, registerFont } = require('canvas')
+const { createCanvas, registerFont, Image } = require('canvas')
 const EmojiDbLib = require('emoji-db')
 const { loadImage } = require('canvas')
 const loadImageFromUrl = require('./image-load-url')
@@ -10,6 +10,9 @@ const runes = require('runes')
 const lottie = require('lottie-node')
 const zlib = require('zlib')
 const { Telegram } = require('telegraf')
+
+const render = require('./render')
+const { quote: view } = require('./views')
 
 const emojiDb = new EmojiDbLib({ useDefaultDb: true })
 
@@ -692,11 +695,11 @@ class QuoteGenerate {
       const avatarX = 0
       const avatarY = 0
 
-      canvasCtx.beginPath()
-      canvasCtx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2, true)
-      canvasCtx.clip()
-      canvasCtx.closePath()
-      canvasCtx.restore()
+      // canvasCtx.beginPath()
+      // canvasCtx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2, true)
+      // canvasCtx.clip()
+      // canvasCtx.closePath()
+      // canvasCtx.restore()
       canvasCtx.drawImage(avatarImage, avatarX, avatarY, avatarSize, avatarSize)
 
       return canvas
@@ -940,12 +943,8 @@ class QuoteGenerate {
       '#FF7FD5' // pink
     ]
 
-    console.log(Math.abs(message.from.id) % 7)
-
     // user name  color
-    let nameIndex = 1
-    if (message.from.id) nameIndex = Math.abs(message.from.id) % 7
-
+    const nameIndex = message.from.id ? Math.abs(message.from.id) % 7 : 1
     const nameColorArray = backStyle === 'light' ? nameColorLight : nameColorDark
 
     let nameColor = nameColorArray[nameIndex]
@@ -957,6 +956,42 @@ class QuoteGenerate {
     if (contrast > 90 || contrast < 30) {
       nameColor = colorContrast.adjustContrast(this.colorLuminance(backgroundColorTwo, 0.55), nameColor)
     }
+
+
+    const avatarImage = await this.drawAvatar(message.from)
+
+    const content = view({
+      width,
+      height,
+      scale,
+      theme: backStyle,
+      nameColor,
+      name: message?.from?.name ?? '',
+      emojiStatus: message?.from?.emoji_status ?? '',
+      avatarURL: avatarImage.toDataURL(),
+      text: message.text ?? '',
+    })
+
+    const page = await render(content)
+    const image = await page.locator('#quote').screenshot()
+
+    // convert to canvas for the generator
+    const canvas = createCanvas(width, height)
+    const canvasCtx = canvas.getContext('2d')
+    const img = new Image()
+
+    return new Promise((resolve, reject) => {
+      img.onload = () => {
+        canvasCtx.drawImage(img, 0, 0, width, height)
+        resolve(canvas)
+      }
+      img.onerror = console.error
+      img.src = image
+    })
+
+
+    // deprecated
+    // TODO: completely replace, test, remove
 
     const nameSize = 22 * scale
 
@@ -996,10 +1031,8 @@ class QuoteGenerate {
       )
     }
 
-    let fontSize = 24 * scale
-
-    let textColor = '#fff'
-    if (backStyle === 'light') textColor = '#000'
+    const fontSize = 24 * scale
+    const textColor = backStyle == 'light' ? '#000' : '#fff'
 
     let textCanvas
     if (message.text) {
