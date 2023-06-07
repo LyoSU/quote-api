@@ -1,8 +1,11 @@
-const {
-  QuoteGenerate
-} = require('../utils')
+const path = require('path')
+const fs = require('fs')
 const { createCanvas, loadImage } = require('canvas')
 const sharp = require('sharp')
+
+const render = require('../utils/render')
+const getView = require('../utils/get-view')
+const drawAvatar = require('../utils/draw-avatar')
 
 const normalizeColor = (color) => {
   const canvas = createCanvas(0, 0)
@@ -46,20 +49,18 @@ const imageAlpha = (image, alpha) => {
   return canvas
 }
 
+const buildContent = getView('quote')
+// FIXME: doest work
+const bgImageURL = fs.readFileSync(
+  path.resolve('./assets/pattern_02.png')
+).toString('base64')
+
 module.exports = async (parm) => {
-  // console.log(JSON.stringify(parm, null, 2))
   if (!parm) return { error: 'query_empty' }
-  if (!parm.messages || parm.messages.length < 1) return { error: 'messages_empty' }
-
-  let botToken = parm.botToken || process.env.BOT_TOKEN
-
-  const quoteGenerate = new QuoteGenerate(botToken)
-
-  const quoteImages = []
+  if (!parm.messages || !parm.messages.length) return { error: 'messages_empty' }
 
   let backgroundColor = parm.backgroundColor || '//#292232'
-  let backgroundColorOne
-  let backgroundColorTwo
+  let backgroundColorOne, backgroundColorTwo
 
   const backgroundColorSplit = backgroundColor.split('/')
 
@@ -76,9 +77,65 @@ module.exports = async (parm) => {
     backgroundColorTwo = backgroundColor
   }
 
-  for (const key in parm.messages) {
-    const message = parm.messages[key]
+  const scale = parm.scale ? Math.min(parseFloat(parm.scale), 20) : 2
+  const nameColors = ['red', 'orange', 'purple', 'green', 'sea', 'blue', 'pink']
 
+  const messages = await Promise.all(parm.messages
+    .filter(message => message)
+    .map(async message => {
+      const avatarURL = await drawAvatar(message.from)
+      return {
+        from: {
+          name: message.from?.name ?? '',
+          color: nameColors[message.from?.id ? Math.abs(message.from.id) % 7 : 1],
+          emoji_status: message.from?.emojiStatus ?? '',
+          avatar: { url: avatarURL.toDataURL() }
+        },
+        text: message.text ?? ''
+      }
+    })
+  )
+
+  if (!messages.length) {
+    return { error: 'empty_messages' }
+  }
+
+  const content = buildContent({
+    scale,
+    width: parm.width * scale,
+    height: parm.height * scale,
+    theme: 'light',
+    background: {
+      image: { url: bgImageURL, },
+      color1: colorLuminance(backgroundColorTwo, 0.15),
+      color2: colorLuminance(backgroundColorOne, 0.15)
+    },
+    messages,
+  })
+  fs.writeFileSync('./content.html', content)
+
+  let { type, format, ext } = parm
+  const quoteImage = await render(content, '#quote')
+  const { width, height } = await sharp(quoteImage).metadata()
+  const image = ext ? quoteImage : quoteImage.toString('base64')
+
+  if ((!type && ext) || (type != 'image' && height > 1024 * 2)) {
+    type = 'png'
+  }
+
+
+  return {
+    image,
+    type,
+    width,
+    height,
+    ext
+  }
+
+
+  // deprecated // TODO
+/*
+  for (const message of parm.messages) {
     if (message) {
       const canvasQuote = await quoteGenerate.generate(
         backgroundColorOne,
@@ -91,12 +148,6 @@ module.exports = async (parm) => {
       )
 
       quoteImages.push(canvasQuote)
-    }
-  }
-
-  if (quoteImages.length === 0) {
-    return {
-      error: 'empty_messages'
     }
   }
 
@@ -290,21 +341,5 @@ module.exports = async (parm) => {
   } else {
     quoteImage = canvasQuote.toBuffer()
   }
-
-  const imageMetadata = await sharp(quoteImage).metadata()
-
-  const width = imageMetadata.width
-  const height = imageMetadata.height
-
-  let image
-  if (ext) image = quoteImage
-  else image = quoteImage.toString('base64')
-
-  return {
-    image,
-    type,
-    width,
-    height,
-    ext
-  }
+*/
 }
