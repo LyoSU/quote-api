@@ -12,7 +12,6 @@ const { Telegram } = require('telegraf')
 
 const render = require('./render')
 const getView = require('./get-view')
-
 const drawAvatar = require('./draw-avatar')
 
 const emojiDb = new EmojiDbLib({ useDefaultDb: true })
