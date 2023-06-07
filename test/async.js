@@ -10,12 +10,12 @@ const generate = require('../methods/generate')
 
 const lorem = new LoremIpsum({
   sentencesPerParagraph: {
-    max: 8,
+    max: 4,
     min: 1
   },
   wordsPerSentence: {
     max: 16,
-    min: 4
+    min: 2
   }
 })
 
@@ -66,6 +66,6 @@ for (let i = 0; i < nQuotes; i++) {
       path.resolve(`./test/${i}.png`), buffer,
       err => err && console.error(err)
     )
-    console.timeLog(i)
+    console.timeEnd(i)
   })
 }
