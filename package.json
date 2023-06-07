@@ -7,7 +7,8 @@
     "start": "node index.js",
     "lint": "node_modules/.bin/eslint --ext js .",
     "lint:fix": "node_modules/.bin/eslint --fix --ext js .",
-    "test": "node test/stress.js 1000"
+    "test": "node test/stress.js 1000",
+    "test:async": "node test/async.js 1000 50"
   },
   "repository": {
     "type": "git",
@@ -41,6 +42,7 @@
     "telegraf": "^3.38.0"
   },
   "devDependencies": {
+    "async": "^3.2.4",
     "axios": "^1.4.0",
     "eslint": "^8.6.0",
     "eslint-config-standard": "^12.0.0",
