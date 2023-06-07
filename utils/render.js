@@ -1,16 +1,18 @@
 const { webkit } = require('playwright')
 
-const promise = webkit.launch()
-  .then(browser => browser.newContext())
-  .then(context => context.newPage())
+const promise = webkit.launch().then(browser => browser.newContext())
 
 module.exports = async (content, selector) => {
-  const page = await promise
+  const context = await promise
+  const page = await context.newPage()
   await page.setContent(content)
+  await page.waitForSelector(selector, { state: 'visible' })
+
   const screenshot = await page.locator(selector).screenshot({
     type: 'png',
     scale: 'css',
     omitBackground: true
   })
+
   return screenshot
 }
