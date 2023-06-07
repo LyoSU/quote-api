@@ -2,6 +2,7 @@ const path = require('path')
 const fs = require('fs')
 const { createCanvas, loadImage } = require('canvas')
 const sharp = require('sharp')
+const { Telegram } = require('telegraf')
 
 const render = require('../utils/render')
 const getView = require('../utils/get-view')
