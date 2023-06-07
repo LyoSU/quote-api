@@ -9,7 +9,6 @@ const smartcrop = require('smartcrop-sharp')
 const runes = require('runes')
 const lottie = require('lottie-node')
 const zlib = require('zlib')
-const { Telegram } = require('telegraf')
 
 const emojiDb = new EmojiDbLib({ useDefaultDb: true })
 
@@ -109,8 +108,8 @@ class ColorContrast {
 
 
 class QuoteGenerate {
-  constructor (botToken) {
-    this.telegram = new Telegram(botToken)
+  constructor (telegramBot) {
+    this.telegram = telegramBot
   }
 
   async avatarImageLatters (letters, color) {

@@ -3,6 +3,7 @@ const {
 } = require('../utils')
 const { createCanvas, loadImage } = require('canvas')
 const sharp = require('sharp')
+const { Telegram } = require('telegraf')
 
 const normalizeColor = (color) => {
   const canvas = createCanvas(0, 0)
@@ -46,14 +47,16 @@ const imageAlpha = (image, alpha) => {
   return canvas
 }
 
+let telegramBot
+
 module.exports = async (parm) => {
   // console.log(JSON.stringify(parm, null, 2))
   if (!parm) return { error: 'query_empty' }
   if (!parm.messages || parm.messages.length < 1) return { error: 'messages_empty' }
 
-  let botToken = parm.botToken || process.env.BOT_TOKEN
-
-  const quoteGenerate = new QuoteGenerate(botToken)
+  const botToken = parm.botToken || process.env.BOT_TOKEN
+  telegramBot = telegramBot || new Telegram(botToken)
+  const quoteGenerate = new QuoteGenerate(telegramBot)
 
   const quoteImages = []
 
