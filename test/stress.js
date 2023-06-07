@@ -26,6 +26,7 @@ const nQuotes = parseInt(process.argv[2])
     const avatar = 'https://telegra.ph/file/59952c903fdfb10b752b3.jpg'
 
     const json = {
+      botToken: process.env.BOT_TOKEN,
       type: 'quote',
       format: 'png',
       backgroundColor: '#FFFFFF',
@@ -53,7 +54,10 @@ const nQuotes = parseInt(process.argv[2])
       headers: { 'Content-Type': 'application/json' }
     }).then(res => {
       const buffer = Buffer.from(res.data.result.image, 'base64')
-      fs.writeFile(path.resolve(`./test/${i}.png`), buffer, (err) => err && console.error(err))
+      fs.writeFile(
+        path.resolve(`./test/${i}.png`), buffer,
+        err => err && console.error(err)
+      )
     }).catch(console.error)
   }
 })()
