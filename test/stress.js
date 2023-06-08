@@ -1,7 +1,7 @@
 const axios = require('axios')
+const path = require('path')
 const fs = require('fs')
 const LoremIpsum = require('lorem-ipsum').LoremIpsum
-const path = require('path')
 
 require('dotenv').config({ path: './.env' })
 require('../app')
@@ -21,31 +21,25 @@ const nQuotes = parseInt(process.argv[2])
 
 ;(async () => {
   for (let i = 0; i < nQuotes; i++) {
-    const text = lorem.generateParagraphs(1)
-    const username = lorem.generateWords(2)
-    const avatar = 'https://telegra.ph/file/59952c903fdfb10b752b3.jpg'
-
     const json = {
       botToken: process.env.BOT_TOKEN,
       backgroundColor: '',
       width: 512,
       height: 768,
       scale: 2,
-      messages: [
-        {
-          entities: [],
-          avatar: true,
-          from: {
-            id: Math.floor(Math.random() * 100),
-            name: username,
-            photo: {
-              url: avatar
-            }
-          },
-          text: text,
-          replyMessage: {}
-        }
-      ]
+      messages: Array.from({ length: i % 5 + 1 }, () => ({
+        entities: [],
+        avatar: true,
+        from: {
+          id: Math.floor(Math.random() * 100),
+          name: lorem.generateWords(2),
+          photo: {
+            url: 'https://telegra.ph/file/59952c903fdfb10b752b3.jpg'
+          }
+        },
+        text: lorem.generateParagraphs(1),
+        replyMessage: {}
+      }))
     }
 
     await axios.post('http://localhost:3000/generate', {
