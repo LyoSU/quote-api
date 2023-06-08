@@ -56,8 +56,7 @@ const userColors = {
   light: ['#FC5C51', '#FA790F', '#895DD5', '#0FB297', '#0FC9D6', '#3CA5EC', '#D54FAF'],
   dark: ['#FF8E86', '#FFA357', '#B18FFF', '#4DD6BF', '#45E8D1', '#7AC9FF', '#FF7FD5']
 }
-// FIXME: doesnt work
-const bgImageURL = 'file://' + path.resolve('./assets/pattern_02.png').replace(/\\/g, '/')
+const bgImageURL = `http://localhost:${process.env.PORT}/assets/pattern_02.png`
 
 module.exports = async (parm) => {
   if (!parm || typeof parm != 'object') {
@@ -96,14 +95,33 @@ module.exports = async (parm) => {
   messages = await Promise.all(messages
     .map(async message => {
       const avatar = await drawAvatar(message.from)
-      const userColor = userColors[theme][message.from?.id ? Math.abs(message.from.id) % 7 : 1]
+      const fromId = message.from?.id ? Math.abs(message.from.id) % 7 : 1
+      const userColor = userColors[theme][fromId]
+      let replyMessage = message.replyMessage
+
+      if (replyMessage && Object.keys(replyMessage) != 0) {
+        const replyFromId = replyMessage.from?.id ? Math.abs(replyMessage.from.id) % 7 : 1
+        const replyUserColor = userColors[theme][replyFromId]
+
+        replyMessage = {
+          from: {
+            name: replyMessage.name ?? '',
+            color: replyUserColor
+          },
+          text: replyMessage.text
+        }
+      } else {
+        replyMessage = null
+      }
+
       return {
         from: {
           name: message.from?.name ?? '',
           color: userColor,
           emoji_status: message.from?.emojiStatus ?? '',
-          avatar: { url: avatar.toDataURL() }
+          avatar: { url: avatar.toDataURL() }  // TODO optimize
         },
+        replyMessage,
         text: message.text ?? ''
       }
     })
@@ -117,7 +135,7 @@ module.exports = async (parm) => {
       color1: colorLuminance(backgroundColorTwo, 0.15),
       color2: colorLuminance(backgroundColorOne, 0.15)
     },
-    messages,
+    messages
   })
 
   let image = await render(content, '#quote')

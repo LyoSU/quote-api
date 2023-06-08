@@ -45,28 +45,38 @@
       background: linear-gradient(-45deg, {{background.color1}}, {{background.color2}});
       border-radius: 25px;
     }
-    .message-from-name {
+    .message-from-name,
+    .message-reply-from-name {
       overflow: hidden;
       width: 100%;
-      font-family: 'Noto Sans', sans-serif;
-      font-size: 22px;
-      line-height: 1.2;
-      font-weight: 600;
+      font: bold 22px/1.2 'Noto Sans', sans-serif;
       white-space: nowrap;
       text-overflow: ellipsis;
     }
-    .message-text {
+    .message-reply {
+      margin: 8px 0;
+      padding: 0 14px;
+      border-left: 3px solid;
+    }
+    .message-reply-from-name {
+      font-size: 16px;
+    }
+    .message-text,
+    .message-reply-text {
       overflow: hidden;
       width: 100%;
-      font-family: 'Noto Sans', sans-serif;
-      font-size: 24px;
-      line-height: 1.2;
+      font: 24px/1.2 'Noto Sans', sans-serif;
+      text-overflow: ellipsis;
       color: #FFF;
       mix-blend-mode: difference;
-      text-overflow: ellipsis;
+    }
+    .message-reply-text {
+      font-size: 21px;
+      white-space: nowrap;
     }
   </style>
 </head>
+
 <body class="{{theme}}">
   <main id="quote">
     <ul class="messages-list">
@@ -83,6 +93,17 @@
             </p>
           </header>
           <main>
+            {{#if this.replyMessage}}
+            {{#with this.replyMessage}}
+              <div class="message-reply" style="border-color: {{this.from.color}}">
+                <p class="message-reply-from-name" style="color: {{this.from.color}}" >
+                  {{this.from.name}}
+                  <span class="message-reply-from-emoji_status"></span>
+                </p>
+                <p class="message-reply-text">{{this.text}}</p>
+              </div>
+            {{/with}}
+            {{/if}}
             <p class="message-text">{{this.text}}</p>
           </main>
         </article>
