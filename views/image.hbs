@@ -9,12 +9,14 @@
     }
     #quote {
       position: absolute;
-      padding-bottom: 75px;
+      padding: 35px 55px;
       max-width: 512px;
       width: {{width}}px;
       height: {{height}}px;
-      transform: scale({{scale}});
-      background: none;
+      //transform: scale({{scale}});
+      background:
+        url("{{background.image.url}}") top left / cover repeat,
+        radial-gradient(ellipse farthest-corner at center, {{background.color2}}, {{background.color1}});
     }
     .messages-list {
       list-style: none;
@@ -32,38 +34,41 @@
       margin-left: 5px;
       width: 50px;
       height: 50px;
-      font-family: 'Nono Sans', sans-serif;
-      font-size: 25px;
-      line-height: 50px;
+      font: 25px/2 'Nono Sans', sans-serif;
       text-align: center;
       color: #FFF;
       border-radius: 50%;
+      box-shadow: 8px 8px 13px rgba(0, 0, 0, .5);
     }
     .message {
       margin-left: 65px;
       padding: 14px;
       background: linear-gradient(-45deg, {{background.color1}}, {{background.color2}});
       border-radius: 25px;
+      box-shadow: 8px 8px 13px rgba(0, 0, 0, .5);
     }
     .message-from-name {
       overflow: hidden;
       width: 100%;
-      font-family: 'Noto Sans', sans-serif;
-      font-size: 22px;
-      line-height: 1.2;
-      font-weight: 600;
+      font: bold 22px/1.2 'Noto Sans', sans-serif;
       white-space: nowrap;
       text-overflow: ellipsis;
     }
     .message-text {
       overflow: hidden;
       width: 100%;
-      font-family: 'Noto Sans', sans-serif;
-      font-size: 24px;
-      line-height: 1.2;
+      font: 24px/1.2 'Noto Sans', sans-serif;
       color: #FFF;
       mix-blend-mode: difference;
       text-overflow: ellipsis;
+    }
+    .watermark {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      font: 12px 'Noto Sans';
+      text-align: right;
+      color: rgba(0, 0, 0, .3);
     }
   </style>
 </head>
@@ -89,5 +94,6 @@
       </li>
     {{/each}}
     </ul>
+    <p class="watermark"> @QuotLyBot </p>
 </body>
 <html>

@@ -27,9 +27,7 @@ const nQuotes = parseInt(process.argv[2])
 
     const json = {
       botToken: process.env.BOT_TOKEN,
-      type: 'quote',
-      format: 'png',
-      backgroundColor: '#FFFFFF',
+      backgroundColor: '',
       width: 512,
       height: 768,
       scale: 2,
@@ -38,7 +36,7 @@ const nQuotes = parseInt(process.argv[2])
           entities: [],
           avatar: true,
           from: {
-            id: 1,
+            id: Math.floor(Math.random() * 100),
             name: username,
             photo: {
               url: avatar
@@ -50,7 +48,25 @@ const nQuotes = parseInt(process.argv[2])
       ]
     }
 
-    await axios.post('http://localhost:3000/generate', json, {
+    await axios.post('http://localhost:3000/generate', {
+      ...json,
+      type: 'quote',
+      format: 'webp'
+    }, {
+      headers: { 'Content-Type': 'application/json' }
+    }).then(res => {
+      const buffer = Buffer.from(res.data.result.image, 'base64')
+      fs.writeFile(
+        path.resolve(`./test/${i}.webp`), buffer,
+        err => err && console.error(err)
+      )
+    }).catch(console.error)
+
+    await axios.post('http://localhost:3000/generate', {
+      ...json,
+      type: 'image',
+      format: 'png'
+    }, {
       headers: { 'Content-Type': 'application/json' }
     }).then(res => {
       const buffer = Buffer.from(res.data.result.image, 'base64')

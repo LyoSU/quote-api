@@ -14,5 +14,6 @@ module.exports = async (content, selector) => {
     omitBackground: true
   })
 
+  page.close().catch(console.error)
   return screenshot
 }
