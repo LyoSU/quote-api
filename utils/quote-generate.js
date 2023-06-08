@@ -13,6 +13,7 @@ const render = require('./render')
 const getView = require('./get-view')
 
 const drawAvatar = require('./draw-avatar')
+const lightOrDark = require('./light-or-dark')
 
 const emojiDb = new EmojiDbLib({ useDefaultDb: true })
 const buildContent = getView('message')
@@ -162,45 +163,6 @@ class QuoteGenerate {
       , (m, r, g, b) => '#' + r + r + g + g + b + b)
       .substring(1).match(/.{2}/g)
       .map(x => parseInt(x, 16))
-  }
-
-  // https://codepen.io/andreaswik/pen/YjJqpK
-  lightOrDark (color) {
-    let r, g, b
-
-    // Check the format of the color, HEX or RGB?
-    if (color.match(/^rgb/)) {
-      // If HEX --> store the red, green, blue values in separate variables
-      color = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/)
-
-      r = color[1]
-      g = color[2]
-      b = color[3]
-    } else {
-      // If RGB --> Convert it to HEX: http://gist.github.com/983661
-      color = +('0x' + color.slice(1).replace(
-        color.length < 5 && /./g, '$&$&'
-      )
-      )
-
-      r = color >> 16
-      g = color >> 8 & 255
-      b = color & 255
-    }
-
-    // HSP (Highly Sensitive Poo) equation from http://alienryderflex.com/hsp.html
-    const hsp = Math.sqrt(
-      0.299 * (r * r) +
-      0.587 * (g * g) +
-      0.114 * (b * b)
-    )
-
-    // Using the HSP value, determine whether the color is light or dark
-    if (hsp > 127.5) {
-      return 'light'
-    } else {
-      return 'dark'
-    }
   }
 
   async drawMultilineText (text, entities, fontSize, fontColor, textX, textY, maxWidth, maxHeight, emojiBrand = 'apple') {
@@ -780,7 +742,7 @@ class QuoteGenerate {
     height *= scale
 
     // check background style color black/light
-    const backStyle = this.lightOrDark(backgroundColorOne)
+    const backStyle = lightOrDark(backgroundColorOne)
 
 
     // historyPeer1NameFg: #c03d33; // red
