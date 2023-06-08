@@ -5,6 +5,8 @@ const promise = webkit.launch().then(browser => browser.newContext())
 module.exports = async (content, selector) => {
   const context = await promise
   const page = await context.newPage()
+
+  page.on('console', console.log)
   await page.setContent(content)
   await page.waitForSelector(selector, { state: 'visible' })
 

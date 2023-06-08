@@ -38,7 +38,10 @@ const nQuotes = parseInt(process.argv[2])
           }
         },
         text: lorem.generateParagraphs(1),
-        replyMessage: {}
+        replyMessage: Math.random() < 0.3 ? {
+          name: lorem.generateWords(2),
+          text: lorem.generateParagraphs(1)
+        } : {}
       }))
     }
 
