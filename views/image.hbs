@@ -122,6 +122,9 @@
               </div>
             {{/with}}
             {{/if}}
+            {{#if this.media}}
+              <img src="{{this.media.url}}" alt="" class="message-media" />
+            {{/if}}
             <p class="message-text">{{this.text}}</p>
           </main>
         </article>
