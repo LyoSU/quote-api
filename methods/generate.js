@@ -9,6 +9,7 @@ const getView = require('../utils/get-view')
 const getAvatarURL = require('../utils/get-avatar-url')
 const getMediaURL = require('../utils/get-media-url')
 const lightOrDark = require('../utils/light-or-dark')
+const formatHTML = require('../utils/format-html')
 
 const normalizeColor = (color) => {
   const canvas = createCanvas(0, 0)
@@ -92,6 +93,8 @@ const buildUser = async (user, theme, options={ getAvatar: false }) => {
 }
 
 const buildMessage = async (message, theme) => {
+  const from = await buildUser(message.from, theme, { getAvatar: message.avatar || false })
+
   let replyMessage = message.replyMessage
   if (replyMessage && Object.keys(replyMessage) != 0) {
     replyMessage = {
@@ -114,12 +117,14 @@ const buildMessage = async (message, theme) => {
     }
   }
 
+  let text = message.text ?? ''
+  if (Array.isArray(message.entities)) {
+    text = formatHTML(text, message.entities)
+  }
+
   return {
-    from: await buildUser(message.from, theme, { getAvatar: message.avatar || false }),
-    replyMessage,
-    showAvatar: message.avatar,
-    text: message.text ?? '',
-    media
+    from, replyMessage, text, media,
+    showAvatar: message.avatar
   }
 }
 
