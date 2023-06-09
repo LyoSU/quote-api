@@ -9,12 +9,13 @@
     }
     #quote {
       position: absolute;
-      padding-bottom: 75px;
+      padding: 35px 55px;
       max-width: 512px;
       max-width: {{width}}px;
       max-height: {{height}}px;
-      transform: scale({{scale}});
-      background: none;
+      background:
+        url("{{background.image.url}}") top left / cover repeat,
+        radial-gradient(ellipse farthest-corner at center, {{background.color1}}, {{background.color2}});
     }
     .messages-list {
       list-style: none;
@@ -45,6 +46,7 @@
       padding: 14px;
       background: linear-gradient(-45deg, {{background.color1}}, {{background.color2}});
       border-radius: 25px;
+      box-shadow: 8px 8px 13px rgba(0, 0, 0, .5);
     }
     .message-from-name,
     .message-reply-from-name {
@@ -74,6 +76,14 @@
     .message-reply-text {
       font-size: 21px;
       white-space: nowrap;
+    }
+    .watermark {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      font: 12px 'Noto Sans';
+      text-align: right;
+      color: rgba(0, 0, 0, .3);
     }
   </style>
 </head>
@@ -117,5 +127,6 @@
       </li>
     {{/each}}
     </ul>
+    <p class="watermark"> @QuotLyBot </p>
 </body>
 <html>

@@ -114,7 +114,7 @@ const userColors = {
   light: ['#FC5C51', '#FA790F', '#895DD5', '#0FB297', '#0FC9D6', '#3CA5EC', '#D54FAF'],
   dark: ['#FF8E86', '#FFA357', '#B18FFF', '#4DD6BF', '#45E8D1', '#7AC9FF', '#FF7FD5']
 }
-const bgImageURL = `http://localhost:${process.env.PORT}/assets/pattern_02.png`
+const bgImageURL = `http://localhost:${process.env.PORT}/assets/pattern_02_alpha.png`
 
 module.exports = async (parm) => {
   if (!parm || typeof parm != 'object') {
@@ -165,7 +165,15 @@ module.exports = async (parm) => {
     },
     messages
   })
-  fs.writeFileSync('./content.html', content)
+
+  if (type == 'html') {
+    return {
+      image: ext ? content : Buffer.from(content).toString('base64'),
+      width: parm.width,
+      height: parm.height,
+      type, ext
+    }
+  }
 
   let image = await render(content, '#quote')
   const imageSharp = await sharp(image)
