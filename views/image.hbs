@@ -78,6 +78,30 @@
       font-size: 21px;
       white-space: nowrap;
     }
+    .message-text code {
+      font-family: 'Noto Mono', monospace;
+    }
+    .message-text .spoiler {
+      opacity: .3;
+    }
+    .message-text .mention,
+    .message-text .hashtag,
+    .message-text .cashtag,
+    .message-text .bot-command,
+    .message-text .email,
+    .message-text .phone-number {
+      text-decoration: none;
+      color: blue;
+    }
+    .light a,
+    .light .message-text .mention,
+    .light .message-text .hashtag,
+    .light .message-text .cashtag,
+    .light .message-text .bot-command,
+    .light .message-text .email,
+    .light .message-text .phone-number {
+      color: yellow;
+    }
     .watermark {
       position: absolute;
       bottom: 5px;
@@ -125,7 +149,7 @@
             {{#if this.media}}
               <img src="{{this.media.url}}" alt="" class="message-media" />
             {{/if}}
-            <p class="message-text">{{this.text}}</p>
+            <p class="message-text">{{{this.text}}}</p>
           </main>
         </article>
       </li>
