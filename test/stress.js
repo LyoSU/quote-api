@@ -51,6 +51,10 @@ const buildMessage = (index) => {
   const photo = { url: 'https://telegra.ph/file/59952c903fdfb10b752b3.jpg' }
   const text = lorem.generateParagraphs(1)
 
+  const media = {
+    url: `https://via.placeholder.com/${Math.floor(Math.random() * 1900) + 100}x${Math.floor(Math.random() * 1900) + 100}`
+  }
+
   const replyMessage = {
     from: {
       id: Math.floor(Math.random() * 100),
@@ -68,6 +72,7 @@ const buildMessage = (index) => {
       photo: Math.random() < 0.5 ? photo : null
     },
     text,
+    media: Math.random() < 0.3 ? media : null,
     replyMessage: Math.random() < 0.3 ? replyMessage : {}
   }
 }
@@ -87,11 +92,13 @@ const buildMessage = (index) => {
     }
 
     for (let template of testTemplates) {
+      console.time(`${i}-${template.params.type}`)
       await axios.post(
         `http://localhost:${process.env.PORT}/${template.method}`,
         { ...json, ...template.params },
         { headers: { 'Content-Type': 'application/json' } }
       ).then(res => {
+        console.timeEnd(`${i}-${template.params.type}`)
         fs.writeFile(
           path.resolve(template.filename(i)),
           Buffer.from(res.data.result.image, 'base64'),

@@ -7,6 +7,7 @@ const runes = require('runes')
 const render = require('../utils/render')
 const getView = require('../utils/get-view')
 const getAvatarURL = require('../utils/get-avatar-url')
+const getMediaURL = require('../utils/get-media-url')
 const lightOrDark = require('../utils/light-or-dark')
 
 const normalizeColor = (color) => {
@@ -59,7 +60,7 @@ const buildUser = async (user, theme, options={ getAvatar: false }) => {
   let photo = null
   if (options.getAvatar) {
     photo = user.photo || photo
-    if (!photo) {
+    if (!photo?.url) {
       const photoURL = await getAvatarURL(user)
       photo = photoURL ? { url: photoURL } : photo
     }
@@ -78,7 +79,7 @@ const buildUser = async (user, theme, options={ getAvatar: false }) => {
       const nameWords = name.split(' ')
       initials = runes(nameWords[0])[0]
       if (nameWords.length > 1) {
-        initials += runes(nameWords.splice(-1)[0])[0]
+        initials += runes(nameWords.pop()[0])[0]
       }
     }
     else {
@@ -102,11 +103,23 @@ const buildMessage = async (message, theme) => {
     replyMessage = null
   }
 
+  let media = message.media || null
+  if (media && !media.url) {
+    if (media.length) {
+      const mediaId = media.pop()
+      const mediaURL = await getMediaURL(mediaId)
+      media = { url: mediaURL }
+    } else {
+      media = null
+    }
+  }
+
   return {
     from: await buildUser(message.from, theme, { getAvatar: message.avatar || false }),
     replyMessage,
     showAvatar: message.avatar,
-    text: message.text ?? ''
+    text: message.text ?? '',
+    media
   }
 }
 
