@@ -16,22 +16,24 @@
       transform: scale({{scale}});
       background:
         url("{{background.image.url}}") top left / cover repeat,
-        radial-gradient(ellipse farthest-corner at center, {{background.color2}}, {{background.color1}});
+        radial-gradient(ellipse farthest-corner at center, {{background.color1}}, {{background.color2}});
     }
     .messages-list {
       list-style: none;
     }
     .message-item {
+      position: relative;
       display: block;
       margin-bottom: 5px;
     }
     .message-item:last-child {
       margin-bottom: 0;
     }
-    .message-from-avatar {
-      display: block;
-      float: left;
-      margin-left: 5px;
+    .message-from-avatar,
+    .message-from-initials {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 50px;
       height: 50px;
       font: 25px/2 'Nono Sans', sans-serif;
@@ -39,6 +41,9 @@
       color: #FFF;
       border-radius: 50%;
       box-shadow: 8px 8px 13px rgba(0, 0, 0, .5);
+    }
+    .message-from-initials {
+      mix-blend-mode: hard-light;
     }
     .message {
       margin-left: 65px;
@@ -92,14 +97,20 @@
     <ul class="messages-list">
     {{#each messages}}
       <li class="message-item">
-        <img
-          src="{{this.from.avatar.url}}" alt="" class="message-from-avatar"
-          style="background-color: {{this.from.color}};" />
+        {{#if this.showAvatar}}
+          {{#if this.from.photo}}
+            <img src="{{this.from.photo.url}}" alt="{{this.from.initials}}" class="message-from-avatar" />
+          {{else}}
+            <p class="message-from-initials" style="background-color: {{this.from.color}}">
+              {{this.from.initials}}
+            </p>
+          {{/if}}
+        {{/if}}
         <article class="message">
           <header>
             <p class="message-from-name" style="color: {{this.from.color}}" >
               {{this.from.name}}
-              <span class="message-from-emoji_status"></span>
+              <span class="message-from-emoji_status">{{this.from.emojiStatus}}</span>
             </p>
           </header>
           <main>
@@ -108,7 +119,7 @@
               <div class="message-reply" style="border-color: {{this.from.color}}">
                 <p class="message-reply-from-name" style="color: {{this.from.color}}" >
                   {{this.from.name}}
-                  <span class="message-reply-from-emoji_status"></span>
+                  <span class="message-reply-from-emoji_status">{{this.from.emojiStatus}}</span>
                 </p>
                 <p class="message-reply-text">{{this.text}}</p>
               </div>

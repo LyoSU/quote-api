@@ -2,11 +2,11 @@ const path = require('path')
 const fs = require('fs')
 const { createCanvas, loadImage } = require('canvas')
 const sharp = require('sharp')
-const { Telegram } = require('telegraf')
+const runes = require('runes')
 
 const render = require('../utils/render')
 const getView = require('../utils/get-view')
-const drawAvatar = require('../utils/draw-avatar')
+const getAvatarURL = require('../utils/get-avatar-url')
 const lightOrDark = require('../utils/light-or-dark')
 
 const normalizeColor = (color) => {
@@ -51,6 +51,64 @@ const imageAlpha = (image, alpha) => {
   return canvas
 }
 
+const buildUser = async (user, theme, options={ getAvatar: false }) => {
+  const index = user.id ? Math.abs(user.id) % 7 : 1
+  const color = userColors[theme][index]
+  const emojiStatus = user.emojiStatus ?? ''
+
+  let photo = null
+  if (options.getAvatar) {
+    photo = user.photo || photo
+    if (!photo) {
+      const photoURL = await getAvatarURL(user)
+      photo = photoURL ? { url: photoURL } : photo
+    }
+  }
+
+  let name, initials
+
+  if (user.first_name && user.last_name) {
+    name = user.first_name + ' ' + user.last_name
+    initials = runes(user.first_name)[0] + runes(user.last_name)[0]
+  }
+  else {
+    name = user.name || user.first_name || user.title
+
+    if (typeof name == 'string') {
+      const nameWords = name.split(' ')
+      initials = runes(nameWords[0])[0]
+      if (nameWords.length > 1) {
+        initials += runes(nameWords.splice(-1)[0])[0]
+      }
+    }
+    else {
+      name == ''
+      initials = ''
+    }
+  }
+
+  return { name, initials, color, photo, emojiStatus }
+}
+
+const buildMessage = async (message, theme) => {
+  let replyMessage = message.replyMessage
+  if (replyMessage && Object.keys(replyMessage) != 0) {
+    replyMessage = {
+      from: await buildUser(replyMessage.from, theme),
+      text: replyMessage.text
+    }
+  }
+  else {
+    replyMessage = null
+  }
+
+  return {
+    from: await buildUser(message.from, theme, { getAvatar: message.avatar || false }),
+    replyMessage,
+    showAvatar: message.avatar,
+    text: message.text ?? ''
+  }
+}
 
 const userColors = {
   light: ['#FC5C51', '#FA790F', '#895DD5', '#0FB297', '#0FC9D6', '#3CA5EC', '#D54FAF'],
@@ -67,16 +125,12 @@ module.exports = async (parm) => {
   const format = parm.format || ''
   const ext = parm.ext || false
   const scale = parm.scale ? Math.min(parseFloat(parm.scale), 20) : 2
+
   let backgroundColor = parm.backgroundColor || '//#292232'
-  let messages = parm.messages?.filter(message => message)
-
-  if (!messages?.length) {
-    return { error: 'messages_empty' }
-  }
-
   let backgroundColorOne, backgroundColorTwo
   const backgroundColorSplit = backgroundColor.split('/')
 
+  // TODO effect colors with CSS
   if (backgroundColorSplit && backgroundColorSplit.length > 1 && backgroundColorSplit[0] !== '') {
     backgroundColorOne = normalizeColor(backgroundColorSplit[0])
     backgroundColorTwo = normalizeColor(backgroundColorSplit[1])
@@ -92,51 +146,26 @@ module.exports = async (parm) => {
 
   const theme = lightOrDark(backgroundColorOne)
 
-  messages = await Promise.all(messages
-    .map(async message => {
-      const avatar = await drawAvatar(message.from)
-      const fromId = message.from?.id ? Math.abs(message.from.id) % 7 : 1
-      const userColor = userColors[theme][fromId]
-      let replyMessage = message.replyMessage
-
-      if (replyMessage && Object.keys(replyMessage) != 0) {
-        const replyFromId = replyMessage.from?.id ? Math.abs(replyMessage.from.id) % 7 : 1
-        const replyUserColor = userColors[theme][replyFromId]
-
-        replyMessage = {
-          from: {
-            name: replyMessage.name ?? '',
-            color: replyUserColor
-          },
-          text: replyMessage.text
-        }
-      } else {
-        replyMessage = null
-      }
-
-      return {
-        from: {
-          name: message.from?.name ?? '',
-          color: userColor,
-          emoji_status: message.from?.emojiStatus ?? '',
-          avatar: { url: avatar.toDataURL() }  // TODO optimize
-        },
-        replyMessage,
-        text: message.text ?? ''
-      }
-    })
+  const messages = await Promise.all(parm.messages
+    .filter(message => message)
+    .map(message => buildMessage(message, theme))
   )
+
+  if (!messages?.length) {
+    return { error: 'messages_empty' }
+  }
 
   const content = getView(type)({
     scale,
     theme,
     background: {
       image: { url: bgImageURL },
-      color1: colorLuminance(backgroundColorTwo, 0.15),
-      color2: colorLuminance(backgroundColorOne, 0.15)
+      color1: colorLuminance(backgroundColorOne, 0.15),
+      color2: colorLuminance(backgroundColorTwo, 0.15)
     },
     messages
   })
+  fs.writeFileSync('./content.html', content)
 
   let image = await render(content, '#quote')
   const imageSharp = await sharp(image)
@@ -160,9 +189,6 @@ module.exports = async (parm) => {
 
   return {
     image: ext ? image : image.toString('base64'),
-    type,
-    width,
-    height,
-    ext
+    type, width, height, ext
   }
 }
