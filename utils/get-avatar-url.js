@@ -29,7 +29,7 @@ module.exports = async (user) => {
     return null
   }
 
-  avatarCache.set(user.id, avatarImage)
+  avatarCache.set(user.id, avatarURL)
   return avatarURL
 }
 
