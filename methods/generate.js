@@ -121,6 +121,7 @@ const buildMessage = async (message, theme) => {
   if (Array.isArray(message.entities)) {
     text = formatHTML(text, message.entities)
   }
+  text = text.replace(/\n/g, '<br />')
 
   return {
     from, replyMessage, text, media,
