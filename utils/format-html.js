@@ -1,3 +1,5 @@
+const telegram = require('./telegram')
+
 const escapedChars = {
   '"': '&quot;',
   '&': '&amp;',
@@ -10,11 +12,13 @@ const escapeHTML = (string) => {
   return chars.map(char => escapedChars[char] || char).join('')
 }
 
-
-module.exports = (text = '', entities = []) => {
+module.exports = async (text = '', entities = []) => {
   const available = [...entities]
   const opened = []
   const result = []
+  const customEmojiSlices = []
+  const requiredCustomEmojiIds = new Set()
+
   for (let offset = 0; offset < text.length; offset++) {
     while (true) {
       const index = available.findIndex((entity) => entity.offset === offset)
@@ -75,6 +79,12 @@ module.exports = (text = '', entities = []) => {
         case 'phone_number':
           result.push(`<span class="phone-number">`)
           break
+        case 'custom_emoji':
+          const emojiId = '' + entity.custom_emoji_id
+          customEmojiSlices.push({ beginIndex: result.length, emojiId: emojiId })
+          requiredCustomEmojiIds.add(emojiId)
+          result.push('')
+          break
       }
       opened.unshift(entity)
       available.splice(index, 1)
@@ -125,9 +135,44 @@ module.exports = (text = '', entities = []) => {
         case 'phone_number':
           result.push('</span>')
           break
+        case 'custom_emoji':
+          customEmojiSlices[customEmojiSlices.length - 1].endIndex = result.length
+          result.push('')
+          break
       }
       opened.splice(index, 1)
     }
   }
+
+  if (customEmojiSlices.length) {
+    const customEmojiFileURLs = {}
+    const customEmojiStickers = await telegram.callApi('getCustomEmojiStickers', {
+      custom_emoji_ids: [...requiredCustomEmojiIds]
+    }).catch(() => {})
+
+    if (customEmojiStickers) {
+      await Promise.all(customEmojiStickers.map(
+        async sticker => async () => {
+          const fileId = sticker.thumb.file_id
+          const fileURL = await this.telegram.getFileLink(fileId).catch(() => {})
+          customEmojiFileURLs[sticker.custom_emoji_id] = fileURL
+        }
+      ))
+
+      for (let slice of customEmojiSlices) {
+        if (customEmojiFileURLs[slice.emojiId]) {
+          const emojiURL = customEmojiFileURLs[slice.emojiId]
+          let altRepr = ''
+
+          for (let i = slice.beginIndex; i < slice.endIndex; i++) {
+            altRepr += result[i]
+            result[i] = ''
+          }
+          result[slice.endIndex] = `<img src="${emojiURL}" alt="${altRepr}" />`
+        }
+      }
+    }
+  }
+
   return result.join('')
 }
