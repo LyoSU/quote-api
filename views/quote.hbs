@@ -68,8 +68,11 @@
       width: 100%;
       font: 24px/1.2 'Noto Sans', sans-serif;
       text-overflow: ellipsis;
+      color: #000;
+    }
+    .dark .message-text,
+    .dark .message-reply-text {
       color: #FFF;
-      mix-blend-mode: difference;
     }
     .message-reply-text {
       font-size: 21px;
@@ -90,14 +93,21 @@
       text-decoration: none;
       color: blue;
     }
-    .light a,
-    .light .message-text .mention,
-    .light .message-text .hashtag,
-    .light .message-text .cashtag,
-    .light .message-text .bot-command,
-    .light .message-text .email,
-    .light .message-text .phone-number {
-      color: yellow;
+    .custom-emoji,
+    .emoji-status {
+      display: inline;
+    }
+    .message-reply-text .custom-emoji {
+      height: 21px;
+    }
+    .message-text .custom-emoji {
+      height: 24px;
+    }
+    .message-from-name .emoji-status {
+      height: 22px;
+    }
+    .message-reply-from-name .emoji-status {
+      height: 16px;
     }
   </style>
 </head>
@@ -120,7 +130,9 @@
           <header>
             <p class="message-from-name" style="color: {{this.from.color}}" >
               {{this.from.name}}
-              <span class="message-from-emoji_status">{{this.from.emojiStatus}}</span>
+              {{#if this.from.emojiStatus}}
+                <img src="{{this.from.emojiStatus}}" alt="" class="emoji-status" />
+              {{/if}}
             </p>
           </header>
           <main>
@@ -129,7 +141,9 @@
               <div class="message-reply" style="border-color: {{this.from.color}}">
                 <p class="message-reply-from-name" style="color: {{this.from.color}}" >
                   {{this.from.name}}
-                  <span class="message-reply-from-emoji_status">{{this.from.emojiStatus}}</span>
+                  {{#if this.from.emojiStatus}}
+                    <img src="{{this.from.emojiStatus}}" alt="" class="emoji-status" />
+                  {{/if}}
                 </p>
                 <p class="message-reply-text">{{this.text}}</p>
               </div>

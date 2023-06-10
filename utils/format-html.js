@@ -150,13 +150,13 @@ module.exports = async (text = '', entities = []) => {
       custom_emoji_ids: [...requiredCustomEmojiIds]
     }).catch(() => {})
 
-    if (customEmojiStickers) {
+    if (Array.isArray(customEmojiStickers)) {
       await Promise.all(customEmojiStickers.map(
-        async sticker => async () => {
+        async sticker => (async () => {
           const fileId = sticker.thumb.file_id
-          const fileURL = await this.telegram.getFileLink(fileId).catch(() => {})
+          const fileURL = await telegram.getFileLink(fileId).catch(() => {})
           customEmojiFileURLs[sticker.custom_emoji_id] = fileURL
-        }
+        })()
       ))
 
       for (let slice of customEmojiSlices) {
@@ -168,7 +168,7 @@ module.exports = async (text = '', entities = []) => {
             altRepr += result[i]
             result[i] = ''
           }
-          result[slice.endIndex] = `<img src="${emojiURL}" alt="${altRepr}" />`
+          result[slice.endIndex] = `<img src="${emojiURL}" alt="${altRepr}" class="custom-emoji" />`
         }
       }
     }

@@ -10,6 +10,7 @@ const getAvatarURL = require('../utils/get-avatar-url')
 const getMediaURL = require('../utils/get-media-url')
 const lightOrDark = require('../utils/light-or-dark')
 const formatHTML = require('../utils/format-html')
+const telegram = require('../utils/telegram')
 
 const normalizeColor = (color) => {
   const canvas = createCanvas(0, 0)
@@ -53,10 +54,24 @@ const imageAlpha = (image, alpha) => {
   return canvas
 }
 
+const getEmojiStatusURL = async (emojiId) => {
+  const customEmojiStickers = await telegram.callApi('getCustomEmojiStickers', {
+    custom_emoji_ids: [emojiId]
+  }).catch(() => {})
+
+  if (!Array.isArray(customEmojiStickers) || !customEmojiStickers.length) {
+    return null
+  }
+
+  const fileId = customEmojiStickers[0].thumb.file_id
+  const fileURL = await telegram.getFileLink(fileId).catch(() => {})
+  return fileURL || null
+}
+
 const buildUser = async (user, theme, options={ getAvatar: false }) => {
   const index = user.id ? Math.abs(user.id) % 7 : 1
   const color = userColors[theme][index]
-  const emojiStatus = user.emojiStatus ?? ''
+  const emojiStatus = user.emoji_status ? await getEmojiStatusURL(user.emoji_status) : null
 
   let photo = null
   if (options.getAvatar) {
