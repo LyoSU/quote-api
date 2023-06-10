@@ -46,20 +46,26 @@ const testTemplates = [
 const nQuotes = parseInt(process.argv[2])
 const nCallsLimit = parseInt(process.argv[3])
 
-const buildMessage = (index) => {
+const buildMessage = (index, hasReply) => {
   const showAvatar = index === 0 || Math.random() < 0.3
-  const fromId = Math.floor(Math.random() * 100)
-  const fromName = lorem.generateWords(Math.floor(Math.random() * 2))
+  const fromId = Math.floor(Math.random() * 100) + 1
+  const fromName = lorem.generateWords(Math.floor(Math.random() * 2) + 1)
   const photo = { url: 'https://telegra.ph/file/59952c903fdfb10b752b3.jpg' }
-  const text = lorem.generateParagraphs(1)
+  const paragraphs = Array.from(
+    { length: Math.floor(Math.random(3)) + 1 },
+    (_, k) => lorem.generateParagraphs(1)
+  )
+  const text = paragraphs.join('\n\n')
 
-  const replyMessage = {
-    from: {
-      id: Math.floor(Math.random() * 100),
-      name: lorem.generateWords(Math.floor(Math.random() * 2))
-    },
-    text: lorem.generateParagraphs(1)
+  const media = {
+    url: `https://via.placeholder.com/${
+      Math.floor(Math.random() * 1900) + 100
+    }x${
+      Math.floor(Math.random() * 1900) + 100
+    }`
   }
+
+  const replyMessage = hasReply ? buildMessage(index, false) : null
 
   return {
     entities: [],
@@ -70,7 +76,8 @@ const buildMessage = (index) => {
       photo: Math.random() < 0.5 ? photo : null
     },
     text,
-    replyMessage: Math.random() < 0.3 ? replyMessage : {}
+    replyMessage,
+    media: Math.random() < 0.3 ? media : null
   }
 }
 
@@ -94,7 +101,10 @@ const queue = async.queue(({ json, template, i }, cb) => {
 
 for (let i = 0; i < nQuotes; i++) {
   const backgroundColor = Math.random() < 0.3 ? '#FFFFFF' : ''
-  const messages = Array.from({ length: i % 5 + 1 }, (_, k) => buildMessage(k))
+  const messages = Array.from(
+    { length: i % 5 + 1 },
+    (_, k) => buildMessage(k, Math.random() < 0.3)
+  )
 
   const json = {
     botToken: process.env.BOT_TOKEN,
