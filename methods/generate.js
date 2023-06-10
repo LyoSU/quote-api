@@ -119,7 +119,7 @@ const buildMessage = async (message, theme) => {
 
   let text = message.text ?? ''
   if (Array.isArray(message.entities)) {
-    text = formatHTML(text, message.entities)
+    text = await formatHTML(text, message.entities)
   }
   text = text.replace(/\n/g, '<br />')
 
