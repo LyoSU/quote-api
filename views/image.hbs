@@ -112,6 +112,15 @@
     .message-reply-from-name .emoji-status {
       height: 16px;
     }
+    .message-media {
+      min-width: 100%;
+      max-height: 512px;
+      object-fit: cover;
+      object-position: center;
+    }
+    .message-media.sticker {
+      border-radius: 5px;
+    }
     .watermark {
       position: absolute;
       bottom: 5px;
@@ -161,7 +170,7 @@
             {{/with}}
             {{/if}}
             {{#if this.media}}
-              <img src="{{this.media.url}}" alt="" class="message-media" />
+              <img src="{{this.media.url}}" alt="" class="message-media {{this.media.type}}" />
             {{/if}}
             <p class="message-text">{{{this.text}}}</p>
           </main>

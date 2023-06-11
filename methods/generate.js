@@ -122,14 +122,16 @@ const buildMessage = async (message, theme) => {
   }
 
   let media = message.media || null
-  if (media && !media.url) {
-    if (media.length) {
-      const mediaId = media.pop()
-      const mediaURL = await getMediaURL(mediaId)
-      media = { url: mediaURL }
-    } else {
-      media = null
+  if (media) {
+    if (!media.url) {
+      if (media.length) {
+        const mediaInfo = media.pop()
+        const mediaURL = await getMediaURL(mediaInfo)
+      } else {
+        media = null
+      }
     }
+    media.type = message.mediaType || (mediaURL.endsWith('.webp') ? 'sticker' : 'image')
   }
 
   let text = message.text ?? ''
