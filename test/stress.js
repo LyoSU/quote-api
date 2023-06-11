@@ -76,7 +76,7 @@ const buildMessage = (index, hasReply) => {
     text,
     replyMessage,
     media: Math.random() < 0.3 ? media : null,
-    mediaType: Math.random() < 1.5 ? 'sticker' : 'image'
+    mediaType: Math.random() < 0.5 ? 'sticker' : 'image'
   }
 }
 
