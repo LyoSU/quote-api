@@ -112,6 +112,15 @@ const buildMessage = async (message, theme) => {
 
   let replyMessage = message.replyMessage
   if (replyMessage && Object.keys(replyMessage) != 0) {
+    // kostyl
+    if (!replyMessage.from) {
+      replyMessage.from = {
+        id: replyMessage.chatId,
+        name: replyMessage.name,
+        emoji_status: null,
+        photo: null
+      }
+    }
     replyMessage = {
       from: await buildUser(replyMessage.from, theme),
       text: replyMessage.text
@@ -127,11 +136,14 @@ const buildMessage = async (message, theme) => {
       if (media.length) {
         const mediaInfo = media.pop()
         const mediaURL = await getMediaURL(mediaInfo)
+        media = { url: mediaURL }
       } else {
         media = null
       }
     }
-    media.type = message.mediaType || (mediaURL.endsWith('.webp') ? 'sticker' : 'image')
+  }
+  if (media) {
+    media.type = message.mediaType || (media.url.endsWith('.webp') ? 'sticker' : 'image')
   }
 
   let text = message.text ?? ''
