@@ -15,6 +15,7 @@ body {
 .message-item {
   position: relative;
   display: block;
+  float: left;
   margin-bottom: 5px;
 }
 .message-item:last-child {
