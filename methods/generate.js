@@ -152,8 +152,10 @@ const buildMessage = async (message, theme) => {
   }
   text = text.replace(/\n/g, '<br />')
 
+  const type = media ? media.type == 'sticker' ? 'sticker' : 'image' : 'regular'
+
   return {
-    from, replyMessage, text, media,
+    type, from, replyMessage, text, media,
     showAvatar: message.avatar
   }
 }
@@ -205,6 +207,8 @@ module.exports = async (parm) => {
 
   const content = getView('default', type)({
     scale,
+    width: parm.width,
+    height: parm.height,
     theme,
     background: {
       image: { url: bgImageURL },
