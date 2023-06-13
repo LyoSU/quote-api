@@ -203,7 +203,7 @@ module.exports = async (parm) => {
     return { error: 'messages_empty' }
   }
 
-  const content = getView(type)({
+  const content = getView('default', type)({
     scale,
     theme,
     background: {
