@@ -18,7 +18,9 @@ body {
   position: relative;
   display: block;
   float: left;
+  clear: both;
   margin-bottom: 5px;
+  max-width: 100%;
 }
 .message-item:last-child {
   margin-bottom: 0;
@@ -43,6 +45,12 @@ body {
   border-radius: 25px;
   box-shadow: 8px 8px 13px rgba(0, 0, 0, .5);
 }
+.message-item.sticker .message {
+  padding: 0;
+  background: none;
+  border-radius: 5px;
+  box-shadow: none;
+}
 .message-from-name,
 .message-reply-from-name {
   overflow: hidden;
@@ -51,10 +59,16 @@ body {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.message-item.sticker .message-from-name {
+  display: none;
+}
 .message-reply {
   margin: 8px 0;
   padding: 0 14px;
   border-left: 3px solid;
+}
+.message-item.sticker .message-reply {
+  display: none;
 }
 .message-reply-from-name {
   font-size: 16px;
@@ -66,6 +80,9 @@ body {
   font: 24px/1.2 'Noto Sans', sans-serif;
   text-overflow: ellipsis;
   color: #000;
+}
+.message-item.sticker .message-text {
+  display: none;
 }
 .dark .message-text,
 .dark .message-reply-text {
@@ -111,9 +128,6 @@ body {
   max-height: 512px;
   object-fit: cover;
   object-position: center;
-}
-.message-media.sticker {
-  border-radius: 5px;
 }
 .watermark {
   position: absolute;

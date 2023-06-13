@@ -12,7 +12,7 @@
   <main id="quote">
     <ul class="messages-list">
     {{#each messages}}
-      <li class="message-item">
+      <li class="message-item {{this.type}}">
         {{#if this.showAvatar}}
           {{#if this.from.photo}}
             <img src="{{this.from.photo.url}}" alt="{{this.from.initials}}" class="message-from-avatar" />
@@ -34,7 +34,7 @@
           <main>
             {{#if this.replyMessage}}
             {{#with this.replyMessage}}
-              <div class="message-reply" style="border-color: {{this.from.color}}">
+              <div class="message-reply {{this.type}}" style="border-color: {{this.from.color}}">
                 <p class="message-reply-from-name" style="color: {{this.from.color}}" >
                   {{this.from.name}}
                   {{#if this.from.emojiStatus}}
