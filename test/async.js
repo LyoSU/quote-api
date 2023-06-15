@@ -25,21 +25,21 @@ const testTemplates = [
       type: 'quote',
       format: 'webp'
     },
-    filename: (index) => `../test/quote/${index}.webp`
+    filename: (index) => `quote/${index}.webp`
   }, {
     method: 'generate',
     params: {
       type: 'image',
       format: 'png'
     },
-    filename: (index) => `../test/image/${index}.png`
+    filename: (index) => `image/${index}.png`
   }, {
     method: 'generate',
     params: {
       type: 'html',
       format: 'html'
     },
-    filename: (index) => `../test/html/${index}.html`
+    filename: (index) => `html/${index}.html`
   }
 ]
 

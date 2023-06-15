@@ -95,16 +95,11 @@ const buildMessage = async (message, theme) => {
   let media = message.media || null
   if (media) {
     if (!media.url) {
-      if (media.length) {
-        const mediaInfo = media.pop()
-        const mediaURL = await getMediaURL(mediaInfo)
-        media = { url: mediaURL }
-      } else {
-        media = null
-      }
+      const mediaInfo = media.length ? media.pop() : media
+      const mediaURL = await getMediaURL(mediaInfo)
+      media = { url: mediaURL }
     }
-  }
-  if (media) {
+
     media.type = message.mediaType
     if (!media.type) {
       media.type = media.url.endsWith('.webp') || media.url.endsWith('.tgs') ? 'sticker' : 'image'

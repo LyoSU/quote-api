@@ -7,7 +7,8 @@
     "start": "node index.js",
     "lint": "node_modules/.bin/eslint --ext js .",
     "lint:fix": "node_modules/.bin/eslint --fix --ext js .",
-    "test": "node test/stress.js 1000",
+    "test": "node test/runtime.js",
+    "test:stress": "node test/stress.js 1000",
     "test:async": "node test/async.js 1000 50"
   },
   "repository": {
