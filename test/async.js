@@ -25,21 +25,21 @@ const testTemplates = [
       type: 'quote',
       format: 'webp'
     },
-    filename: (index) => `./test/quote/${index}.webp`
+    filename: (index) => `../test/quote/${index}.webp`
   }, {
     method: 'generate',
     params: {
       type: 'image',
       format: 'png'
     },
-    filename: (index) => `./test/image/${index}.png`
+    filename: (index) => `../test/image/${index}.png`
   }, {
     method: 'generate',
     params: {
       type: 'html',
       format: 'html'
     },
-    filename: (index) => `./test/html/${index}.html`
+    filename: (index) => `../test/html/${index}.html`
   }
 ]
 
@@ -91,7 +91,7 @@ const queue = async.queue(({ json, template, i }, cb) => {
   ).then(res => {
     console.timeEnd(`${i}-${template.params.type}`)
     fs.writeFile(
-      path.resolve(template.filename(i)),
+      path.resolve(__dirname, template.filename(i)),
       Buffer.from(res.data.result.image, 'base64'),
       err => err && console.error(err)
     )
