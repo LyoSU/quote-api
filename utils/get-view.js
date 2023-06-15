@@ -11,11 +11,11 @@ module.exports = (viewName, styleName) => {
   }
 
   const template = fs.readFileSync(
-    path.resolve(`./views/${viewName}.hbs`)
+    path.resolve(__dirname, `../views/${viewName}.hbs`)
   ).toString('utf-8')
 
   const style = fs.readFileSync(
-    path.resolve(`./views/${styleName}.css`)
+    path.resolve(__dirname, `../views/${styleName}.css`)
   ).toString('utf-8')
 
   const view = Handlebars.compile(template.replace('{{> style}}', style))

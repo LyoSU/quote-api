@@ -3,6 +3,9 @@ const fs = require('fs')
 const { createCanvas, loadImage } = require('canvas')
 const sharp = require('sharp')
 const runes = require('runes')
+const axios = require('axios')
+const lottie = require('lottie-node')
+const zlib = require('zlib')
 
 const render = require('../utils/render')
 const getView = require('../utils/get-view')
@@ -11,48 +14,7 @@ const getMediaURL = require('../utils/get-media-url')
 const lightOrDark = require('../utils/light-or-dark')
 const formatHTML = require('../utils/format-html')
 const telegram = require('../utils/telegram')
-
-const normalizeColor = (color) => {
-  const canvas = createCanvas(0, 0)
-  const canvasCtx = canvas.getContext('2d')
-
-  canvasCtx.fillStyle = color
-  color = canvasCtx.fillStyle
-
-  return color
-}
-
-const colorLuminance = (hex, lum) => {
-  hex = String(hex).replace(/[^0-9a-f]/gi, '')
-  if (hex.length < 6) {
-    hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2]
-  }
-  lum = lum || 0
-
-  // convert to decimal and change luminosity
-  let rgb = '#'
-  let c
-  let i
-  for (i = 0; i < 3; i++) {
-    c = parseInt(hex.substr(i * 2, 2), 16)
-    c = Math.round(Math.min(Math.max(0, c + (c * lum)), 255)).toString(16)
-    rgb += ('00' + c).substr(c.length)
-  }
-
-  return rgb
-}
-
-const imageAlpha = (image, alpha) => {
-  const canvas = createCanvas(image.width, image.height)
-
-  const canvasCtx = canvas.getContext('2d')
-
-  canvasCtx.globalAlpha = alpha
-
-  canvasCtx.drawImage(image, 0, 0)
-
-  return canvas
-}
+const { getBackground, colorLuminance } = require('../utils/color-manipulate')
 
 const getEmojiStatusURL = async (emojiId) => {
   const customEmojiStickers = await telegram.callApi('getCustomEmojiStickers', {
@@ -143,7 +105,33 @@ const buildMessage = async (message, theme) => {
     }
   }
   if (media) {
-    media.type = message.mediaType || (media.url.endsWith('.webp') ? 'sticker' : 'image')
+    media.type = message.mediaType
+    if (!media.type) {
+      media.type = media.url.endsWith('.webp') || media.url.endsWith('.tgs') ? 'sticker' : 'image'
+    }
+
+    if (media.url.endsWith('.tgs')) {
+      const tgsCompressed = await axios
+        .get(media.url, { responseType: 'arraybuffer' })
+        .then(res => Buffer.from(res.data))
+        .catch(console.error)
+      const tgs = await new Promise((resolve, reject) => zlib.gunzip(tgsCompressed, (error, result) => {
+        if (error) {
+          return reject(error)
+        }
+        resolve(JSON.parse(result.toString()))
+      }))
+
+      const canvas = createCanvas(512, 512)
+      const animation = lottie(tgs, canvas)
+      const middleFrame = Math.floor(animation.getDuration(true) / 2)
+
+      animation.goToAndStop(middleFrame, true)
+      const filename = media.url.split('/').pop()
+      fs.writeFileSync(path.resolve(__dirname, `../cache/${filename}.png`), canvas.toBuffer())
+
+      media.url = `http://localhost:${process.env.PORT}/cache/${filename}.png`
+    }
   }
 
   let text = message.text ?? ''
@@ -152,7 +140,7 @@ const buildMessage = async (message, theme) => {
   }
   text = text.replace(/\n/g, '<br />')
 
-  const type = media ? media.type == 'sticker' ? 'sticker' : 'image' : 'regular'
+  const type = media ? media.type : 'regular'
 
   return {
     type, from, replyMessage, text, media,
@@ -176,24 +164,9 @@ module.exports = async (parm) => {
   const ext = parm.ext || false
   const scale = parm.scale ? Math.min(parseFloat(parm.scale), 20) : 2
 
-  let backgroundColor = parm.backgroundColor || '//#292232'
-  let backgroundColorOne, backgroundColorTwo
-  const backgroundColorSplit = backgroundColor.split('/')
-
-  // TODO effect colors with CSS
-  if (backgroundColorSplit && backgroundColorSplit.length > 1 && backgroundColorSplit[0] !== '') {
-    backgroundColorOne = normalizeColor(backgroundColorSplit[0])
-    backgroundColorTwo = normalizeColor(backgroundColorSplit[1])
-  } else if (backgroundColor.startsWith('//')) {
-    backgroundColor = normalizeColor(backgroundColor.replace('//', ''))
-    backgroundColorOne = colorLuminance(backgroundColor, 0.35)
-    backgroundColorTwo = colorLuminance(backgroundColor, -0.15)
-  } else {
-    backgroundColor = normalizeColor(backgroundColor)
-    backgroundColorOne = backgroundColor
-    backgroundColorTwo = backgroundColor
-  }
-
+  const {
+    backgroundColor, backgroundColorOne, backgroundColorTwo
+  } = getBackground(parm.backgroundColor || '//#292232')
   const theme = lightOrDark(backgroundColorOne)
 
   const messages = await Promise.all(parm.messages
