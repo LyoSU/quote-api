@@ -1,32 +1,28 @@
 const path = require('path')
 const fs = require('fs')
-const { createCanvas, loadImage } = require('canvas')
+const { createCanvas } = require('canvas')
 const sharp = require('sharp')
 const runes = require('runes')
 const axios = require('axios')
 const lottie = require('lottie-node')
 const zlib = require('zlib')
 
-const render = require('../utils/render')
-const getView = require('../utils/get-view')
-const getAvatarURL = require('../utils/get-avatar-url')
-const getMediaURL = require('../utils/get-media-url')
-const lightOrDark = require('../utils/light-or-dark')
-const formatHTML = require('../utils/format-html')
-const telegram = require('../utils/telegram')
-const { getBackground, colorLuminance } = require('../utils/color-manipulate')
+const {
+  telegram, render, getView, getAvatarURL, formatHTML, getBackground, colorLuminance, lightOrDark
+} = require('../utils')
 
 const getEmojiStatusURL = async (emojiId) => {
   const customEmojiStickers = await telegram.callApi('getCustomEmojiStickers', {
     custom_emoji_ids: [emojiId]
-  }).catch(() => {})
+  }).catch(console.error)
 
   if (!Array.isArray(customEmojiStickers) || !customEmojiStickers.length) {
     return null
   }
 
   const fileId = customEmojiStickers[0].thumb.file_id
-  const fileURL = await telegram.getFileLink(fileId).catch(() => {})
+  const fileURL = await telegram.getFileLink(fileId).catch(console.error)
+
   return fileURL || null
 }
 
@@ -37,8 +33,8 @@ const buildUser = async (user, theme, options={ getAvatar: false }) => {
 
   let photo = null
   if (options.getAvatar) {
-    photo = user.photo || photo
-    if (!photo?.url) {
+    photo = user.photo || null
+    if (!photo || !photo.url) {
       const photoURL = await getAvatarURL(user)
       photo = photoURL ? { url: photoURL } : photo
     }
@@ -61,7 +57,7 @@ const buildUser = async (user, theme, options={ getAvatar: false }) => {
       }
     }
     else {
-      name == ''
+      name = ''
       initials = ''
     }
   }
@@ -69,45 +65,40 @@ const buildUser = async (user, theme, options={ getAvatar: false }) => {
   return { name, initials, color, photo, emojiStatus }
 }
 
-const buildMessage = async (message, theme) => {
-  const from = await buildUser(message.from, theme, { getAvatar: message.avatar || false })
-
-  let replyMessage = message.replyMessage
-  if (replyMessage && Object.keys(replyMessage) != 0) {
-    // kostyl
-    if (!replyMessage.from) {
-      replyMessage.from = {
-        id: replyMessage.chatId,
-        name: replyMessage.name,
-        emoji_status: null,
-        photo: null
-      }
-    }
-    replyMessage = {
-      from: await buildUser(replyMessage.from, theme),
-      text: replyMessage.text
-    }
-  }
-  else {
-    replyMessage = null
+const buildReplyMessage = async (message, theme) => {
+  if (!Object.keys(message).length) {
+    return null
   }
 
-  let media = message.media || null
-  if (media) {
-    if (!media.url) {
-      const mediaInfo = media.length ? media.pop() : media
-      const mediaURL = await getMediaURL(mediaInfo)
-      media = { url: mediaURL }
-    }
+  // kostyl
+  const from = message.from || {
+    id: message.chatId,
+    name: message.name,
+    emoji_status: null,
+    photo: null
+  }
 
-    media.type = message.mediaType
-    if (!media.type) {
-      media.type = media.url.endsWith('.webp') || media.url.endsWith('.tgs') ? 'sticker' : 'image'
-    }
+  return {
+    from: await buildUser(from, theme),
+    text: message.text
+  }
+}
 
-    if (media.url.endsWith('.tgs')) {
+const buildMedia = async (media) => {
+  let url = media.url
+  if (!url) {
+    const mediaInfo = Array.isArray(media) ? media.pop() : media
+    url = await telegram.getFileLink(mediaInfo).catch(console.error)
+  }
+
+  let type = message.mediaType
+  if (!type) {
+    type = url.endsWith('.webp') || url.endsWith('.tgs') ? 'sticker' : 'image'
+  }
+
+    if (url.endsWith('.tgs')) {
       const tgsCompressed = await axios
-        .get(media.url, { responseType: 'arraybuffer' })
+        .get(url, { responseType: 'arraybuffer' })
         .then(res => Buffer.from(res.data))
         .catch(console.error)
       const tgs = await new Promise((resolve, reject) => zlib.gunzip(tgsCompressed, (error, result) => {
@@ -122,12 +113,19 @@ const buildMessage = async (message, theme) => {
       const middleFrame = Math.floor(animation.getDuration(true) / 2)
 
       animation.goToAndStop(middleFrame, true)
-      const filename = media.url.split('/').pop()
+      const filename = url.split('/').pop()
       fs.writeFileSync(path.resolve(__dirname, `../cache/${filename}.png`), canvas.toBuffer())
 
-      media.url = `http://localhost:${process.env.PORT}/cache/${filename}.png`
+      url = `http://localhost:${process.env.PORT}/cache/${filename}.png`
     }
-  }
+
+    return { url, type }
+}
+
+const buildMessage = async (message, theme) => {
+  const from = await buildUser(message.from, theme, { getAvatar: message.avatar || false })
+  const replyMessage = message.replyMessage ? await buildReplyMessage(message.replyMessage, theme) : null
+  const media = message.media ? await buildMedia(message.media) : null
 
   let text = message.text ?? ''
   if (Array.isArray(message.entities)) {
@@ -148,6 +146,12 @@ const userColors = {
   dark: ['#FF8E86', '#FFA357', '#B18FFF', '#4DD6BF', '#45E8D1', '#7AC9FF', '#FF7FD5']
 }
 const bgImageURL = `http://localhost:${process.env.PORT}/assets/pattern_02_alpha.png`
+const MAX_SCALE = 20
+const DEFAULT_BG_COLOR = '//#292232'
+const DEFAULT_VIEW_NAME = 'default'
+const RENDER_SELECTOR = '#quote'
+const MAX_QUOTE_WIDTH = 512
+const MAX_QUOTE_HEIGHT = 512
 
 module.exports = async (parm) => {
   if (!parm || typeof parm != 'object') {
@@ -157,11 +161,11 @@ module.exports = async (parm) => {
   let type = parm.type || 'png'
   const format = parm.format || ''
   const ext = parm.ext || false
-  const scale = parm.scale ? Math.min(parseFloat(parm.scale), 20) : 2
+  const scale = parm.scale ? Math.min(parseFloat(parm.scale), MAX_SCALE) : 2
 
   const {
     backgroundColor, backgroundColorOne, backgroundColorTwo
-  } = getBackground(parm.backgroundColor || '//#292232')
+  } = getBackground(parm.backgroundColor || DEFAULT_BG_COLOR)
   const theme = lightOrDark(backgroundColorOne)
 
   const messages = await Promise.all(parm.messages
@@ -173,7 +177,8 @@ module.exports = async (parm) => {
     return { error: 'messages_empty' }
   }
 
-  const content = getView('default', type)({
+  const view = getView(DEFAULT_VIEW_NAME, type)
+  const content = view({
     scale,
     width: parm.width,
     height: parm.height,
@@ -195,7 +200,7 @@ module.exports = async (parm) => {
     }
   }
 
-  let image = await render(content, '#quote')
+  let image = await render(content, RENDER_SELECTOR)
   const imageSharp = await sharp(image)
   const { width, height } = await imageSharp.metadata()
 
@@ -205,10 +210,7 @@ module.exports = async (parm) => {
   }
 
   if (type == 'quote') {
-    const maxWidth = 512
-    const maxHeight = 512
-
-    imageSharp.resize(height > width ? { height: maxHeight } : { width: maxWidth })
+    imageSharp.resize(height > width ? { height: MAX_QUOTE_HEIGHT } : { width: MAX_QUOTE_WIDTH })
 
     image = format == 'png' ?
       await imageSharp.png().toBuffer() :
