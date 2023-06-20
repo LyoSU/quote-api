@@ -5,7 +5,6 @@ body {
   position: absolute;
   padding-bottom: 75px;
   max-width: {{width}}px;
-  max-height: {{height}}px;
   transform: scale({{scale}});
   background: none;
 }
@@ -39,6 +38,7 @@ body {
 .message {
   margin-left: 65px;
   padding: 14px;
+  max-height: {{height}}px;
   background: linear-gradient(-45deg, {{background.color1}}, {{background.color2}});
   border-radius: 25px;
 }
