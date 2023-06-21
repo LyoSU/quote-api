@@ -2,8 +2,7 @@ version: '3'
 
 services:
     api:
-        build:
-            context: .
+        build: .
         env_file: .env
         restart: always
         logging:
@@ -14,7 +13,7 @@ services:
         networks:
             - quotly
         ports:
-            - 4888:4888
+            - ${PORT}:${PORT}
 
 
 networks:
