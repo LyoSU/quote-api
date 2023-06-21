@@ -84,14 +84,13 @@ const buildReplyMessage = async (message, theme) => {
   }
 }
 
-const buildMedia = async (media) => {
+const buildMedia = async (media, type) => {
   let url = media.url
   if (!url) {
     const mediaInfo = Array.isArray(media) ? media.pop() : media
     url = await telegram.getFileLink(mediaInfo).catch(console.error)
   }
 
-  let type = message.mediaType
   if (!type) {
     type = url.endsWith('.webp') || url.endsWith('.tgs') ? 'sticker' : 'image'
   }
@@ -125,7 +124,7 @@ const buildMedia = async (media) => {
 const buildMessage = async (message, theme) => {
   const from = await buildUser(message.from, theme, { getAvatar: message.avatar || false })
   const replyMessage = message.replyMessage ? await buildReplyMessage(message.replyMessage, theme) : null
-  const media = message.media ? await buildMedia(message.media) : null
+  const media = message.media ? await buildMedia(message.media, message.mediaType) : null
 
   let text = message.text ?? ''
   if (Array.isArray(message.entities)) {
