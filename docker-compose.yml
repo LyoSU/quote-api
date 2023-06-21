@@ -2,8 +2,7 @@ version: '3'
 
 services:
     api:
-        build:
-            context: .
+        build: .
         env_file: .env
         restart: always
         logging:
@@ -13,9 +12,8 @@ services:
                 max-file: "3"
         networks:
             - quotly
-        command: node index.js
         ports:
-            - 127.0.0.1:4888:4888
+            - ${PORT}:${PORT}
 
 
 networks:
