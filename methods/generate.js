@@ -132,7 +132,7 @@ module.exports = async (parm) => {
   let { type, format, ext } = parm
 
   if (!type && ext) type = 'png'
-  if (type !== 'image' && canvasQuote.height > 1024 * 2) type = 'png'
+  if (type !== 'image' && type !== 'stories' && canvasQuote.height > 1024 * 2) type = 'png'
 
   if (type === 'quote') {
     const downPadding = 75
@@ -213,6 +213,78 @@ module.exports = async (parm) => {
     canvasPicCtx.font = `${8 * parm.scale}px Noto Sans`
     canvasPicCtx.textAlign = 'right'
     canvasPicCtx.fillText('@QuotLyBot', canvasPic.width - 25, canvasPic.height - 25)
+
+    quoteImage = await sharp(canvasPic.toBuffer()).png({ lossless: true, force: true }).toBuffer()
+  } else if (type === 'stories') {
+    const canvasPic = createCanvas(720, 1280)
+    const canvasPicCtx = canvasPic.getContext('2d')
+
+    // radial gradient background (top left)
+    const gradient = canvasPicCtx.createRadialGradient(
+      canvasPic.width / 2,
+      canvasPic.height / 2,
+      0,
+      canvasPic.width / 2,
+      canvasPic.height / 2,
+      canvasPic.width / 2
+    )
+
+    const patternColorOne = colorLuminance(backgroundColorTwo, 0.25)
+    const patternColorTwo = colorLuminance(backgroundColorOne, 0.15)
+
+    gradient.addColorStop(0, patternColorOne)
+    gradient.addColorStop(1, patternColorTwo)
+
+    canvasPicCtx.fillStyle = gradient
+    canvasPicCtx.fillRect(0, 0, canvasPic.width, canvasPic.height)
+
+    const canvasPatternImage = await loadImage('./assets/pattern_02.png')
+
+    const pattern = canvasPicCtx.createPattern(imageAlpha(canvasPatternImage, 0.3), 'repeat')
+
+    canvasPicCtx.fillStyle = pattern
+    canvasPicCtx.fillRect(0, 0, canvasPic.width, canvasPic.height)
+
+    // Add shadow effect to the canvas image
+    canvasPicCtx.shadowOffsetX = 8
+    canvasPicCtx.shadowOffsetY = 8
+    canvasPicCtx.shadowBlur = 13
+    canvasPicCtx.shadowColor = 'rgba(0, 0, 0, 0.5)'
+
+    let canvasImage = await loadImage(canvasQuote.toBuffer())
+
+    // мінімальний відступ від країв картинки
+    const minPadding = 110
+
+    // resize canvasImage if it is larger than canvasPic + minPadding
+    if (canvasImage.width > canvasPic.width - minPadding * 2 || canvasImage.height > canvasPic.height - minPadding * 2) {
+      canvasImage = await sharp(canvasQuote.toBuffer()).resize({
+        width: canvasPic.width - minPadding * 2,
+        height: canvasPic.height - minPadding * 2,
+        fit: 'contain',
+        background: { r: 0, g: 0, b: 0, alpha: 0 }
+      }).toBuffer()
+
+      canvasImage = await loadImage(canvasImage)
+    }
+
+    // розмістити canvasImage в центрі по горизонталі і вертикалі
+    const imageX = (canvasPic.width - canvasImage.width) / 2
+    const imageY = (canvasPic.height - canvasImage.height) / 2
+
+    canvasPicCtx.drawImage(canvasImage, imageX, imageY)
+
+    canvasPicCtx.shadowOffsetX = 0
+    canvasPicCtx.shadowOffsetY = 0
+    canvasPicCtx.shadowBlur = 0
+
+    // write text vertical left center text
+    canvasPicCtx.fillStyle = `rgba(0, 0, 0, 0.4)`
+    canvasPicCtx.font = `${16 * parm.scale}px Noto Sans`
+    canvasPicCtx.textAlign = 'center'
+    canvasPicCtx.translate(70, canvasPic.height / 2)
+    canvasPicCtx.rotate(-Math.PI / 2)
+    canvasPicCtx.fillText('@QuotLyBot', 0, 0)
 
     quoteImage = await sharp(canvasPic.toBuffer()).png({ lossless: true, force: true }).toBuffer()
   } else {

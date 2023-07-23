@@ -940,8 +940,6 @@ class QuoteGenerate {
       '#FF7FD5' // pink
     ]
 
-    console.log(Math.abs(message.from.id) % 7)
-
     // user name  color
     let nameIndex = 1
     if (message.from.id) nameIndex = Math.abs(message.from.id) % 7
