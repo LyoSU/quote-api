@@ -375,6 +375,7 @@ class QuoteGenerate {
 
     const breakMatch = /<br>|\n|\r/
     const spaceMatch = /[\f\n\r\t\v\u0020\u1680\u2000-\u200a\u2028\u2029\u205f\u3000]/
+    const CJKMatch = /[\u1100-\u11ff\u2e80-\u2eff\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\u3100-\u312f\u3130-\u318f\u3190-\u319f\u31a0-\u31bf\u31c0-\u31ef\u31f0-\u31ff\u3200-\u32ff\u3300-\u33ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff]/
 
     for (let index = 0; index < styledChar.length; index++) {
       const charStyle = styledChar[index]
@@ -392,6 +393,9 @@ class QuoteGenerate {
               (charStyle.char.match(spaceMatch) && !lastChar.char.match(spaceMatch)) ||
               (lastChar.char.match(spaceMatch) && !charStyle.char.match(spaceMatch)) ||
               (charStyle.style && lastChar.style && charStyle.style.toString() !== lastChar.style.toString())
+            ) || (
+                charStyle.char.match(CJKMatch) ||
+                lastChar.char.match(CJKMatch)
             )
         )
       ) {
