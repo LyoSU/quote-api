@@ -1,21 +1,21 @@
-const { webkit } = require('playwright')
+const { popPage, pushPage } = require('./page-pool')
 
-const promise = webkit.launch().then(browser => browser.newContext())
+module.exports = async (pageName, content) => {
+  const page = await popPage(pageName)
+  const body = await page.locator('body')
 
-module.exports = async (content, selector) => {
-  const context = await promise
-  const page = await context.newPage()
+  await body.evaluate((element, content) => { element.innerHTML = content }, content)
 
-  page.on('console', console.log)
-  await page.setContent(content)
-  await page.waitForSelector(selector, { state: 'visible' })
+  const quote = await body.locator('#quote')
+  await quote.waitFor({ state: 'visible' })
+  await page.waitForLoadState('networkidle')
 
-  const screenshot = await page.locator(selector).screenshot({
+  const screenshot = await quote.screenshot({
     type: 'png',
     scale: 'css',
     omitBackground: true
   })
 
-  page.close().catch(console.error)
+  pushPage(page)
   return screenshot
 }

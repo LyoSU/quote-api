@@ -2,7 +2,7 @@ module.exports = {
   telegram: require('./telegram'),
   render: require('./render'),
   getBackground: require('./get-background'),
-  getView: require('./get-view'),
+  compile: require('./compile'),
   getAvatarURL: require('./get-avatar-url'),
   formatHTML: require('./format-html'),
   colorLuminance: require('./color-liminance'),

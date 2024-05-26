@@ -8,7 +8,7 @@ const lottie = require('lottie-node')
 const zlib = require('zlib')
 
 const {
-  telegram, render, getView, getAvatarURL, formatHTML, getBackground, colorLuminance, lightOrDark
+  telegram, render, compile, getAvatarURL, formatHTML, getBackground, colorLuminance, lightOrDark
 } = require('../utils')
 
 const getEmojiStatusURL = async (emojiId) => {
@@ -147,10 +147,11 @@ const userColors = {
 const bgImageURL = `http://localhost:${process.env.PORT}/assets/pattern_02_alpha.png`
 const MAX_SCALE = 20
 const DEFAULT_BG_COLOR = '//#292232'
-const DEFAULT_VIEW_NAME = 'default'
-const RENDER_SELECTOR = '#quote'
 const MAX_QUOTE_WIDTH = 512
 const MAX_QUOTE_HEIGHT = 512
+
+// kostyl
+const htmlWrapper = fs.readFileSync(path.resolve(__dirname, '../pages/html.html'), { encoding: 'utf-8' })
 
 module.exports = async (parm) => {
   if (!parm || typeof parm != 'object') {
@@ -176,8 +177,7 @@ module.exports = async (parm) => {
     return { error: 'messages_empty' }
   }
 
-  const view = getView(DEFAULT_VIEW_NAME, type)
-  const content = view({
+  const content = compile(type, {
     scale,
     width: parm.width,
     height: parm.height,
@@ -190,16 +190,18 @@ module.exports = async (parm) => {
     messages
   })
 
+  // kostyl
   if (type == 'html') {
+    const result = htmlWrapper.replace('{{> content}}', content)
     return {
-      image: ext ? content : Buffer.from(content).toString('base64'),
+      image: ext ? content : Buffer.from(result).toString('base64'),
       width: parm.width,
       height: parm.height,
       type, ext
     }
   }
 
-  let image = await render(content, RENDER_SELECTOR)
+  let image = await render(type, content)
   const imageSharp = await sharp(image)
   const { width, height } = await imageSharp.metadata()
 
