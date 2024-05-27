@@ -82,9 +82,9 @@ const buildMessage = (index, hasReply) => {
   }
 }
 
-const queue = async.queue(({ json, template, i }, cb) => {
+const queue = async.queue(async ({ json, template, i }, cb) => {
   console.time(`${i}-${template.params.type}`)
-  axios.post(
+  await axios.post(
     `http://localhost:${process.env.PORT}/${template.method}`,
     { ...json, ...template.params },
     { headers: { 'Content-Type': 'application/json' } }
@@ -96,9 +96,7 @@ const queue = async.queue(({ json, template, i }, cb) => {
       err => err && console.error(err)
     )
   }).catch(console.error)
-},
-  nCallsLimit
-)
+}, nCallsLimit)
 
 for (let i = 0; i < nQuotes; i++) {
   const backgroundColor = Math.random() < 0.3 ? '#FFFFFF' : ''
