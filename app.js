@@ -1,7 +1,10 @@
+const path = require('path')
 const logger = require('koa-logger')
 const responseTime = require('koa-response-time')
 const bodyParser = require('koa-bodyparser')
 const ratelimit = require('koa-ratelimit')
+const serve = require('koa-static')
+const mount = require('koa-mount')
 const Router = require('koa-router')
 const Koa = require('koa')
 
@@ -10,12 +13,14 @@ const app = new Koa()
 app.use(logger())
 app.use(responseTime())
 app.use(bodyParser())
+app.use(mount('/assets', serve(path.resolve(__dirname, 'assets'), { maxAge: 1000 * 3600 * 4, immutable: true })))
+app.use(mount('/cache', serve(path.resolve(__dirname, 'cache'), { maxAge: 1000 * 3600 * 4, immutable: true })))
 
-const ratelimitВb = new Map()
+const ratelimitDb = new Map()
 
 app.use(ratelimit({
   driver: 'memory',
-  db: ratelimitВb,
+  db: ratelimitDb,
   duration: 1000 * 55,
   errorMessage: {
     ok: false,

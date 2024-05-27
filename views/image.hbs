@@ -1,0 +1,51 @@
+<main class="{{theme}}" id="quote"
+  style="max-width: {{width}}px; transform: scale({{scale}}); background: url({{background.image.url}}) top left / cover repeat, radial-gradient(ellipse farthest-corner at center, {{background.color1}}, {{background.color2}})"
+>
+  <ul class="messages-list">
+  {{#each messages}}
+    <li class="message-item {{this.type}}">
+      {{#if this.showAvatar}}
+        {{#if this.from.photo}}
+          <img src="{{this.from.photo.url}}" alt="{{this.from.initials}}" class="message-from-avatar" />
+        {{else}}
+          <p class="message-from-initials" style="background-color: {{this.from.color}}">
+            {{this.from.initials}}
+          </p>
+        {{/if}}
+      {{/if}}
+      <article class="message"
+        style="max-height: {{../height}}px; background: linear-gradient(-45deg, {{../background.color1}}, {{../background.color2}})"
+      >
+        <header>
+          <p class="message-from-name" style="color: {{this.from.color}}" >
+            {{this.from.name}}
+            {{#if this.from.emojiStatus}}
+              <img src="{{this.from.emojiStatus}}" alt="" class="emoji-status" />
+            {{/if}}
+          </p>
+        </header>
+        <main>
+          {{#if this.replyMessage}}
+          {{#with this.replyMessage}}
+            <div class="message-reply {{this.type}}" style="border-color: {{this.from.color}}">
+              <p class="message-reply-from-name" style="color: {{this.from.color}}" >
+                {{this.from.name}}
+                {{#if this.from.emojiStatus}}
+                  <img src="{{this.from.emojiStatus}}" alt="" class="emoji-status" />
+                {{/if}}
+              </p>
+              <p class="message-reply-text">{{this.text}}</p>
+            </div>
+          {{/with}}
+          {{/if}}
+          {{#if this.media}}
+            <img src="{{this.media.url}}" alt="" class="message-media {{this.media.type}}" />
+          {{/if}}
+          <p class="message-text">{{{this.text}}}</p>
+        </main>
+      </article>
+    </li>
+  {{/each}}
+  </ul>
+  <p class="watermark"> @QuotLyBot </p>
+</main>

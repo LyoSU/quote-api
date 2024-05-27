@@ -1,11 +1,9 @@
-FROM nikolaik/python-nodejs:python3.8-nodejs12 AS builder
+FROM mcr.microsoft.com/playwright:v1.35.0-jammy
 
-ENV NODE_WORKDIR /app
-WORKDIR $NODE_WORKDIR
+WORKDIR /app
+COPY . /app
 
-ADD . $NODE_WORKDIR
+RUN apt-get update && apt-get install -y build-essential libvips libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y build-essential gcc wget git libvips && rm -rf /var/lib/apt/lists/*
-
-
-RUN npm install canvas@2.6.1 && npm install # TODO: canvas crashes if installed via npm install from package.json
+RUN npm install && npx playwright install
+ENTRYPOINT [ "npm", "start" ]

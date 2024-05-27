@@ -1,7 +1,10 @@
 module.exports = {
-  QuoteGenerate: require('./quote-generate'),
-  loadImageFromUrl: require('./image-load-url'),
-  loadImageFromPath: require('./image-load-path'),
-  promiseAllStepN: require('./promise-concurrent'),
-  userName: require('./user-name')
+  telegram: require('./telegram'),
+  render: require('./render'),
+  getBackground: require('./get-background'),
+  compile: require('./compile'),
+  getAvatarURL: require('./get-avatar-url'),
+  formatHTML: require('./format-html'),
+  colorLuminance: require('./color-liminance'),
+  lightOrDark: require('./light-or-dark')
 }

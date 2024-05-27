@@ -1,7 +1,6 @@
 const fs = require('fs')
-const { createCanvas, registerFont } = require('canvas')
+const { createCanvas, registerFont, Image, loadImage } = require('canvas')
 const EmojiDbLib = require('emoji-db')
-const { loadImage } = require('canvas')
 const loadImageFromUrl = require('./image-load-url')
 const sharp = require('sharp')
 const Jimp = require('jimp')
@@ -9,9 +8,15 @@ const smartcrop = require('smartcrop-sharp')
 const runes = require('runes')
 const lottie = require('lottie-node')
 const zlib = require('zlib')
-const { Telegram } = require('telegraf')
+
+const render = require('./render')
+const getView = require('./get-view')
+
+const drawAvatar = require('./draw-avatar')
+const lightOrDark = require('./light-or-dark')
 
 const emojiDb = new EmojiDbLib({ useDefaultDb: true })
+const buildContent = getView('message')
 
 function loadFont () {
   console.log('font load start')
@@ -33,13 +38,6 @@ function loadFont () {
 loadFont()
 
 const emojiImageByBrand = require('./emoji-image')
-
-const LRU = require('lru-cache')
-
-const avatarCache = new LRU({
-  max: 20,
-  maxAge: 1000 * 60 * 5
-})
 
 // write a nodejs function that accepts 2 colors. the first is the background color and the second is the text color. as a result, the first color should come out brighter or darker depending on the contrast. for example, if the first text is dark, then make the second brighter and return it. you need to change not the background color, but the text color
 
@@ -109,99 +107,8 @@ class ColorContrast {
 
 
 class QuoteGenerate {
-  constructor (botToken) {
-    this.telegram = new Telegram(botToken)
-  }
-
-  async avatarImageLatters (letters, color) {
-    const size = 500
-    const canvas = createCanvas(size, size)
-    const context = canvas.getContext('2d')
-
-    const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height)
-
-    gradient.addColorStop(0, color[0])
-    gradient.addColorStop(1, color[1])
-
-    context.fillStyle = gradient
-    context.fillRect(0, 0, canvas.width, canvas.height)
-
-    const drawLetters = await this.drawMultilineText(
-      letters,
-      null,
-      size / 2,
-      '#FFF',
-      0,
-      size,
-      size * 5,
-      size * 5
-    )
-
-    context.drawImage(drawLetters, (canvas.width - drawLetters.width) / 2, (canvas.height - drawLetters.height) / 1.5)
-
-    return canvas.toBuffer()
-  }
-
-  async downloadAvatarImage (user) {
-    let avatarImage
-
-    let nameLatters
-    if (user.first_name && user.last_name) nameLatters = runes(user.first_name)[0] + (runes(user.last_name || '')[0])
-    else {
-      let name = user.first_name || user.name || user.title
-      name = name.toUpperCase()
-      const nameWord = name.split(' ')
-
-      if (nameWord.length > 1) nameLatters = runes(nameWord[0])[0] + runes(nameWord.splice(-1)[0])[0]
-      else nameLatters = runes(nameWord[0])[0]
-    }
-
-    const cacheKey = user.id
-
-    const avatarImageCache = avatarCache.get(cacheKey)
-
-    const avatarColorArray = [
-      [ '#FF885E', '#FF516A' ], // red
-      [ '#FFCD6A', '#FFA85C' ], // orange
-      [ '#E0A2F3', '#D669ED' ], // purple
-      [ '#A0DE7E', '#54CB68' ], // green
-      [ '#53EDD6', '#28C9B7' ], // sea
-      [ '#72D5FD', '#2A9EF1' ], // blue
-      [ '#FFA8A8', '#FF719A' ] // pink
-    ]
-
-    const nameIndex = Math.abs(user.id) % 7
-
-    const avatarColor = avatarColorArray[nameIndex]
-
-    if (avatarImageCache) {
-      avatarImage = avatarImageCache
-    } else if (user.photo && user.photo.url) {
-      avatarImage = await loadImage(user.photo.url)
-    } else {
-      try {
-        let userPhoto, userPhotoUrl
-
-        if (user.photo && user.photo.big_file_id) userPhotoUrl = await this.telegram.getFileLink(user.photo.big_file_id).catch(console.error)
-
-        if (!userPhotoUrl) {
-          const getChat = await this.telegram.getChat(user.id).catch(console.error)
-          if (getChat && getChat.photo && getChat.photo.big_file_id) userPhoto = getChat.photo.big_file_id
-
-          if (userPhoto) userPhotoUrl = await this.telegram.getFileLink(userPhoto)
-          else if (user.username) userPhotoUrl = `https://telega.one/i/userpic/320/${user.username}.jpg`
-          else avatarImage = await loadImage(await this.avatarImageLatters(nameLatters, avatarColor))
-        }
-
-        if (userPhotoUrl) avatarImage = await loadImage(userPhotoUrl)
-
-        avatarCache.set(cacheKey, avatarImage)
-      } catch (error) {
-        avatarImage = await loadImage(await this.avatarImageLatters(nameLatters, avatarColor))
-      }
-    }
-
-    return avatarImage
+  constructor (telegramBot) {
+    this.telegram = telegramBot
   }
 
   ungzip (input, options) {
@@ -256,45 +163,6 @@ class QuoteGenerate {
       , (m, r, g, b) => '#' + r + r + g + g + b + b)
       .substring(1).match(/.{2}/g)
       .map(x => parseInt(x, 16))
-  }
-
-  // https://codepen.io/andreaswik/pen/YjJqpK
-  lightOrDark (color) {
-    let r, g, b
-
-    // Check the format of the color, HEX or RGB?
-    if (color.match(/^rgb/)) {
-      // If HEX --> store the red, green, blue values in separate variables
-      color = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/)
-
-      r = color[1]
-      g = color[2]
-      b = color[3]
-    } else {
-      // If RGB --> Convert it to HEX: http://gist.github.com/983661
-      color = +('0x' + color.slice(1).replace(
-        color.length < 5 && /./g, '$&$&'
-      )
-      )
-
-      r = color >> 16
-      g = color >> 8 & 255
-      b = color & 255
-    }
-
-    // HSP (Highly Sensitive Poo) equation from http://alienryderflex.com/hsp.html
-    const hsp = Math.sqrt(
-      0.299 * (r * r) +
-      0.587 * (g * g) +
-      0.114 * (b * b)
-    )
-
-    // Using the HSP value, determine whether the color is light or dark
-    if (hsp > 127.5) {
-      return 'light'
-    } else {
-      return 'dark'
-    }
   }
 
   async drawMultilineText (text, entities, fontSize, fontColor, textX, textY, maxWidth, maxHeight, emojiBrand = 'apple') {
@@ -680,29 +548,6 @@ class QuoteGenerate {
     return canvas
   }
 
-  async drawAvatar (user) {
-    const avatarImage = await this.downloadAvatarImage(user)
-
-    if (avatarImage) {
-      const avatarSize = avatarImage.naturalHeight
-
-      const canvas = createCanvas(avatarSize, avatarSize)
-      const canvasCtx = canvas.getContext('2d')
-
-      const avatarX = 0
-      const avatarY = 0
-
-      canvasCtx.beginPath()
-      canvasCtx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2, true)
-      canvasCtx.clip()
-      canvasCtx.closePath()
-      canvasCtx.restore()
-      canvasCtx.drawImage(avatarImage, avatarX, avatarY, avatarSize, avatarSize)
-
-      return canvas
-    }
-  }
-
   drawLineSegment (ctx, x, y, width, isEven) {
     ctx.lineWidth = 35 // how thick the line is
     ctx.strokeStyle = '#aec6cf' // what color our line is
@@ -897,7 +742,7 @@ class QuoteGenerate {
     height *= scale
 
     // check background style color black/light
-    const backStyle = this.lightOrDark(backgroundColorOne)
+    const backStyle = lightOrDark(backgroundColorOne)
 
 
     // historyPeer1NameFg: #c03d33; // red
@@ -940,12 +785,8 @@ class QuoteGenerate {
       '#FF7FD5' // pink
     ]
 
-    console.log(Math.abs(message.from.id) % 7)
-
     // user name  color
-    let nameIndex = 1
-    if (message.from.id) nameIndex = Math.abs(message.from.id) % 7
-
+    const nameIndex = message.from.id ? Math.abs(message.from.id) % 7 : 1
     const nameColorArray = backStyle === 'light' ? nameColorLight : nameColorDark
 
     let nameColor = nameColorArray[nameIndex]
@@ -957,6 +798,41 @@ class QuoteGenerate {
     if (contrast > 90 || contrast < 30) {
       nameColor = colorContrast.adjustContrast(this.colorLuminance(backgroundColorTwo, 0.55), nameColor)
     }
+
+
+    const avatarImage = await drawAvatar(message.from)
+
+    const content = buildContent({
+      width,
+      height,
+      scale,
+      theme: backStyle,
+      nameColor,
+      name: message?.from?.name ?? '',
+      emojiStatus: message?.from?.emoji_status ?? '',
+      avatarURL: avatarImage.toDataURL(),
+      text: message.text ?? '',
+    })
+
+    const image = await render(content, '#quote')
+
+    // convert to canvas for the generator
+    const canvas = createCanvas(width, height)
+    const canvasCtx = canvas.getContext('2d')
+    const img = new Image()
+
+    return new Promise((resolve, reject) => {
+      img.onload = () => {
+        canvasCtx.drawImage(img, 0, 0, width, height)
+        resolve(canvas)
+      }
+      img.onerror = console.error
+      img.src = image
+    })
+
+
+    // deprecated
+    // TODO: completely replace, test, remove
 
     const nameSize = 22 * scale
 
@@ -996,10 +872,8 @@ class QuoteGenerate {
       )
     }
 
-    let fontSize = 24 * scale
-
-    let textColor = '#fff'
-    if (backStyle === 'light') textColor = '#000'
+    const fontSize = 24 * scale
+    const textColor = backStyle == 'light' ? '#000' : '#fff'
 
     let textCanvas
     if (message.text) {
@@ -1017,7 +891,7 @@ class QuoteGenerate {
     }
 
     let avatarCanvas
-    if (message.avatar) avatarCanvas = await this.drawAvatar(message.from)
+    if (message.avatar) avatarCanvas = await drawAvatar(message.from)
 
     let replyName, replyNameColor, replyText
     if (message.replyMessage && message.replyMessage.name && message.replyMessage.text) {

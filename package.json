@@ -1,12 +1,15 @@
 {
   "name": "quote-api",
-  "version": "0.13.17",
+  "version": "0.14.3",
   "description": "",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "lint": "node_modules/.bin/eslint --ext js .",
-    "lint:fix": "node_modules/.bin/eslint --fix --ext js ."
+    "lint:fix": "node_modules/.bin/eslint --fix --ext js .",
+    "test": "node test/runtime.js",
+    "test:stress": "node test/stress.js 1000",
+    "test:async": "node test/async.js 1000 50"
   },
   "repository": {
     "type": "git",
@@ -22,29 +25,36 @@
     "canvas": "2.11.0",
     "dotenv": "^7.0.0",
     "emoji-db": "^14.0.1",
+    "handlebars": "^4.7.7",
     "jimp": "^0.16.1",
     "jsdom": "^16.5.3",
     "koa": "^2.11.0",
     "koa-bodyparser": "^4.2.1",
     "koa-logger": "^3.2.1",
+    "koa-mount": "^4.0.0",
     "koa-ratelimit": "^4.2.1",
     "koa-response-time": "^2.1.0",
     "koa-router": "^7.4.0",
+    "koa-static": "^5.0.0",
     "lottie-node": "^2.0.0",
     "lottie-web": "^5.7.8",
     "lru-cache": "^5.1.1",
     "object-sizeof": "^1.6.0",
+    "playwright": "^1.34.3",
     "runes": "^0.4.3",
     "sharp": "^0.31.3",
     "smartcrop-sharp": "^2.0.7",
     "telegraf": "^3.38.0"
   },
   "devDependencies": {
+    "async": "^3.2.4",
+    "axios": "^1.4.0",
     "eslint": "^8.6.0",
     "eslint-config-standard": "^12.0.0",
     "eslint-plugin-import": "^2.17.3",
     "eslint-plugin-node": "^9.1.0",
     "eslint-plugin-promise": "^4.1.1",
-    "eslint-plugin-standard": "^4.0.0"
+    "eslint-plugin-standard": "^4.0.0",
+    "lorem-ipsum": "^2.0.8"
   }
 }
