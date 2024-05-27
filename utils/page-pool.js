@@ -19,9 +19,9 @@ const popPage = async (pageName) => {
     // if pool of appropriate pages is empty, create new page
     let html = files[pageName]
     if (html == null) {
-      html = fs.readFileSync(
-        path.resolve(__dirname, `../pages/${pageName}.html`)
-      ).toString('utf-8')
+      html = fs.readFileSync(path.resolve(__dirname, `../pages/${pageName}.html`))
+        .toString('utf-8')
+        .replace('{{> CSSresetURL}}', `http://localhost:${process.env.PORT}/assets/reset.min.css`)
       files[pageName] = html
     }
 

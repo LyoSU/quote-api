@@ -192,7 +192,9 @@ module.exports = async (parm) => {
 
   // kostyl
   if (type == 'html') {
-    const result = htmlWrapper.replace('{{> content}}', content)
+    const result = htmlWrapper
+      .replace('{{> content}}', content)
+      .replace('{{> CSSresetURL}}', `http://localhost:${process.env.PORT}/assets/reset.min.css`)
     return {
       image: ext ? content : Buffer.from(result).toString('base64'),
       width: parm.width,

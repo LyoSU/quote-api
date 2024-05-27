@@ -6,16 +6,19 @@ module.exports = async (pageName, content) => {
 
   await body.evaluate((element, content) => { element.innerHTML = content }, content)
 
-  const quote = await body.locator('#quote')
-  await quote.waitFor({ state: 'visible' })
-  await page.waitForLoadState('networkidle')
+  // wait for all images will be loaded
+  await page.waitForFunction(() => {
+    const images = Array.from(document.querySelectorAll('img'))
+    return images.every(img => img.complete)
+  })
 
+  const quote = await body.locator('#quote')
   const screenshot = await quote.screenshot({
     type: 'png',
     scale: 'css',
     omitBackground: true
   })
 
-  pushPage(page)
+  pushPage(pageName, page)
   return screenshot
 }

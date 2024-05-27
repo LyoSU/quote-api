@@ -13,8 +13,8 @@ const app = new Koa()
 app.use(logger())
 app.use(responseTime())
 app.use(bodyParser())
-app.use(mount('/assets', serve(path.resolve(__dirname, 'assets'))))
-app.use(mount('/cache', serve(path.resolve(__dirname, 'cache'))))
+app.use(mount('/assets', serve(path.resolve(__dirname, 'assets'), { maxAge: 1000 * 3600 * 4, immutable: true })))
+app.use(mount('/cache', serve(path.resolve(__dirname, 'cache'), { maxAge: 1000 * 3600 * 4, immutable: true })))
 
 const ratelimitDb = new Map()
 
