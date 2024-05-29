@@ -19,7 +19,7 @@
   },
   "homepage": "https://github.com/LyoSU/quote-api#readme",
   "dependencies": {
-    "canvas": "2.11.0",
+    "canvas": "^2.8.0",
     "dotenv": "^7.0.0",
     "emoji-db": "^14.0.1",
     "jimp": "^0.16.1",
@@ -35,7 +35,7 @@
     "lru-cache": "^5.1.1",
     "object-sizeof": "^1.6.0",
     "runes": "^0.4.3",
-    "sharp": "^0.31.3",
+    "sharp": "^0.32.5",
     "smartcrop-sharp": "^2.0.7",
     "telegraf": "^3.38.0"
   },
