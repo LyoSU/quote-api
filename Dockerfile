@@ -1,11 +1,10 @@
-FROM nikolaik/python-nodejs:python3.8-nodejs12 AS builder
+FROM node:20-alpine3.16
 
-ENV NODE_WORKDIR /app
-WORKDIR $NODE_WORKDIR
+WORKDIR /app
+ADD . /app
 
-ADD . $NODE_WORKDIR
+RUN apk add gcompat libstdc++ libuuid vips-dev build-base jpeg-dev pango-dev cairo-dev imagemagick libssl1.1 --no-cache&& \
+ln -s /lib/libresolv.so.2 /usr/lib/libresolv.so.2
+RUN npm install
 
-RUN apt-get update && apt-get install -y build-essential gcc wget git libvips && rm -rf /var/lib/apt/lists/*
-
-
-RUN npm install canvas@2.6.1 && npm install # TODO: canvas crashes if installed via npm install from package.json
+CMD ["index.js"]
