@@ -1071,7 +1071,7 @@ class QuoteGenerate {
       if (message.text && maxMediaSize < textCanvas.width) maxMediaSize = textCanvas.width
 
       if (media.is_animated) {
-        media = media.thumbnail
+        media = media.thumb
         maxMediaSize = maxMediaSize / 2
       }
 
