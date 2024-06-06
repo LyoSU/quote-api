@@ -7,7 +7,6 @@ const sharp = require('sharp')
 const Jimp = require('jimp')
 const smartcrop = require('smartcrop-sharp')
 const runes = require('runes')
-const lottie = require('lottie-node')
 const zlib = require('zlib')
 const { Telegram } = require('telegraf')
 
@@ -218,15 +217,7 @@ class QuoteGenerate {
     if (type === 'id') mediaUrl = await this.telegram.getFileLink(media).catch(console.error)
     else mediaUrl = media
     const load = await loadImageFromUrl(mediaUrl)
-    if (mediaUrl.match(/.tgs/)) {
-      const jsonLottie = await this.ungzip(load)
-      const canvas = createCanvas(512, 512)
-      const animation = lottie(JSON.parse(jsonLottie.toString()), canvas)
-      const middleFrame = Math.floor(animation.getDuration(true) / 2)
-      animation.goToAndStop(middleFrame, true)
-
-      return canvas
-    } else if (crop || mediaUrl.match(/.webp/)) {
+    if (crop || mediaUrl.match(/.webp/)) {
       const imageSharp = sharp(load)
       const imageMetadata = await imageSharp.metadata()
       const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
@@ -1078,6 +1069,11 @@ class QuoteGenerate {
 
       maxMediaSize = width / 3 * scale
       if (message.text && maxMediaSize < textCanvas.width) maxMediaSize = textCanvas.width
+
+      if (media.is_animated) {
+        media = media.thumbnail
+        maxMediaSize = maxMediaSize / 2
+      }
 
       mediaCanvas = await this.downloadMediaImage(media, maxMediaSize, type, crop)
       mediaType = message.mediaType
