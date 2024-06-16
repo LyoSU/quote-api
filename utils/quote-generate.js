@@ -328,7 +328,7 @@ class QuoteGenerate {
         const entity = entities[entityIndex]
         const style = []
 
-        if (['pre', 'code'].includes(entity.type)) {
+        if (['pre', 'code', 'pre_code'].includes(entity.type)) {
           style.push('monospace')
         } else if (
           ['mention', 'text_mention', 'hashtag', 'email', 'phone_number', 'bot_command', 'url', 'text_link']
