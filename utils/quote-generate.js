@@ -367,6 +367,7 @@ class QuoteGenerate {
     const breakMatch = /<br>|\n|\r/
     const spaceMatch = /[\f\n\r\t\v\u0020\u1680\u2000-\u200a\u2028\u2029\u205f\u3000]/
     const CJKMatch = /[\u1100-\u11ff\u2e80-\u2eff\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\u3100-\u312f\u3130-\u318f\u3190-\u319f\u31a0-\u31bf\u31c0-\u31ef\u31f0-\u31ff\u3200-\u32ff\u3300-\u33ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff]/
+    const RTLMatch = /[\u0591-\u07FF\u200F\u202B\u202E\uFB1D-\uFDFD\uFE70-\uFEFC]/
 
     for (let index = 0; index < styledChar.length; index++) {
       const charStyle = styledChar[index]
@@ -449,6 +450,7 @@ class QuoteGenerate {
     }
 
     let breakWrite = false
+    let lineDirection = styledWords[0].word.match(RTLMatch) ? 'rtl' : 'ltr'
     for (let index = 0; index < styledWords.length; index++) {
       const styledWord = styledWords[index]
 
@@ -533,6 +535,11 @@ class QuoteGenerate {
 
           lineX = textX
           lineY += lineHeight
+          if (index < styledWords.length - 1) {
+            let nextLineDirection = styledWords[index+1].word.match(RTLMatch) ? 'rtl' : 'ltr'
+            if (lineDirection != nextLineDirection) textWidth = maxWidth - fontSize * 2
+            lineDirection = nextLineDirection
+          }
         }
       }
 
@@ -541,13 +548,15 @@ class QuoteGenerate {
       if (lineWidth > textWidth) textWidth = lineWidth
       if (textWidth > maxWidth) textWidth = maxWidth
 
-      if (emojiImage) {
-        canvasCtx.drawImage(emojiImage, lineX, lineY - fontSize + (fontSize * 0.15), fontSize + (fontSize * 0.22), fontSize + (fontSize * 0.22))
-      } else {
-        canvasCtx.fillText(styledWord.word, lineX, lineY)
+      let wordX = (lineDirection == 'rtl') ? maxWidth-lineX-wordlWidth-fontSize * 2 : lineX
 
-        if (styledWord.style.includes('strikethrough')) canvasCtx.fillRect(lineX, lineY - fontSize / 2.8, canvasCtx.measureText(styledWord.word).width, fontSize * 0.1)
-        if (styledWord.style.includes('underline')) canvasCtx.fillRect(lineX, lineY + 2, canvasCtx.measureText(styledWord.word).width, fontSize * 0.1)
+      if (emojiImage) {
+        canvasCtx.drawImage(emojiImage, wordX, lineY - fontSize + (fontSize * 0.15), fontSize + (fontSize * 0.22), fontSize + (fontSize * 0.22))
+      } else {
+        canvasCtx.fillText(styledWord.word, wordX, lineY)
+
+        if (styledWord.style.includes('strikethrough')) canvasCtx.fillRect(wordX, lineY - fontSize / 2.8, canvasCtx.measureText(styledWord.word).width, fontSize * 0.1)
+        if (styledWord.style.includes('underline')) canvasCtx.fillRect(wordX, lineY + 2, canvasCtx.measureText(styledWord.word).width, fontSize * 0.1)
       }
 
       lineX = lineWidth
@@ -558,7 +567,8 @@ class QuoteGenerate {
     const canvasResize = createCanvas(textWidth, lineY + fontSize)
     const canvasResizeCtx = canvasResize.getContext('2d')
 
-    canvasResizeCtx.drawImage(canvas, 0, 0)
+    let dx = (lineDirection == 'rtl') ? textWidth - maxWidth + fontSize * 2 : 0
+    canvasResizeCtx.drawImage(canvas, dx, 0)
 
     return canvasResize
   }
