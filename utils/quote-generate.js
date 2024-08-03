@@ -858,7 +858,8 @@ class QuoteGenerate {
 
     let rect
     if (mediaType === 'sticker' && (name || replyName)) {
-      rectHeight -= mediaHeight + indent * 2
+      rectHeight = (replyName.height + replyText.height * 0.5) + indent * 2
+      backgroundColorOne = backgroundColorTwo = 'rgba(0, 0, 0, 0.5)'
     }
 
     if (mediaType !== 'sticker' || name || replyName) {
