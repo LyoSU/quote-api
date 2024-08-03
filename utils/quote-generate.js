@@ -367,7 +367,6 @@ class QuoteGenerate {
     const breakMatch = /<br>|\n|\r/
     const spaceMatch = /[\f\n\r\t\v\u0020\u1680\u2000-\u200a\u2028\u2029\u205f\u3000]/
     const CJKMatch = /[\u1100-\u11ff\u2e80-\u2eff\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\u3100-\u312f\u3130-\u318f\u3190-\u319f\u31a0-\u31bf\u31c0-\u31ef\u31f0-\u31ff\u3200-\u32ff\u3300-\u33ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff]/
-    const RTLMatch = /[\u0591-\u07FF\u200F\u202B\u202E\uFB1D-\uFDFD\uFE70-\uFEFC]/
 
     for (let index = 0; index < styledChar.length; index++) {
       const charStyle = styledChar[index]
@@ -450,7 +449,7 @@ class QuoteGenerate {
     }
 
     let breakWrite = false
-    let lineDirection = styledWords[0].word.match(RTLMatch) ? 'rtl' : 'ltr'
+    let lineDirection = this.getLineDirection(styledWords, 0)
     for (let index = 0; index < styledWords.length; index++) {
       const styledWord = styledWords[index]
 
@@ -536,7 +535,7 @@ class QuoteGenerate {
           lineX = textX
           lineY += lineHeight
           if (index < styledWords.length - 1) {
-            let nextLineDirection = styledWords[index+1].word.match(RTLMatch) ? 'rtl' : 'ltr'
+            let nextLineDirection = this.getLineDirection(styledWords, index+1)
             if (lineDirection != nextLineDirection) textWidth = maxWidth - fontSize * 2
             lineDirection = nextLineDirection
           }
@@ -894,6 +893,21 @@ class QuoteGenerate {
     color = canvasCtx.fillStyle
 
     return color
+  }
+
+  getLineDirection (words, start_index) {
+    const RTLMatch = /[\u0591-\u07FF\u200F\u202B\u202E\uFB1D-\uFDFD\uFE70-\uFEFC]/
+    const neutralMatch = /[\u0000-\u0040\u005B-\u0060\u007B-\u00BF\u00D7\u00F7\u02B9-\u02FF\u2000-\u2BFF\u2010-\u2029\u202C\u202F-\u2BFF\u1F300-\u1F5FF\u1F600-\u1F64F]/
+    
+    for (let index = start_index; index < words.length; index++) {
+      if (words[index].word.match(RTLMatch)) {
+        return 'rtl'
+      } else {
+        if (!words[index].word.match(neutralMatch))
+          return 'ltr'
+      }
+    }
+    return 'ltr'
   }
 
   async generate (backgroundColorOne, backgroundColorTwo, message, width = 512, height = 512, scale = 2, emojiBrand = 'apple') {
