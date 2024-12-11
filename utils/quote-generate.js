@@ -4,7 +4,7 @@ const EmojiDbLib = require('emoji-db')
 const { loadImage } = require('canvas')
 const loadImageFromUrl = require('./image-load-url')
 const sharp = require('sharp')
-const Jimp = require('jimp')
+const { Jimp, JimpMime } = require('jimp')
 const smartcrop = require('smartcrop-sharp')
 const runes = require('runes')
 const zlib = require('zlib')
@@ -227,7 +227,7 @@ class QuoteGenerate {
       if (imageMetadata.format === 'webp') {
         const jimpImage = await Jimp.read(sharpPng)
 
-        croppedImage = await jimpImage.autocrop(false).getBufferAsync(Jimp.MIME_PNG)
+        croppedImage = await jimpImage.autocrop().getBuffer(JimpMime.png)
       } else {
         const smartcropResult = await smartcrop.crop(sharpPng, { width: mediaSize, height: imageMetadata.height })
         const crop = smartcropResult.topCrop
