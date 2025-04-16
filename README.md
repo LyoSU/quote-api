@@ -21,6 +21,7 @@ Generator for creating images with "quotes" from Telegram messages.
         - [Media Examples](#media-examples)
         - [Voice Message Example](#voice-message-example)
       - [Error Handling](#error-handling)
+  - [Deployed Instance](#deployed-instance)
   - [Usage Examples](#usage-examples)
     - [JavaScript](#javascript)
     - [Python](#python)
@@ -243,6 +244,17 @@ Possible error responses:
 
 ---
 
+## Deployed Instance
+
+There is a deployed instance of this API available at:
+```
+https://bot.lyo.su/quote/generate
+```
+
+You can use this URL for testing purposes, but please note that stability isn't guaranteed for production use.
+
+---
+
 ## Usage Examples
 
 ### JavaScript
@@ -278,7 +290,7 @@ const body = {
 }
 
 axios
-  .post('https://your.domain.com/generate', body)
+  .post('https://bot.lyo.su/quote/generate', body)
   .then(res => {
     const data = res.data
     const buffer = data.image instanceof Buffer
@@ -320,7 +332,7 @@ payload = {
     ]
 }
 
-r = requests.post('https://your.domain.com/generate', json=payload).json()
+r = requests.post('https://bot.lyo.su/quote/generate', json=payload).json()
 img = base64.b64decode(r['image'])
 with open('quote.png', 'wb') as f:
     f.write(img)
