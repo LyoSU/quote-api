@@ -124,12 +124,24 @@ Content-Type: application/json
         "username": "LyoSU",
         "photo": { "big_file_id": "AQAD..." }
       },
-      "text": "I love you 💜",
+      "text": "Welcome to the quote generator!",
+      "entities": [
+        {
+          "type": "bold",
+          "offset": 0,
+          "length": 7
+        },
+        {
+          "type": "italic",
+          "offset": 8,
+          "length": 3
+        }
+      ],
       "entities": [],
       "avatar": true,
       "replyMessage": {
-        "name": "Alice",
-        "text": "How are you doing today?",
+        "name": "Charlie",
+        "text": "How's the weather today?",
         "entities": [],
         "chatId": 123456789
       }
