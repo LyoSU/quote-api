@@ -222,6 +222,10 @@ class QuoteGenerate {
       const imageMetadata = await imageSharp.metadata()
       const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
 
+      if (!imageMetadata || !imageMetadata.width || !imageMetadata.height || !sharpPng) {
+        return loadImage(load)
+      }
+
       let croppedImage
 
       if (imageMetadata.format === 'webp') {
@@ -913,6 +917,8 @@ class QuoteGenerate {
   async generate (backgroundColorOne, backgroundColorTwo, message, width = 512, height = 512, scale = 2, emojiBrand = 'apple') {
     if (!scale) scale = 2
     if (scale > 20) scale = 20
+    width = width || 512  // Ensure width has a default value
+    height = height || 512 // Ensure height has a default value
     width *= scale
     height *= scale
 
@@ -962,7 +968,7 @@ class QuoteGenerate {
 
     // user name  color
     let nameIndex = 1
-    if (message.from.id) nameIndex = Math.abs(message.from.id) % 7
+    if (message.from && message.from.id) nameIndex = Math.abs(message.from.id) % 7
 
     const nameColorArray = backStyle === 'light' ? nameColorLight : nameColorDark
 
@@ -979,8 +985,10 @@ class QuoteGenerate {
     const nameSize = 22 * scale
 
     let nameCanvas
-    if (message?.from?.name) {
-      let name = message.from.name
+    if (message?.from?.name || (message?.from?.first_name || message?.from?.last_name)) {
+      let name = message.from.name || `${message.from.first_name || ''} ${message.from.last_name || ''}`.trim()
+
+      if (!name) name = "User" // Default name if none provided
 
       const nameEntities = [
         {
@@ -1035,17 +1043,17 @@ class QuoteGenerate {
     }
 
     let avatarCanvas
-    if (message.avatar) avatarCanvas = await this.drawAvatar(message.from)
+    if (message.avatar && message.from) avatarCanvas = await this.drawAvatar(message.from)
 
     let replyName, replyNameColor, replyText
     if (message.replyMessage && message.replyMessage.name && message.replyMessage.text) {
-      // Ensure chatId exists to prevent NaN in calculations
-      const chatId = message.replyMessage.chatId || 0
-      const replyNameIndex = Math.abs(chatId) % 7
-      replyNameColor = nameColorArray[replyNameIndex]
+      try {
+        // Ensure chatId exists to prevent NaN in calculations
+        const chatId = message.replyMessage.chatId || 0
+        const replyNameIndex = Math.abs(chatId) % 7
+        replyNameColor = nameColorArray[replyNameIndex]
 
-      const replyNameFontSize = 16 * scale
-      if (message.replyMessage.name) {
+        const replyNameFontSize = 16 * scale
         replyName = await this.drawMultilineText(
           message.replyMessage.name,
           'bold',
@@ -1057,23 +1065,28 @@ class QuoteGenerate {
           replyNameFontSize,
           emojiBrand
         )
+
+        let textColor = '#fff'
+        if (backStyle === 'light') textColor = '#000'
+
+        const replyTextFontSize = 21 * scale
+        replyText = await this.drawMultilineText(
+          message.replyMessage.text,
+          message.replyMessage.entities || [],
+          replyTextFontSize,
+          textColor,
+          0,
+          replyTextFontSize,
+          width * 0.9,
+          replyTextFontSize,
+          emojiBrand
+        )
+      } catch (error) {
+        console.error("Error generating reply message:", error)
+        // If reply message generation fails, continue without it
+        replyName = null
+        replyText = null
       }
-
-      let textColor = '#fff'
-      if (backStyle === 'light') textColor = '#000'
-
-      const replyTextFontSize = 21 * scale
-      replyText = await this.drawMultilineText(
-        message.replyMessage.text,
-        message.replyMessage.entities || [],
-        replyTextFontSize,
-        textColor,
-        0,
-        replyTextFontSize,
-        width * 0.9,
-        replyTextFontSize,
-        emojiBrand
-      )
     }
 
     let mediaCanvas, mediaType, maxMediaSize

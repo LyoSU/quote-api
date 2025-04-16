@@ -298,94 +298,179 @@ You can use these URLs for testing purposes, but please note that stability isn'
 const axios = require('axios')
 const fs = require('fs')
 
-const body = {
-  backgroundColor: "#FFFFFF",
-  width: 512,
-  height: 768,
-  scale: 2,
-  messages: [
-    {
-      from: {
-        id: 1,
-        name: "Alice",
-        photo: { url: "https://dummyimage.com/100x100" }
-      },
-      text: "Hello World",
-      avatar: true,
-      entities: [],
-      // Example of a reply message
-      replyMessage: {
-        name: "Bob",
-        text: "How's the weather today?",
-        entities: [],
-        chatId: 987654321
-      }
+// Minimal example with only required fields
+const simpleExample = async () => {
+  try {
+    // Minimal required payload
+    const payload = {
+      messages: [{
+        from: {
+          id: 1,
+          name: "User"
+        },
+        text: "Hello world!"
+      }]
     }
-  ]
+
+    const response = await axios.post('https://bot.lyo.su/quote/generate', payload)
+    if (response.data.error) {
+      console.error('Error:', response.data.error)
+      return
+    }
+
+    const buffer = Buffer.from(response.data.image, 'base64')
+    fs.writeFileSync('simple-quote.png', buffer)
+    console.log("Saved simple-quote.png")
+  } catch (error) {
+    console.error('Request failed:', error.message)
+  }
 }
 
-// Option 1: Using the regular endpoint (returns base64)
-axios
-  .post('https://bot.lyo.su/quote/generate', body)
-  .then(res => {
-    const data = res.data
-    const buffer = data.image instanceof Buffer
-      ? data.image
-      : Buffer.from(data.image, 'base64')
-    fs.writeFileSync('quote.png', buffer)
-  })
-  .catch(console.error)
+// Complete example with all options
+const completeExample = async () => {
+  try {
+    const payload = {
+      backgroundColor: "#FFFFFF",
+      width: 512,
+      height: 768,
+      scale: 2,
+      emojiBrand: "apple",
+      messages: [
+        {
+          from: {
+            id: 1,
+            name: "Alice",
+            photo: { url: "https://dummyimage.com/100x100" }
+          },
+          text: "Hello World",
+          avatar: true,
+          entities: [
+            {
+              type: "bold",
+              offset: 0,
+              length: 5
+            }
+          ],
+          replyMessage: {
+            name: "Bob",
+            text: "How's the weather today?",
+            entities: [],
+            chatId: 987654321
+          }
+        }
+      ]
+    }
 
-// Option 2: Using the PNG endpoint (returns binary data)
-axios
-  .post('https://bot.lyo.su/quote/generate.png', body, { responseType: 'arraybuffer' })
-  .then(res => {
-    fs.writeFileSync('quote-direct.png', Buffer.from(res.data))
-  })
-  .catch(console.error)
+    // Option 1: Using the regular endpoint (returns base64)
+    const response = await axios.post('https://bot.lyo.su/quote/generate', payload)
+    const buffer = Buffer.from(response.data.image, 'base64')
+    fs.writeFileSync('quote.png', buffer)
+    console.log("Saved quote.png")
+
+    // Option 2: Using the PNG endpoint directly (returns binary)
+    const binaryResponse = await axios.post(
+      'https://bot.lyo.su/quote/generate.png',
+      payload,
+      { responseType: 'arraybuffer' }
+    )
+    fs.writeFileSync('quote-direct.png', Buffer.from(binaryResponse.data))
+    console.log("Saved quote-direct.png")
+  } catch (error) {
+    console.error('Request failed:', error.message)
+  }
+}
+
+// Run examples
+simpleExample()
+completeExample()
 ```
 
 ### Python
 
 ```py
-import requests, base64
+import requests
+import base64
+import os
 
-payload = {
-    "backgroundColor": "#FFFFFF",
-    "width": 512,
-    "height": 768,
-    "scale": 2,
-    "messages": [
-        {
+# Minimal example with only required fields
+def simple_example():
+    # Minimal required payload
+    payload = {
+        "messages": [{
             "from": {
                 "id": 1,
-                "name": "Bob",
-                "photo": { "url": "https://dummyimage.com/100x100" }
+                "name": "User"
             },
-            "text": "Hello!",
-            "avatar": True,
-            "entities": [],
-            # Example of a reply message
-            "replyMessage": {
-                "name": "Alice",
-                "text": "Hi there!",
-                "entities": [],
-                "chatId": 123456789
+            "text": "Hello world!"
+        }]
+    }
+
+    try:
+        r = requests.post('https://bot.lyo.su/quote/generate', json=payload)
+        data = r.json()
+        if 'error' in data:
+            print(f"Error: {data['error']}")
+            return
+
+        img = base64.b64decode(data['image'])
+        with open('simple-quote.png', 'wb') as f:
+            f.write(img)
+        print("Saved simple-quote.png")
+    except Exception as e:
+        print(f"Request failed: {str(e)}")
+
+# Complete example with all options
+def complete_example():
+    payload = {
+        "backgroundColor": "#FFFFFF",
+        "width": 512,
+        "height": 768,
+        "scale": 2,
+        "emojiBrand": "apple",
+        "messages": [
+            {
+                "from": {
+                    "id": 1,
+                    "name": "Bob",
+                    "photo": { "url": "https://dummyimage.com/100x100" }
+                },
+                "text": "Hello!",
+                "avatar": True,
+                "entities": [
+                    {
+                        "type": "bold",
+                        "offset": 0,
+                        "length": 5
+                    }
+                ],
+                "replyMessage": {
+                    "name": "Alice",
+                    "text": "Hi there!",
+                    "entities": [],
+                    "chatId": 123456789
+                }
             }
-        }
-    ]
-}
+        ]
+    }
 
-# Option 1: Using the regular endpoint (returns base64)
-r = requests.post('https://bot.lyo.su/quote/generate', json=payload).json()
-img = base64.b64decode(r['image'])
-with open('quote.png', 'wb') as f:
-    f.write(img)
-print("Saved quote.png")
+    try:
+        # Option 1: Using the regular endpoint (returns base64)
+        r = requests.post('https://bot.lyo.su/quote/generate', json=payload)
+        data = r.json()
+        img = base64.b64decode(data['image'])
+        with open('quote.png', 'wb') as f:
+            f.write(img)
+        print("Saved quote.png")
 
-# Option 2: Using the PNG endpoint (returns binary data)
-r = requests.post('https://bot.lyo.su/quote/generate.png', json=payload)
-with open('quote-direct.png', 'wb') as f:
-    f.write(r.content)
-print("Saved quote-direct.png")
+        # Option 2: Using the PNG endpoint directly (returns binary)
+        r = requests.post('https://bot.lyo.su/quote/generate.png', json=payload)
+        with open('quote-direct.png', 'wb') as f:
+            f.write(r.content)
+        print("Saved quote-direct.png")
+    except Exception as e:
+        print(f"Request failed: {str(e)}")
+
+# Run examples
+simple_example()
+complete_example()
 ```
