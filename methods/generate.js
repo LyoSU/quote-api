@@ -80,6 +80,27 @@ module.exports = async (parm) => {
     const message = parm.messages[key]
 
     if (message) {
+      // Validate and prepare message object to prevent undefined errors
+      if (message.from && !message.from.photo) {
+        message.from.photo = {}
+      }
+
+      // Ensure reply message has required structure to prevent errors
+      if (message.replyMessage) {
+        // Initialize chatId if missing - required for replyNameIndex calculation
+        if (!message.replyMessage.chatId) {
+          message.replyMessage.chatId = message.from?.id || 0
+        }
+
+        // Ensure the reply message has a photo property if needed
+        if (message.replyMessage.from && !message.replyMessage.from.photo) {
+          message.replyMessage.from = {
+            ...message.replyMessage.from,
+            photo: {}
+          }
+        }
+      }
+
       const canvasQuote = await quoteGenerate.generate(
         backgroundColorOne,
         backgroundColorTwo,

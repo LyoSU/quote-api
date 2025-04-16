@@ -761,7 +761,7 @@ class QuoteGenerate {
     if (name && width < name.width + indent) width = name.width + indent
     if (replyName) {
       if (width < replyName.width) width = replyName.width + indent * 2
-      if (width < replyText.width) width = replyText.width + indent * 2
+      if (replyText && width < replyText.width) width = replyText.width + indent * 2
     }
 
     let height = indent
@@ -796,7 +796,7 @@ class QuoteGenerate {
     let replyNamePosY = 0
     let replyTextPosY = 0
 
-    if (replyName) {
+    if (replyName && replyText) {
       replyPosX = textPosX + indent
 
       const replyNameHeight = replyName.height
@@ -842,8 +842,8 @@ class QuoteGenerate {
     }
 
     if (mediaType === 'sticker' && (name || replyName)) {
-      mediaPosY += indent * 4
-      height += indent * 2
+      rectHeight = replyName && replyText ? (replyName.height + replyText.height * 0.5) + indent * 2 : indent * 2
+      backgroundColorOne = backgroundColorTwo = 'rgba(0, 0, 0, 0.5)'
     }
 
     const canvas = createCanvas(width, height)
@@ -875,7 +875,7 @@ class QuoteGenerate {
     if (text) canvasCtx.drawImage(text, textPosX, textPosY)
     if (media) canvasCtx.drawImage(this.roundImage(media, 5 * scale), mediaPosX, mediaPosY, mediaWidth, mediaHeight)
 
-    if (replyName) {
+    if (replyName && replyText) {
       canvasCtx.drawImage(this.deawReplyLine(3 * scale, replyName.height + replyText.height * 0.4, replyNameColor), textPosX - 3, replyNamePosY)
 
       canvasCtx.drawImage(replyName, replyPosX, replyNamePosY)
@@ -898,7 +898,7 @@ class QuoteGenerate {
   getLineDirection (words, start_index) {
     const RTLMatch = /[\u0591-\u07FF\u200F\u202B\u202E\uFB1D-\uFDFD\uFE70-\uFEFC]/
     const neutralMatch = /[\u0000-\u0040\u005B-\u0060\u007B-\u00BF\u00D7\u00F7\u02B9-\u02FF\u2000-\u2BFF\u2010-\u2029\u202C\u202F-\u2BFF\u1F300-\u1F5FF\u1F600-\u1F64F]/
-    
+
     for (let index = start_index; index < words.length; index++) {
       if (words[index].word.match(RTLMatch)) {
         return 'rtl'
@@ -1039,7 +1039,9 @@ class QuoteGenerate {
 
     let replyName, replyNameColor, replyText
     if (message.replyMessage && message.replyMessage.name && message.replyMessage.text) {
-      const replyNameIndex = Math.abs(message.replyMessage.chatId) % 7
+      // Ensure chatId exists to prevent NaN in calculations
+      const chatId = message.replyMessage.chatId || 0
+      const replyNameIndex = Math.abs(chatId) % 7
       replyNameColor = nameColorArray[replyNameIndex]
 
       const replyNameFontSize = 16 * scale
@@ -1063,7 +1065,7 @@ class QuoteGenerate {
       const replyTextFontSize = 21 * scale
       replyText = await this.drawMultilineText(
         message.replyMessage.text,
-        message.replyMessage.entities,
+        message.replyMessage.entities || [],
         replyTextFontSize,
         textColor,
         0,

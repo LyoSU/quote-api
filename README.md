@@ -98,7 +98,8 @@ Content-Type: `application/json`
 |                      |                |          | - `name`: Name of the user being replied to                                                              |
 |                      |                |          | - `text`: Text of the replied message                                                                    |
 |                      |                |          | - `entities`: Text styles in the reply                                                                   |
-|                      |                |          | - `chatId`: ID of the chat where the original message was sent                                           |
+|                      |                |          | - `chatId`: ID of the chat where the original message was sent (defaults to sender ID if missing)         |
+|                      |                |          | - `from`: Optional user information about the reply author                                               |
 | `media`              | object\|array  | No       | If array is passed, uses the last file (or second if `mediaCrop=true`).                                 |
 |                      |                |          | If object: `{ url }` or `{ file_id, width, height, is_animated }`                                        |
 | `mediaType`          | string         | No       | `sticker` for stickers, otherwise text/image.                                                            |
@@ -144,7 +145,12 @@ Content-Type: application/json
         "name": "Charlie",
         "text": "How's the weather today?",
         "entities": [],
-        "chatId": 123456789
+        "chatId": 123456789,
+        "from": {
+          "id": 123456789,
+          "name": "Charlie",
+          "photo": { "url": "https://example.com/avatar.jpg" }
+        }
       }
     }
   ]
