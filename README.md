@@ -137,7 +137,6 @@ Content-Type: application/json
           "length": 3
         }
       ],
-      "entities": [],
       "avatar": true,
       "replyMessage": {
         "name": "Charlie",
