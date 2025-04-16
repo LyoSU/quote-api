@@ -273,7 +273,7 @@ const body = {
       from: {
         id: 1,
         name: "Alice",
-        photo: { url: "https://via.placeholder.com/100" }
+        photo: { url: "https://dummyimage.com/100x100" }
       },
       text: "Hello World",
       avatar: true,
@@ -316,7 +316,7 @@ payload = {
             "from": {
                 "id": 1,
                 "name": "Bob",
-                "photo": { "url": "https://via.placeholder.com/100" }
+                "photo": { "url": "https://dummyimage.com/100x100" }
             },
             "text": "Hello!",
             "avatar": True,
