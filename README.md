@@ -21,6 +21,7 @@ Generator for creating images with "quotes" from Telegram messages.
         - [Media Examples](#media-examples)
         - [Voice Message Example](#voice-message-example)
       - [Error Handling](#error-handling)
+    - [File Extension in URL](#file-extension-in-url)
   - [Deployed Instance](#deployed-instance)
   - [Usage Examples](#usage-examples)
     - [JavaScript](#javascript)
@@ -242,6 +243,28 @@ Possible error responses:
 {"error": "empty_messages"} // No valid messages could be processed
 ```
 
+### File Extension in URL
+
+You can request images directly with the desired file format by appending `.png` or `.webp` to the endpoint URL:
+
+```http
+POST /generate.png
+Content-Type: application/json
+
+{
+  "messages": [...]
+}
+```
+
+This is equivalent to setting `ext: "png"` in the request body. The response will contain a binary image instead of a base64 string.
+
+Similarly, you can use:
+```http
+POST /generate.webp
+```
+
+This is especially useful for integrations that require direct file responses rather than processing base64 content.
+
 ---
 
 ## Deployed Instance
@@ -251,7 +274,13 @@ There is a deployed instance of this API available at:
 https://bot.lyo.su/quote/generate
 ```
 
-You can use this URL for testing purposes, but please note that stability isn't guaranteed for production use.
+You can also use format-specific endpoints:
+```
+https://bot.lyo.su/quote/generate.png
+https://bot.lyo.su/quote/generate.webp
+```
+
+You can use these URLs for testing purposes, but please note that stability isn't guaranteed for production use.
 
 ---
 
@@ -289,6 +318,7 @@ const body = {
   ]
 }
 
+// Option 1: Using the regular endpoint (returns base64)
 axios
   .post('https://bot.lyo.su/quote/generate', body)
   .then(res => {
@@ -297,6 +327,14 @@ axios
       ? data.image
       : Buffer.from(data.image, 'base64')
     fs.writeFileSync('quote.png', buffer)
+  })
+  .catch(console.error)
+
+// Option 2: Using the PNG endpoint (returns binary data)
+axios
+  .post('https://bot.lyo.su/quote/generate.png', body, { responseType: 'arraybuffer' })
+  .then(res => {
+    fs.writeFileSync('quote-direct.png', Buffer.from(res.data))
   })
   .catch(console.error)
 ```
@@ -332,9 +370,16 @@ payload = {
     ]
 }
 
+# Option 1: Using the regular endpoint (returns base64)
 r = requests.post('https://bot.lyo.su/quote/generate', json=payload).json()
 img = base64.b64decode(r['image'])
 with open('quote.png', 'wb') as f:
     f.write(img)
 print("Saved quote.png")
+
+# Option 2: Using the PNG endpoint (returns binary data)
+r = requests.post('https://bot.lyo.su/quote/generate.png', json=payload)
+with open('quote-direct.png', 'wb') as f:
+    f.write(r.content)
+print("Saved quote-direct.png")
 ```
