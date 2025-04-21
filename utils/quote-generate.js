@@ -678,7 +678,7 @@ class QuoteGenerate {
     return canvas
   }
 
-  deawReplyLine (lineWidth, height, color) {
+  drawReplyLine (lineWidth, height, color) {
     const canvas = createCanvas(20, height)
     const context = canvas.getContext('2d')
     context.beginPath()
@@ -687,6 +687,7 @@ class QuoteGenerate {
     context.lineWidth = lineWidth
     context.strokeStyle = color
     context.stroke()
+    context.closePath()
 
     return canvas
   }
@@ -883,7 +884,7 @@ class QuoteGenerate {
     if (media) canvasCtx.drawImage(this.roundImage(media, 5 * scale), mediaPosX, mediaPosY, mediaWidth, mediaHeight)
 
     if (replyName && replyText) {
-      canvasCtx.drawImage(this.deawReplyLine(3 * scale, replyName.height + replyText.height * 0.4, replyNameColor), textPosX - 3, replyNamePosY)
+      canvasCtx.drawImage(this.drawReplyLine(3 * scale, replyName.height + replyText.height * 0.4, replyNameColor), textPosX - 3, replyNamePosY)
 
       canvasCtx.drawImage(replyName, replyPosX, replyNamePosY)
       canvasCtx.drawImage(replyText, replyPosX, replyTextPosY)
