@@ -670,10 +670,11 @@ class QuoteGenerate {
     canvasCtx.arcTo(x + w, y + h, x, y + h, r)
     canvasCtx.arcTo(x, y + h, x, y, r)
     canvasCtx.arcTo(x, y, x + w, y, r)
+    canvasCtx.save()
     canvasCtx.clip()
     canvasCtx.closePath()
-    canvasCtx.restore()
     canvasCtx.drawImage(image, x, y)
+    canvasCtx.restore()
 
     return canvas
   }
