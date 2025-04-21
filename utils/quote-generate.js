@@ -181,22 +181,25 @@ class QuoteGenerate {
       try {
         let userPhoto, userPhotoUrl
 
-        if (user.photo && user.photo.big_file_id) userPhotoUrl = await this.telegram.getFileLink(user.photo.big_file_id).catch(console.error)
+        if (user.photo && user.photo.big_file_id) userPhotoUrl = await this.telegram.getFileLink(user.photo.big_file_id).catch(() => {})
 
         if (!userPhotoUrl) {
-          const getChat = await this.telegram.getChat(user.id).catch(console.error)
+          const getChat = await this.telegram.getChat(user.id).catch(() => {})
+
           if (getChat && getChat.photo && getChat.photo.big_file_id) userPhoto = getChat.photo.big_file_id
 
-          if (userPhoto) userPhotoUrl = await this.telegram.getFileLink(userPhoto)
+          if (userPhoto) userPhotoUrl = await this.telegram.getFileLink(userPhoto).catch(() => {})
+
           else if (user.username) userPhotoUrl = `https://telega.one/i/userpic/320/${user.username}.jpg`
-          else avatarImage = await loadImage(await this.avatarImageLatters(nameLatters, avatarColor))
+
+          else avatarImage = await loadImage(await this.avatarImageLatters(nameLatters, avatarColor)).catch(() => {})
         }
 
-        if (userPhotoUrl) avatarImage = await loadImage(userPhotoUrl)
+        if (userPhotoUrl) avatarImage = await loadImage(userPhotoUrl).catch(() => {})
 
         avatarCache.set(cacheKey, avatarImage)
       } catch (error) {
-        avatarImage = await loadImage(await this.avatarImageLatters(nameLatters, avatarColor))
+        avatarImage = await loadImage(await this.avatarImageLatters(nameLatters, avatarColor)).catch(() => {})
       }
     }
 
@@ -689,7 +692,7 @@ class QuoteGenerate {
   }
 
   async drawAvatar (user) {
-    const avatarImage = await this.downloadAvatarImage(user)
+    const avatarImage = await this.downloadAvatarImage(user).catch(() => {})
 
     if (avatarImage) {
       const avatarSize = avatarImage.naturalHeight
