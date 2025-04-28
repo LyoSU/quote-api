@@ -850,6 +850,10 @@ class QuoteGenerate {
       textPosY = mediaPosY + mediaHeight + 5 * scale
     }
 
+    // Declare rectWidth and rectHeight variables before using them
+    let rectWidth = width - blockPosX
+    let rectHeight = height
+
     if (mediaType === 'sticker' && (name || replyName)) {
       rectHeight = replyName && replyText ? (replyName.height + replyText.height * 0.5) + indent * 2 : indent * 2
       backgroundColorOne = backgroundColorTwo = 'rgba(0, 0, 0, 0.5)'
@@ -858,8 +862,6 @@ class QuoteGenerate {
     const canvas = createCanvas(width, height)
     const canvasCtx = canvas.getContext('2d')
 
-    let rectWidth = width - blockPosX
-    let rectHeight = height
     const rectPosX = blockPosX
     const rectPosY = blockPosY
     const rectRoundRadius = 25 * scale
