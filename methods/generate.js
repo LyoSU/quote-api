@@ -120,17 +120,26 @@ module.exports = async (parm) => {
         }
       }
 
-      const canvasQuote = await quoteGenerate.generate(
-        backgroundColorOne,
-        backgroundColorTwo,
-        message,
-        parm.width,
-        parm.height,
-        parseFloat(parm.scale) || 2, // Default scale to 2 if not provided
-        parm.emojiBrand || 'apple'   // Default emoji brand to apple if not provided
-      )
+      try {
+        const canvasQuote = await quoteGenerate.generate(
+          backgroundColorOne,
+          backgroundColorTwo,
+          message,
+          parm.width,
+          parm.height,
+          parseFloat(parm.scale) || 2, // Default scale to 2 if not provided
+          parm.emojiBrand || 'apple'   // Default emoji brand to apple if not provided
+        )
 
-      quoteImages.push(canvasQuote)
+        if (canvasQuote) {
+          quoteImages.push(canvasQuote)
+        } else {
+          console.warn('Failed to generate quote for message, skipping')
+        }
+      } catch (error) {
+        console.error('Error generating quote for message:', error.message)
+        // Continue with next message instead of crashing
+      }
     }
   }
 

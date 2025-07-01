@@ -44,68 +44,67 @@ const avatarCache = new LRU({
 
 // here are all the possible colors that will be passed as the second argument. the first color can be any
 class ColorContrast {
-  constructor() {
-    this.brightnessThreshold = 175; // A threshold to determine when a color is considered bright or dark
+  constructor () {
+    this.brightnessThreshold = 175 // A threshold to determine when a color is considered bright or dark
   }
 
-  getBrightness(color) {
+  getBrightness (color) {
     // Calculates the brightness of a color using the formula from the WCAG 2.0
     // See: https://www.w3.org/TR/WCAG20-TECHS/G18.html#G18-tests
-    const [r, g, b] = this.hexToRgb(color);
-    return (r * 299 + g * 587 + b * 114) / 1000;
+    const [r, g, b] = this.hexToRgb(color)
+    return (r * 299 + g * 587 + b * 114) / 1000
   }
 
-  hexToRgb(hex) {
+  hexToRgb (hex) {
     // Converts a hex color string to an RGB array
-    const r = parseInt(hex.substring(1, 3), 16);
-    const g = parseInt(hex.substring(3, 5), 16);
-    const b = parseInt(hex.substring(5, 7), 16);
-    return [r, g, b];
+    const r = parseInt(hex.substring(1, 3), 16)
+    const g = parseInt(hex.substring(3, 5), 16)
+    const b = parseInt(hex.substring(5, 7), 16)
+    return [r, g, b]
   }
 
-  rgbToHex([r, g, b]) {
+  rgbToHex ([r, g, b]) {
     // Converts an RGB array to a hex color string
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
   }
 
-  adjustBrightness(color, amount) {
+  adjustBrightness (color, amount) {
     // Adjusts the brightness of a color by a specified amount
-    const [r, g, b] = this.hexToRgb(color);
-    const newR = Math.max(0, Math.min(255, r + amount));
-    const newG = Math.max(0, Math.min(255, g + amount));
-    const newB = Math.max(0, Math.min(255, b + amount));
-    return this.rgbToHex([newR, newG, newB]);
+    const [r, g, b] = this.hexToRgb(color)
+    const newR = Math.max(0, Math.min(255, r + amount))
+    const newG = Math.max(0, Math.min(255, g + amount))
+    const newB = Math.max(0, Math.min(255, b + amount))
+    return this.rgbToHex([newR, newG, newB])
   }
 
-  getContrastRatio(background, foreground) {
+  getContrastRatio (background, foreground) {
     // Calculates the contrast ratio between two colors using the formula from the WCAG 2.0
     // See: https://www.w3.org/TR/WCAG20-TECHS/G18.html#G18-tests
-    const brightness1 = this.getBrightness(background);
-    const brightness2 = this.getBrightness(foreground);
-    const lightest = Math.max(brightness1, brightness2);
-    const darkest = Math.min(brightness1, brightness2);
-    return (lightest + 0.05) / (darkest + 0.05);
+    const brightness1 = this.getBrightness(background)
+    const brightness2 = this.getBrightness(foreground)
+    const lightest = Math.max(brightness1, brightness2)
+    const darkest = Math.min(brightness1, brightness2)
+    return (lightest + 0.05) / (darkest + 0.05)
   }
 
-  adjustContrast(background, foreground) {
+  adjustContrast (background, foreground) {
     // Adjusts the brightness of the foreground color to meet the minimum contrast ratio
     // with the background color
-    const contrastRatio = this.getContrastRatio(background, foreground);
-    const brightnessDiff = this.getBrightness(background) - this.getBrightness(foreground);
+    const contrastRatio = this.getContrastRatio(background, foreground)
+    const brightnessDiff = this.getBrightness(background) - this.getBrightness(foreground)
     if (contrastRatio >= 4.5) {
-      return foreground; // The contrast ratio is already sufficient
+      return foreground // The contrast ratio is already sufficient
     } else if (brightnessDiff >= 0) {
       // The background is brighter than the foreground
-      const amount = Math.ceil((this.brightnessThreshold - this.getBrightness(foreground)) / 2);
-      return this.adjustBrightness(foreground, amount);
+      const amount = Math.ceil((this.brightnessThreshold - this.getBrightness(foreground)) / 2)
+      return this.adjustBrightness(foreground, amount)
     } else {
       // The background is darker than the foreground
-      const amount = Math.ceil((this.getBrightness(foreground) - this.brightnessThreshold) / 2);
-      return this.adjustBrightness(foreground, -amount);
+      const amount = Math.ceil((this.getBrightness(foreground) - this.brightnessThreshold) / 2)
+      return this.adjustBrightness(foreground, -amount)
     }
   }
 }
-
 
 class QuoteGenerate {
   constructor (botToken) {
@@ -195,11 +194,30 @@ class QuoteGenerate {
           else avatarImage = await loadImage(await this.avatarImageLatters(nameLatters, avatarColor)).catch(() => {})
         }
 
-        if (userPhotoUrl) avatarImage = await loadImage(userPhotoUrl).catch(() => {})
+        if (userPhotoUrl) {
+          avatarImage = await loadImage(userPhotoUrl).catch((error) => {
+            console.warn('Failed to load user photo from URL:', error.message)
+            return null
+          })
+        }
 
-        avatarCache.set(cacheKey, avatarImage)
+        if (avatarImage) {
+          avatarCache.set(cacheKey, avatarImage)
+        }
       } catch (error) {
-        avatarImage = await loadImage(await this.avatarImageLatters(nameLatters, avatarColor)).catch(() => {})
+        console.warn('Error getting user photo:', error.message)
+        avatarImage = null
+      }
+
+      // Fallback to letters avatar if no image was loaded
+      if (!avatarImage) {
+        try {
+          avatarImage = await loadImage(await this.avatarImageLatters(nameLatters, avatarColor))
+          avatarCache.set(cacheKey, avatarImage)
+        } catch (error) {
+          console.warn('Failed to create letters avatar:', error.message)
+          avatarImage = null
+        }
       }
     }
 
@@ -216,36 +234,95 @@ class QuoteGenerate {
   }
 
   async downloadMediaImage (media, mediaSize, type = 'id', crop = true) {
-    let mediaUrl
-    if (type === 'id') mediaUrl = await this.telegram.getFileLink(media).catch(console.error)
-    else mediaUrl = media
-    const load = await loadImageFromUrl(mediaUrl)
-    if (crop || mediaUrl.match(/.webp/)) {
-      const imageSharp = sharp(load)
-      const imageMetadata = await imageSharp.metadata()
-      const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
+    try {
+      let mediaUrl
+      if (type === 'id') mediaUrl = await this.telegram.getFileLink(media).catch(console.error)
+      else mediaUrl = media
 
-      if (!imageMetadata || !imageMetadata.width || !imageMetadata.height || !sharpPng) {
-        return loadImage(load)
+      if (!mediaUrl) {
+        console.warn('Failed to get media URL, skipping media')
+        return null
       }
 
-      let croppedImage
+      const load = await loadImageFromUrl(mediaUrl).catch((error) => {
+        console.warn('Failed to load image from URL:', error.message)
+        return null
+      })
 
-      if (imageMetadata.format === 'webp') {
-        const jimpImage = await Jimp.read(sharpPng)
+      if (!load) {
+        console.warn('Failed to load media, skipping')
+        return null
+      }
 
-        croppedImage = await jimpImage.autocrop().getBuffer(JimpMime.png)
+      if (crop || (mediaUrl && mediaUrl.match(/.webp/))) {
+        try {
+          const imageSharp = sharp(load)
+          const imageMetadata = await imageSharp.metadata()
+          const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
+
+          if (!imageMetadata || !imageMetadata.width || !imageMetadata.height || !sharpPng) {
+            // Fallback to original image without processing
+            try {
+              return await loadImage(load)
+            } catch (fallbackError) {
+              console.warn('Failed to load original image as fallback:', fallbackError.message)
+              return null
+            }
+          }
+
+          let croppedImage
+
+          if (imageMetadata.format === 'webp') {
+            try {
+              const jimpImage = await Jimp.read(sharpPng)
+              croppedImage = await jimpImage.autocrop().getBuffer(JimpMime.png)
+            } catch (jimpError) {
+              console.warn('Failed to process webp with Jimp, using original:', jimpError.message)
+              croppedImage = sharpPng
+            }
+          } else {
+            try {
+              const smartcropResult = await smartcrop.crop(sharpPng, { width: mediaSize, height: imageMetadata.height })
+              const crop = smartcropResult.topCrop
+
+              croppedImage = await imageSharp.extract({ width: crop.width, height: crop.height, left: crop.x, top: crop.y }).png({ lossless: true, force: true }).toBuffer()
+            } catch (cropError) {
+              console.warn('Failed to crop image, using original:', cropError.message)
+              croppedImage = sharpPng
+            }
+          }
+
+          try {
+            return await loadImage(croppedImage)
+          } catch (loadError) {
+            console.warn('Failed to load processed image, trying original:', loadError.message)
+            try {
+              return await loadImage(load)
+            } catch (originalError) {
+              console.warn('Failed to load original image as final fallback:', originalError.message)
+              return null
+            }
+          }
+        } catch (sharpError) {
+          console.warn('Failed to process image with Sharp, trying original:', sharpError.message)
+          try {
+            return await loadImage(load)
+          } catch (originalError) {
+            console.warn('Failed to load original image:', originalError.message)
+            return null
+          }
+        }
       } else {
-        const smartcropResult = await smartcrop.crop(sharpPng, { width: mediaSize, height: imageMetadata.height })
-        const crop = smartcropResult.topCrop
-
-        croppedImage = imageSharp.extract({ width: crop.width, height: crop.height, left: crop.x, top: crop.y })
-        croppedImage = await imageSharp.png({ lossless: true, force: true }).toBuffer()
+        try {
+          return await loadImage(load)
+        } catch (loadError) {
+          console.warn('Failed to load image:', loadError.message)
+          return null
+        }
       }
-
-      return loadImage(croppedImage)
-    } else {
-      return loadImage(load)
+    } catch (error) {
+      console.error('Critical error in downloadMediaImage:', error.message)
+      return null
     }
   }
 
@@ -392,9 +469,9 @@ class QuoteGenerate {
               (lastChar.char.match(spaceMatch) && !charStyle.char.match(spaceMatch)) ||
               (charStyle.style && lastChar.style && charStyle.style.toString() !== lastChar.style.toString())
             ) || (
-                charStyle.char.match(CJKMatch) ||
+            charStyle.char.match(CJKMatch) ||
                 lastChar.char.match(CJKMatch)
-            )
+          )
         )
       ) {
         stringNum++
@@ -542,8 +619,8 @@ class QuoteGenerate {
           lineX = textX
           lineY += lineHeight
           if (index < styledWords.length - 1) {
-            let nextLineDirection = this.getLineDirection(styledWords, index+1)
-            if (lineDirection != nextLineDirection) textWidth = maxWidth - fontSize * 2
+            let nextLineDirection = this.getLineDirection(styledWords, index + 1)
+            if (lineDirection !== nextLineDirection) textWidth = maxWidth - fontSize * 2
             lineDirection = nextLineDirection
           }
         }
@@ -554,7 +631,7 @@ class QuoteGenerate {
       if (lineWidth > textWidth) textWidth = lineWidth
       if (textWidth > maxWidth) textWidth = maxWidth
 
-      let wordX = (lineDirection == 'rtl') ? maxWidth-lineX-wordlWidth-fontSize * 2 : lineX
+      let wordX = (lineDirection == 'rtl') ? maxWidth - lineX - wordlWidth - fontSize * 2 : lineX
 
       if (emojiImage) {
         canvasCtx.drawImage(emojiImage, wordX, lineY - fontSize + (fontSize * 0.15), fontSize + (fontSize * 0.22), fontSize + (fontSize * 0.22))
@@ -694,25 +771,33 @@ class QuoteGenerate {
   }
 
   async drawAvatar (user) {
-    const avatarImage = await this.downloadAvatarImage(user).catch(() => {})
+    try {
+      const avatarImage = await this.downloadAvatarImage(user)
 
-    if (avatarImage) {
-      const avatarSize = avatarImage.naturalHeight
+      if (avatarImage) {
+        const avatarSize = avatarImage.naturalHeight || avatarImage.height
 
-      const canvas = createCanvas(avatarSize, avatarSize)
-      const canvasCtx = canvas.getContext('2d')
+        const canvas = createCanvas(avatarSize, avatarSize)
+        const canvasCtx = canvas.getContext('2d')
 
-      const avatarX = 0
-      const avatarY = 0
+        const avatarX = 0
+        const avatarY = 0
 
-      canvasCtx.beginPath()
-      canvasCtx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2, true)
-      canvasCtx.clip()
-      canvasCtx.closePath()
-      canvasCtx.restore()
-      canvasCtx.drawImage(avatarImage, avatarX, avatarY, avatarSize, avatarSize)
+        canvasCtx.beginPath()
+        canvasCtx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2, true)
+        canvasCtx.clip()
+        canvasCtx.closePath()
+        canvasCtx.restore()
+        canvasCtx.drawImage(avatarImage, avatarX, avatarY, avatarSize, avatarSize)
 
-      return canvas
+        return canvas
+      } else {
+        console.warn('No avatar image available for user')
+        return null
+      }
+    } catch (error) {
+      console.warn('Error drawing avatar:', error.message)
+      return null
     }
   }
 
@@ -906,16 +991,15 @@ class QuoteGenerate {
     return color
   }
 
-  getLineDirection (words, start_index) {
+  getLineDirection (words, startIndex) {
     const RTLMatch = /[\u0591-\u07FF\u200F\u202B\u202E\uFB1D-\uFDFD\uFE70-\uFEFC]/
-    const neutralMatch = /[\u0000-\u0040\u005B-\u0060\u007B-\u00BF\u00D7\u00F7\u02B9-\u02FF\u2000-\u2BFF\u2010-\u2029\u202C\u202F-\u2BFF\u1F300-\u1F5FF\u1F600-\u1F64F]/
+    const neutralMatch = /[\u0001-\u0040\u005B-\u0060\u007B-\u00BF\u00D7\u00F7\u02B9-\u02FF\u2000-\u2BFF\u2010-\u2029\u202C\u202F-\u2BFF\u1F300-\u1F5FF\u1F600-\u1F64F]/
 
-    for (let index = start_index; index < words.length; index++) {
+    for (let index = startIndex; index < words.length; index++) {
       if (words[index].word.match(RTLMatch)) {
         return 'rtl'
       } else {
-        if (!words[index].word.match(neutralMatch))
-          return 'ltr'
+        if (!words[index].word.match(neutralMatch)) { return 'ltr' }
       }
     }
     return 'ltr'
@@ -924,14 +1008,13 @@ class QuoteGenerate {
   async generate (backgroundColorOne, backgroundColorTwo, message, width = 512, height = 512, scale = 2, emojiBrand = 'apple') {
     if (!scale) scale = 2
     if (scale > 20) scale = 20
-    width = width || 512  // Ensure width has a default value
+    width = width || 512 // Ensure width has a default value
     height = height || 512 // Ensure height has a default value
     width *= scale
     height *= scale
 
     // check background style color black/light
     const backStyle = this.lightOrDark(backgroundColorOne)
-
 
     // historyPeer1NameFg: #c03d33; // red
     // historyPeer2NameFg: #4fad2d; // green
@@ -992,10 +1075,10 @@ class QuoteGenerate {
     const nameSize = 22 * scale
 
     let nameCanvas
-    if (message?.from?.name || (message?.from?.first_name || message?.from?.last_name)) {
+    if ((message.from && message.from.name) || (message.from && (message.from.first_name || message.from.last_name))) {
       let name = message.from.name || `${message.from.first_name || ''} ${message.from.last_name || ''}`.trim()
 
-      if (!name) name = "User" // Default name if none provided
+      if (!name) name = 'User' // Default name if none provided
 
       const nameEntities = [
         {
@@ -1050,7 +1133,14 @@ class QuoteGenerate {
     }
 
     let avatarCanvas
-    if (message.avatar && message.from) avatarCanvas = await this.drawAvatar(message.from)
+    if (message.avatar && message.from) {
+      try {
+        avatarCanvas = await this.drawAvatar(message.from)
+      } catch (error) {
+        console.warn('Error drawing avatar:', error.message)
+        avatarCanvas = null
+      }
+    }
 
     let replyName, replyNameColor, replyText
     if (message.replyMessage && message.replyMessage.name && message.replyMessage.text) {
@@ -1089,7 +1179,7 @@ class QuoteGenerate {
           emojiBrand
         )
       } catch (error) {
-        console.error("Error generating reply message:", error)
+        console.error('Error generating reply message:', error)
         // If reply message generation fails, continue without it
         replyName = null
         replyText = null
@@ -1115,15 +1205,27 @@ class QuoteGenerate {
       }
 
       maxMediaSize = width / 3 * scale
-      if (message.text && maxMediaSize < textCanvas.width) maxMediaSize = textCanvas.width
+      if (message.text && textCanvas && maxMediaSize < textCanvas.width) maxMediaSize = textCanvas.width
 
-      if (media.is_animated) {
+      if (media && media.is_animated) {
         media = media.thumb
         maxMediaSize = maxMediaSize / 2
       }
 
-      mediaCanvas = await this.downloadMediaImage(media, maxMediaSize, type, crop)
-      mediaType = message.mediaType
+      try {
+        mediaCanvas = await this.downloadMediaImage(media, maxMediaSize, type, crop)
+        if (mediaCanvas) {
+          mediaType = message.mediaType
+        } else {
+          console.warn('Failed to download media image, skipping media for this message')
+          mediaCanvas = null
+          mediaType = null
+        }
+      } catch (error) {
+        console.warn('Error downloading media image:', error.message)
+        mediaCanvas = null
+        mediaType = null
+      }
     }
 
     if (message.voice) {
