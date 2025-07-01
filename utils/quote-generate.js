@@ -383,6 +383,7 @@ class QuoteGenerate {
 
     const fallbackEmojiImageJson = emojiImageByBrand[fallbackEmojiBrand]
 
+    // Pre-calculate text dimensions to avoid creating oversized canvas
     const canvas = createCanvas(maxWidth + fontSize, maxHeight + fontSize)
     const canvasCtx = canvas.getContext('2d')
 
@@ -395,6 +396,44 @@ class QuoteGenerate {
     const styledChar = []
 
     const emojis = emojiDb.searchFromText({ input: text, fixCodePoints: true })
+
+    // Pre-load all emojis for better performance
+    const emojiCache = new Map()
+    const emojiLoadPromises = []
+
+    for (let emojiIndex = 0; emojiIndex < emojis.length; emojiIndex++) {
+      const emoji = emojis[emojiIndex]
+      if (!emojiCache.has(emoji.found)) {
+        emojiLoadPromises.push(
+          (async () => {
+            const emojiImageBase = emojiImageJson[emoji.found]
+            if (emojiImageBase) {
+              try {
+                const image = await loadImage(Buffer.from(emojiImageBase, 'base64'))
+                emojiCache.set(emoji.found, image)
+              } catch {
+                try {
+                  const fallbackImage = await loadImage(Buffer.from(fallbackEmojiImageJson[emoji.found], 'base64'))
+                  emojiCache.set(emoji.found, fallbackImage)
+                } catch {
+                  // Skip if both fail
+                }
+              }
+            } else {
+              try {
+                const fallbackImage = await loadImage(Buffer.from(fallbackEmojiImageJson[emoji.found], 'base64'))
+                emojiCache.set(emoji.found, fallbackImage)
+              } catch {
+                // Skip if fails
+              }
+            }
+          })()
+        )
+      }
+    }
+
+    // Wait for all emojis to load
+    await Promise.all(emojiLoadPromises)
 
     for (let charIndex = 0; charIndex < chars.length; charIndex++) {
       const char = chars[charIndex]
@@ -534,6 +573,11 @@ class QuoteGenerate {
 
     let breakWrite = false
     let lineDirection = this.getLineDirection(styledWords, 0)
+
+    // Pre-set font to avoid repeated font changes
+    let currentFont = null
+    let currentFillStyle = null
+
     for (let index = 0; index < styledWords.length; index++) {
       const styledWord = styledWords[index]
 
@@ -543,17 +587,8 @@ class QuoteGenerate {
         if (styledWord.customEmojiId && customEmojiStickers[styledWord.customEmojiId]) {
           emojiImage = customEmojiStickers[styledWord.customEmojiId]
         } else {
-          const emojiImageBase = emojiImageJson[styledWord.emoji.code]
-          if (emojiImageBase) {
-            emojiImage = await loadImage(
-              Buffer.from(emojiImageBase, 'base64')
-            ).catch(() => {})
-          }
-          if (!emojiImage) {
-            emojiImage = await loadImage(
-              Buffer.from(fallbackEmojiImageJson[styledWord.emoji.code], 'base64')
-            ).catch(() => {})
-          }
+          // Use pre-loaded emoji from cache
+          emojiImage = emojiCache.get(styledWord.emoji.code)
         }
       }
 
@@ -578,20 +613,37 @@ class QuoteGenerate {
         const rbaColor = this.hexToRgb(this.normalizeColor(fontColor))
         fillStyle = `rgba(${rbaColor[0]}, ${rbaColor[1]}, ${rbaColor[2]}, 0.15)`
       }
-      // else {
-      //   canvasCtx.font = `${fontSize}px OpenSans`
-      //   canvasCtx.fillStyle = fontColor
-      // }
 
-      canvasCtx.font = `${fontType} ${fontSize}px ${fontName}`
-      canvasCtx.fillStyle = fillStyle
+      const newFont = `${fontType} ${fontSize}px ${fontName}`
 
-      if (canvasCtx.measureText(styledWord.word).width > maxWidth - fontSize * 3) {
-        while (canvasCtx.measureText(styledWord.word).width > maxWidth - fontSize * 3) {
-          styledWord.word = styledWord.word.substr(0, styledWord.word.length - 1)
-          if (styledWord.word.length <= 0) break
+      // Only change font if different from current
+      if (currentFont !== newFont) {
+        canvasCtx.font = newFont
+        currentFont = newFont
+      }
+
+      // Only change fill style if different from current
+      if (currentFillStyle !== fillStyle) {
+        canvasCtx.fillStyle = fillStyle
+        currentFillStyle = fillStyle
+      }
+
+      // Pre-truncate long words before measurement
+      let wordToMeasure = styledWord.word
+      const maxWordWidth = maxWidth - fontSize * 3
+
+      if (wordToMeasure.length > 50) { // Quick length check before expensive measurement
+        while (canvasCtx.measureText(wordToMeasure).width > maxWordWidth && wordToMeasure.length > 0) {
+          wordToMeasure = wordToMeasure.substr(0, wordToMeasure.length - 1)
         }
-        styledWord.word += '…'
+        if (wordToMeasure.length < styledWord.word.length) {
+          styledWord.word = wordToMeasure + '…'
+        }
+      } else if (canvasCtx.measureText(wordToMeasure).width > maxWordWidth) {
+        while (canvasCtx.measureText(wordToMeasure).width > maxWordWidth && wordToMeasure.length > 0) {
+          wordToMeasure = wordToMeasure.substr(0, wordToMeasure.length - 1)
+        }
+        styledWord.word = wordToMeasure + '…'
       }
 
       let lineWidth
@@ -631,7 +683,7 @@ class QuoteGenerate {
       if (lineWidth > textWidth) textWidth = lineWidth
       if (textWidth > maxWidth) textWidth = maxWidth
 
-      let wordX = (lineDirection == 'rtl') ? maxWidth - lineX - wordlWidth - fontSize * 2 : lineX
+      let wordX = (lineDirection === 'rtl') ? maxWidth - lineX - wordlWidth - fontSize * 2 : lineX
 
       if (emojiImage) {
         canvasCtx.drawImage(emojiImage, wordX, lineY - fontSize + (fontSize * 0.15), fontSize + (fontSize * 0.22), fontSize + (fontSize * 0.22))
