@@ -411,11 +411,11 @@ class QuoteGenerate {
               try {
                 const image = await loadImage(Buffer.from(emojiImageBase, 'base64'))
                 emojiCache.set(emoji.found, image)
-              } catch {
+              } catch (error) {
                 try {
                   const fallbackImage = await loadImage(Buffer.from(fallbackEmojiImageJson[emoji.found], 'base64'))
                   emojiCache.set(emoji.found, fallbackImage)
-                } catch {
+                } catch (fallbackError) {
                   // Skip if both fail
                 }
               }
@@ -423,7 +423,7 @@ class QuoteGenerate {
               try {
                 const fallbackImage = await loadImage(Buffer.from(fallbackEmojiImageJson[emoji.found], 'base64'))
                 emojiCache.set(emoji.found, fallbackImage)
-              } catch {
+              } catch (error) {
                 // Skip if fails
               }
             }
@@ -702,7 +702,7 @@ class QuoteGenerate {
     const canvasResize = createCanvas(textWidth, lineY + fontSize)
     const canvasResizeCtx = canvasResize.getContext('2d')
 
-    let dx = (lineDirection == 'rtl') ? textWidth - maxWidth + fontSize * 2 : 0
+    let dx = (lineDirection === 'rtl') ? textWidth - maxWidth + fontSize * 2 : 0
     canvasResizeCtx.drawImage(canvas, dx, 0)
 
     return canvasResize
