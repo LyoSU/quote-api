@@ -6,7 +6,7 @@
     "configurations": [
         {
             "type": "node",
-            "runtimeVersion": "20.13.1",
+            "runtimeVersion": "22.2.0",
             "request": "launch",
             "name": "Launch Program",
             "skipFiles": [
