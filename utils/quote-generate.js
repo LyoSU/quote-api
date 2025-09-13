@@ -195,10 +195,17 @@ class QuoteGenerate {
         }
 
         if (userPhotoUrl) {
-          avatarImage = await loadImage(userPhotoUrl).catch((error) => {
+          const imageBuffer = await loadImageFromUrl(userPhotoUrl).catch((error) => {
             console.warn('Failed to load user photo from URL:', error.message)
             return null
           })
+
+          if (imageBuffer) {
+            avatarImage = await loadImage(imageBuffer).catch((error) => {
+              console.warn('Failed to process user photo buffer:', error.message)
+              return null
+            })
+          }
         }
 
         if (avatarImage) {
