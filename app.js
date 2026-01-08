@@ -45,6 +45,12 @@ const route = new Router()
 
 const routes = require('./routes')
 
+// Health check endpoint for Docker/Coolify
+route.get('/health', (ctx) => {
+  ctx.status = 200
+  ctx.body = { status: 'ok', timestamp: Date.now() }
+})
+
 route.use('/*', routes.routeApi.routes())
 
 app.use(route.routes())

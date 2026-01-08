@@ -1,12 +1,15 @@
 {
   "name": "quote-api",
   "version": "0.14.0",
-  "description": "",
+  "description": "Quote image generation API",
   "main": "index.js",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "start": "node index.js",
-    "lint": "node_modules/.bin/eslint --ext js .",
-    "lint:fix": "node_modules/.bin/eslint --fix --ext js ."
+    "lint": "eslint --ext js .",
+    "lint:fix": "eslint --fix --ext js ."
   },
   "repository": {
     "type": "git",

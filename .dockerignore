@@ -1,13 +1,47 @@
+# Dependencies
 node_modules
-npm-debug.log
+
+# Git
 .git
 .gitignore
+
+# Environment
 .env
 .env.*
-*.md
+!.env.example
+
+# IDE
 .vscode
 .idea
-.DS_Store
+*.swp
+*.swo
+
+# Logs
 *.log
+npm-debug.log*
+
+# Testing & Coverage
 coverage
 .nyc_output
+
+# Documentation
+*.md
+!README.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build
+dist
+
+# Docker (don't copy docker files into image)
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Dev tools
+.eslintrc*
+.editorconfig
+.github

@@ -18,18 +18,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including dev for native compilation)
-RUN npm ci
+RUN npm ci --omit=dev
 
 # Production stage
 FROM node:22-bookworm-slim
 
 WORKDIR /app
 
-# Install runtime dependencies only
+ENV NODE_ENV=production
+
+# Install runtime dependencies and fonts
 RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-noto \
     fonts-noto-cjk \
@@ -43,21 +43,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     librsvg2-2 \
     libpixman-1-0 \
     libvips42 \
+    curl \
     && rm -rf /var/lib/apt/lists/* \
     && fc-cache -f -v
+
+# Create non-root user first
+RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
 
 # Copy node_modules from builder
 COPY --from=builder /app/node_modules ./node_modules
 
 # Copy application code
-COPY . .
-
-# Create non-root user
-RUN groupadd -r nodejs && useradd -r -g nodejs nodejs \
-    && chown -R nodejs:nodejs /app
+COPY --chown=nodejs:nodejs . .
 
 USER nodejs
 
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
 
 CMD ["node", "index.js"]
