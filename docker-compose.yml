@@ -2,8 +2,8 @@
 services:
   quote-api:
     build: .
-    ports:
-      - "3000:3000"
+    deploy:
+      replicas: 3
     env_file: .env
     restart: unless-stopped
     healthcheck:
@@ -11,3 +11,14 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # Load balancer for local testing with replicas
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./nginx.local.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - quote-api
+    restart: unless-stopped
