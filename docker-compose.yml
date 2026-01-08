@@ -1,24 +1,16 @@
-# Local development only - Coolify ignores this file
 services:
   quote-api:
     build: .
     deploy:
       replicas: 3
-    env_file: .env
-    restart: unless-stopped
+      resources:
+        limits:
+          memory: 512M
+    environment:
+      - NODE_ENV=production
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-
-  # Load balancer for local testing with replicas
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "3000:80"
-    volumes:
-      - ./nginx.local.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - quote-api
     restart: unless-stopped
