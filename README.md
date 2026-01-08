@@ -412,7 +412,7 @@ def simple_example():
             print(f"Error: {data['error']}")
             return
 
-        img = base64.b64decode(data['image'])
+        img = base64.b64decode(data['result']['image'])
         with open('simple-quote.png', 'wb') as f:
             f.write(img)
         print("Saved simple-quote.png")
@@ -457,7 +457,7 @@ def complete_example():
         # Option 1: Using the regular endpoint (returns base64)
         r = requests.post('https://bot.lyo.su/quote/generate', json=payload)
         data = r.json()
-        img = base64.b64decode(data['image'])
+        img = base64.b64decode(data['result']['image'])
         with open('quote.png', 'wb') as f:
             f.write(img)
         print("Saved quote.png")
