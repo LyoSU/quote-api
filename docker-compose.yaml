@@ -1,11 +1,6 @@
 services:
   quote-api:
     build: .
-    deploy:
-      replicas: 3
-      resources:
-        limits:
-          memory: 512M
     environment:
       - NODE_ENV=production
     healthcheck:
@@ -14,3 +9,7 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
