@@ -1,23 +1,44 @@
-version: '3'
-
 services:
-    api:
-        build:
-            context: .
-        env_file: .env
-        restart: always
-        logging:
-            driver: "json-file"
-            options:
-                max-size: "10m"
-                max-file: "3"
-        networks:
-            - quotly
-        command: node index.js
-        ports:
-            - 127.0.0.1:4888:4888
+  quote-api:
+    build:
+      context: .
+    env_file: .env
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - quotly
 
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "127.0.0.1:4888:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - quote-api
+    restart: unless-stopped
+    networks:
+      - quotly
 
 networks:
-    quotly:
-        external: true
+  quotly:
+    external: true
