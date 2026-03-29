@@ -173,9 +173,8 @@ module.exports = async (parm) => {
     const heightPadding = 75 * scale
     const widthPadding = 95 * scale
 
-    const canvasImage = await loadImage(canvasQuote.toBuffer())
-
-    const canvasPic = createCanvas(canvasImage.width + widthPadding, canvasImage.height + heightPadding)
+    // Draw canvas-to-canvas directly — no need for toBuffer() -> loadImage() round-trip
+    const canvasPic = createCanvas(canvasQuote.width + widthPadding, canvasQuote.height + heightPadding)
     const canvasPicCtx = canvasPic.getContext('2d')
 
     const patternImage = await getPatternImage()
@@ -186,7 +185,7 @@ module.exports = async (parm) => {
     canvasPicCtx.shadowBlur = 13
     canvasPicCtx.shadowColor = 'rgba(0, 0, 0, 0.5)'
 
-    canvasPicCtx.drawImage(canvasImage, widthPadding / 2, heightPadding / 2)
+    canvasPicCtx.drawImage(canvasQuote, widthPadding / 2, heightPadding / 2)
 
     canvasPicCtx.shadowOffsetX = 0
     canvasPicCtx.shadowOffsetY = 0
@@ -211,24 +210,26 @@ module.exports = async (parm) => {
     canvasPicCtx.shadowBlur = 13
     canvasPicCtx.shadowColor = 'rgba(0, 0, 0, 0.5)'
 
-    let canvasImage = await loadImage(canvasQuote.toBuffer())
-
     const minPadding = 110
+    const maxW = canvasPic.width - minPadding * 2
+    const maxH = canvasPic.height - minPadding * 2
 
-    if (canvasImage.width > canvasPic.width - minPadding * 2 || canvasImage.height > canvasPic.height - minPadding * 2) {
-      canvasImage = await sharp(canvasQuote.toBuffer()).resize({
-        width: canvasPic.width - minPadding * 2,
-        height: canvasPic.height - minPadding * 2,
+    // Use canvas dimensions directly to decide if resize is needed — avoid toBuffer() -> loadImage()
+    let drawSource = canvasQuote
+    if (canvasQuote.width > maxW || canvasQuote.height > maxH) {
+      const resizedBuffer = await sharp(canvasQuote.toBuffer()).resize({
+        width: maxW,
+        height: maxH,
         fit: 'contain',
         background: { r: 0, g: 0, b: 0, alpha: 0 }
       }).toBuffer()
-      canvasImage = await loadImage(canvasImage)
+      drawSource = await loadImage(resizedBuffer)
     }
 
-    const imageX = (canvasPic.width - canvasImage.width) / 2
-    const imageY = (canvasPic.height - canvasImage.height) / 2
+    const imageX = (canvasPic.width - drawSource.width) / 2
+    const imageY = (canvasPic.height - drawSource.height) / 2
 
-    canvasPicCtx.drawImage(canvasImage, imageX, imageY)
+    canvasPicCtx.drawImage(drawSource, imageX, imageY)
 
     canvasPicCtx.shadowOffsetX = 0
     canvasPicCtx.shadowOffsetY = 0
