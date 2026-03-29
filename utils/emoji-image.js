@@ -1,10 +1,8 @@
 const path = require('path')
 const fs = require('fs')
 const loadImageFromUrl = require('./image-load-url')
-const EmojiDbLib = require('emoji-db')
 const promiseAllStepN = require('./promise-concurrent')
-
-const emojiDb = new EmojiDbLib({ useDefaultDb: true })
+const emojiDb = require('./emoji-db')
 
 const emojiJFilesDir = '../assets/emoji/'
 

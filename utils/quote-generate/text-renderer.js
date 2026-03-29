@@ -1,17 +1,15 @@
 // utils/quote-generate/text-renderer.js
 
 const { createCanvas, loadImage } = require('canvas')
-const EmojiDbLib = require('emoji-db')
 const sharp = require('sharp')
 const loadImageFromUrl = require('../image-load-url')
+const emojiDb = require('../emoji-db')
 const { loadBrand } = require('../emoji-image')
 const {
   BREAK_REGEX, SPACE_REGEX, CJK_REGEX, RTL_REGEX, NEUTRAL_REGEX,
   ENTITY_TYPES_MONOSPACE, ENTITY_TYPES_MENTION
 } = require('./constants')
 const { hexToRgb, normalizeColor } = require('./color')
-
-const emojiDb = new EmojiDbLib({ useDefaultDb: true })
 
 // Module-level emoji image cache — persists across calls
 const emojiImageCache = new Map()
