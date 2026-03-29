@@ -4,7 +4,7 @@ const { createCanvas, loadImage } = require('canvas')
 const EmojiDbLib = require('emoji-db')
 const sharp = require('sharp')
 const loadImageFromUrl = require('../image-load-url')
-const emojiImageByBrand = require('../emoji-image')
+const { loadBrand } = require('../emoji-image')
 const {
   BREAK_REGEX, SPACE_REGEX, CJK_REGEX, RTL_REGEX, NEUTRAL_REGEX,
   ENTITY_TYPES_MONOSPACE, ENTITY_TYPES_MENTION
@@ -32,11 +32,11 @@ async function drawMultilineText (text, entities, fontSize, fontColor, textX, te
   if (maxWidth > 10000) maxWidth = 10000
   if (maxHeight > 10000) maxHeight = 10000
 
-  const emojiImageJson = emojiImageByBrand[emojiBrand]
+  const emojiImageJson = loadBrand(emojiBrand)
 
   let fallbackEmojiBrand = 'apple'
   if (emojiBrand === 'blob') fallbackEmojiBrand = 'google'
-  const fallbackEmojiImageJson = emojiImageByBrand[fallbackEmojiBrand]
+  const fallbackEmojiImageJson = loadBrand(fallbackEmojiBrand)
 
   const canvas = createCanvas(maxWidth + fontSize, maxHeight + fontSize)
   const canvasCtx = canvas.getContext('2d')

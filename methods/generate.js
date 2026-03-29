@@ -80,63 +80,81 @@ module.exports = async (parm) => {
   const scale = parseFloat(parm.scale) || 2
   const emojiBrand = parm.emojiBrand || 'apple'
 
-  const quoteImages = []
   const background = parseBackgroundColor(parm.backgroundColor)
 
-  for (const message of parm.messages) {
-    if (!message) continue
-
+  // Normalize all messages first (sync, no I/O)
+  const validMessages = parm.messages.filter(Boolean)
+  for (const message of validMessages) {
     normalizeMessage(message)
-
-    try {
-      const canvasQuote = await quoteGenerate.generate(
-        background.colorOne,
-        background.colorTwo,
-        message,
-        parm.width,
-        parm.height,
-        scale,
-        emojiBrand
-      )
-
-      if (canvasQuote) {
-        quoteImages.push(canvasQuote)
-      } else {
-        console.warn('Failed to generate quote for message, skipping')
-      }
-    } catch (error) {
-      console.error('Error generating quote for message:', error.message)
-    }
   }
 
-  if (quoteImages.length === 0) {
+  // Generate quotes with concurrency limit to avoid Telegram API rate limits
+  const CONCURRENCY = 3
+  const quoteImages = new Array(validMessages.length).fill(null)
+  let running = 0
+  let nextIndex = 0
+
+  await new Promise((resolve) => {
+    function runNext () {
+      while (running < CONCURRENCY && nextIndex < validMessages.length) {
+        const index = nextIndex++
+        running++
+
+        quoteGenerate.generate(
+          background.colorOne,
+          background.colorTwo,
+          validMessages[index],
+          parm.width,
+          parm.height,
+          scale,
+          emojiBrand
+        ).then((canvas) => {
+          if (canvas) quoteImages[index] = canvas
+          else console.warn('Failed to generate quote for message, skipping')
+        }).catch((error) => {
+          console.error('Error generating quote for message:', error.message)
+        }).finally(() => {
+          running--
+          if (nextIndex >= validMessages.length && running === 0) resolve()
+          else runNext()
+        })
+      }
+      if (validMessages.length === 0) resolve()
+    }
+    runNext()
+  })
+
+  // Filter nulls (failed messages) while preserving order
+  const filteredImages = quoteImages.filter(Boolean)
+
+  if (filteredImages.length === 0) {
     return { error: 'empty_messages' }
   }
 
   let canvasQuote
 
-  if (quoteImages.length > 1) {
+  if (filteredImages.length > 1) {
     let width = 0
     let height = 0
 
-    for (let index = 0; index < quoteImages.length; index++) {
-      if (quoteImages[index].width > width) width = quoteImages[index].width
-      height += quoteImages[index].height
+    for (let index = 0; index < filteredImages.length; index++) {
+      if (filteredImages[index].width > width) width = filteredImages[index].width
+      height += filteredImages[index].height
     }
 
     const quoteMargin = 5 * scale
 
-    const canvas = createCanvas(width, height + (quoteMargin * quoteImages.length))
+    const canvas = createCanvas(width, height + (quoteMargin * filteredImages.length))
     const canvasCtx = canvas.getContext('2d')
 
     let imageY = 0
-    for (let index = 0; index < quoteImages.length; index++) {
-      canvasCtx.drawImage(quoteImages[index], 0, imageY)
-      imageY += quoteImages[index].height + quoteMargin
+    for (let index = 0; index < filteredImages.length; index++) {
+      canvasCtx.drawImage(filteredImages[index], 0, imageY)
+      imageY += filteredImages[index].height + quoteMargin
     }
     canvasQuote = canvas
   } else {
-    canvasQuote = quoteImages[0]
+    canvasQuote = filteredImages[0]
   }
 
   let quoteImage
@@ -173,9 +191,8 @@ module.exports = async (parm) => {
     const heightPadding = 75 * scale
     const widthPadding = 95 * scale
 
-    const canvasImage = await loadImage(canvasQuote.toBuffer())
-
-    const canvasPic = createCanvas(canvasImage.width + widthPadding, canvasImage.height + heightPadding)
+    // Draw canvas-to-canvas directly — no need for toBuffer() -> loadImage() round-trip
+    const canvasPic = createCanvas(canvasQuote.width + widthPadding, canvasQuote.height + heightPadding)
     const canvasPicCtx = canvasPic.getContext('2d')
 
     const patternImage = await getPatternImage()
@@ -186,7 +203,7 @@ module.exports = async (parm) => {
     canvasPicCtx.shadowBlur = 13
     canvasPicCtx.shadowColor = 'rgba(0, 0, 0, 0.5)'
 
-    canvasPicCtx.drawImage(canvasImage, widthPadding / 2, heightPadding / 2)
+    canvasPicCtx.drawImage(canvasQuote, widthPadding / 2, heightPadding / 2)
 
     canvasPicCtx.shadowOffsetX = 0
     canvasPicCtx.shadowOffsetY = 0
@@ -211,24 +228,26 @@ module.exports = async (parm) => {
     canvasPicCtx.shadowBlur = 13
     canvasPicCtx.shadowColor = 'rgba(0, 0, 0, 0.5)'
 
-    let canvasImage = await loadImage(canvasQuote.toBuffer())
-
     const minPadding = 110
+    const maxW = canvasPic.width - minPadding * 2
+    const maxH = canvasPic.height - minPadding * 2
 
-    if (canvasImage.width > canvasPic.width - minPadding * 2 || canvasImage.height > canvasPic.height - minPadding * 2) {
-      canvasImage = await sharp(canvasQuote.toBuffer()).resize({
-        width: canvasPic.width - minPadding * 2,
-        height: canvasPic.height - minPadding * 2,
+    // Use canvas dimensions directly to decide if resize is needed — avoid toBuffer() -> loadImage()
+    let drawSource = canvasQuote
+    if (canvasQuote.width > maxW || canvasQuote.height > maxH) {
+      const resizedBuffer = await sharp(canvasQuote.toBuffer()).resize({
+        width: maxW,
+        height: maxH,
         fit: 'contain',
         background: { r: 0, g: 0, b: 0, alpha: 0 }
       }).toBuffer()
-      canvasImage = await loadImage(canvasImage)
+      drawSource = await loadImage(resizedBuffer)
     }
 
-    const imageX = (canvasPic.width - canvasImage.width) / 2
-    const imageY = (canvasPic.height - canvasImage.height) / 2
+    const imageX = (canvasPic.width - drawSource.width) / 2
+    const imageY = (canvasPic.height - drawSource.height) / 2
 
-    canvasPicCtx.drawImage(canvasImage, imageX, imageY)
+    canvasPicCtx.drawImage(drawSource, imageX, imageY)
 
     canvasPicCtx.shadowOffsetX = 0
     canvasPicCtx.shadowOffsetY = 0
