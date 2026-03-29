@@ -30,7 +30,6 @@ function drawQuote (options) {
   let nameCanvas = (mediaType === 'sticker') ? undefined : name
 
   let width = 0
-  if (nameCanvas) width = nameCanvas.width
   if (text && width < text.width + indent) width = text.width + indent
   if (nameCanvas && width < nameCanvas.width + indent) width = nameCanvas.width + indent
   if (reply) {
@@ -150,7 +149,7 @@ function drawQuote (options) {
   if (mediaCanvas) canvasCtx.drawImage(roundImage(mediaCanvas, 5 * scale), mediaPosX, mediaPosY, mediaWidth, mediaHeight)
 
   if (reply) {
-    canvasCtx.drawImage(drawReplyLine(3 * scale, reply.name.height + reply.text.height * 0.4, reply.nameColor), textPosX - 3, replyNamePosY)
+    canvasCtx.drawImage(drawReplyLine(3 * scale, reply.name.height + reply.text.height * 0.5, reply.nameColor), textPosX - 3, replyNamePosY)
     canvasCtx.drawImage(reply.name, replyPosX, replyNamePosY)
     canvasCtx.drawImage(reply.text, replyPosX, replyTextPosY)
   }

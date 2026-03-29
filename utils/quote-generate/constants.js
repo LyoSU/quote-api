@@ -21,8 +21,58 @@ const NEUTRAL_REGEX = /[\u0001-\u0040\u005B-\u0060\u007B-\u00BF\u00D7\u00F7\u02B
 const ENTITY_TYPES_MONOSPACE = ['pre', 'code', 'pre_code']
 const ENTITY_TYPES_MENTION = ['mention', 'text_mention', 'hashtag', 'email', 'phone_number', 'bot_command', 'url', 'text_link']
 
+// Consistent emoji scale factor for both measurement and drawing
+const EMOJI_SCALE = 1.15
+
+// Punctuation that sticks to the preceding text segment (never starts a new line)
+const LEFT_STICKY_PUNCTUATION = new Set([
+  '.', ',', '!', '?', ':', ';', ')', ']', '}', '%', '"', "'",
+  '\u2019', // right single quote '
+  '\u201D', // right double quote "
+  '\u2026', // ellipsis …
+  '\u3001', // ideographic comma 、
+  '\u3002', // ideographic period 。
+  '\uFF0C', // fullwidth comma ，
+  '\uFF0E', // fullwidth period ．
+  '\uFF01', // fullwidth exclamation ！
+  '\uFF09', // fullwidth right paren ）
+  '\uFF3D' // fullwidth right bracket ］
+])
+
+// Kinsoku Shori: characters prohibited at line start (closing marks, prolonged sound)
+const KINSOKU_START = new Set([
+  '\u3001', '\u3002', '\uFF0C', '\uFF0E',
+  '\u3005',
+  '\u3009', '\u300B', '\u300D', '\u300F', '\u3011',
+  '\u301F',
+  '\u30FC',
+  '\u30FD', '\u30FE',
+  '\u309D', '\u309E',
+  '\uFF09', '\uFF3D', '\uFF5D',
+  '\uFF01', '\uFF1F'
+])
+
+// Kinsoku Shori: characters prohibited at line end (opening marks)
+const KINSOKU_END = new Set([
+  '\u3008', '\u300A', '\u300C', '\u300E', '\u3010',
+  '\u301D',
+  '\uFF08', '\uFF3B', '\uFF5B',
+  '\u2018', '\u201C'
+])
+
 module.exports = {
-  NAME_COLORS_LIGHT, NAME_COLORS_DARK, AVATAR_COLORS,
-  BREAK_REGEX, SPACE_REGEX, CJK_REGEX, RTL_REGEX, NEUTRAL_REGEX,
-  ENTITY_TYPES_MONOSPACE, ENTITY_TYPES_MENTION
+  NAME_COLORS_LIGHT: NAME_COLORS_LIGHT,
+  NAME_COLORS_DARK: NAME_COLORS_DARK,
+  AVATAR_COLORS: AVATAR_COLORS,
+  BREAK_REGEX: BREAK_REGEX,
+  SPACE_REGEX: SPACE_REGEX,
+  CJK_REGEX: CJK_REGEX,
+  RTL_REGEX: RTL_REGEX,
+  NEUTRAL_REGEX: NEUTRAL_REGEX,
+  ENTITY_TYPES_MONOSPACE: ENTITY_TYPES_MONOSPACE,
+  ENTITY_TYPES_MENTION: ENTITY_TYPES_MENTION,
+  EMOJI_SCALE: EMOJI_SCALE,
+  LEFT_STICKY_PUNCTUATION: LEFT_STICKY_PUNCTUATION,
+  KINSOKU_START: KINSOKU_START,
+  KINSOKU_END: KINSOKU_END
 }
