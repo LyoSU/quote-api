@@ -4,6 +4,7 @@ const bodyParser = require('koa-bodyparser')
 const ratelimit = require('koa-ratelimit')
 const Router = require('koa-router')
 const Koa = require('koa')
+const { loadFonts } = require('./utils')
 
 const app = new Koa()
 
@@ -11,11 +12,11 @@ app.use(logger())
 app.use(responseTime())
 app.use(bodyParser())
 
-const ratelimitВb = new Map()
+const ratelimitDb = new Map()
 
 app.use(ratelimit({
   driver: 'memory',
-  db: ratelimitВb,
+  db: ratelimitDb,
   duration: 1000 * 55,
   errorMessage: {
     ok: false,
@@ -57,6 +58,11 @@ app.use(route.routes())
 
 const port = process.env.PORT || 3000
 
-app.listen(port, () => {
-  console.log('Listening on localhost, port', port)
-})
+async function start () {
+  await loadFonts()
+  app.listen(port, () => {
+    console.log('Listening on localhost, port', port)
+  })
+}
+
+start()
