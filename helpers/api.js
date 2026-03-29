@@ -1,5 +1,5 @@
 module.exports = async (ctx, next) => {
-  ctx.props = Object.assign(ctx.query || {}, ctx.request.body || {})
+  ctx.props = Object.assign({}, ctx.query || {}, ctx.request.body || {})
 
   try {
     await next()
