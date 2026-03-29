@@ -80,63 +80,81 @@ module.exports = async (parm) => {
   const scale = parseFloat(parm.scale) || 2
   const emojiBrand = parm.emojiBrand || 'apple'
 
-  const quoteImages = []
   const background = parseBackgroundColor(parm.backgroundColor)
 
-  for (const message of parm.messages) {
-    if (!message) continue
-
+  // Normalize all messages first (sync, no I/O)
+  const validMessages = parm.messages.filter(Boolean)
+  for (const message of validMessages) {
     normalizeMessage(message)
-
-    try {
-      const canvasQuote = await quoteGenerate.generate(
-        background.colorOne,
-        background.colorTwo,
-        message,
-        parm.width,
-        parm.height,
-        scale,
-        emojiBrand
-      )
-
-      if (canvasQuote) {
-        quoteImages.push(canvasQuote)
-      } else {
-        console.warn('Failed to generate quote for message, skipping')
-      }
-    } catch (error) {
-      console.error('Error generating quote for message:', error.message)
-    }
   }
 
-  if (quoteImages.length === 0) {
+  // Generate quotes with concurrency limit to avoid Telegram API rate limits
+  const CONCURRENCY = 3
+  const quoteImages = new Array(validMessages.length).fill(null)
+  let running = 0
+  let nextIndex = 0
+
+  await new Promise((resolve) => {
+    function runNext () {
+      while (running < CONCURRENCY && nextIndex < validMessages.length) {
+        const index = nextIndex++
+        running++
+
+        quoteGenerate.generate(
+          background.colorOne,
+          background.colorTwo,
+          validMessages[index],
+          parm.width,
+          parm.height,
+          scale,
+          emojiBrand
+        ).then((canvas) => {
+          if (canvas) quoteImages[index] = canvas
+          else console.warn('Failed to generate quote for message, skipping')
+        }).catch((error) => {
+          console.error('Error generating quote for message:', error.message)
+        }).finally(() => {
+          running--
+          if (nextIndex >= validMessages.length && running === 0) resolve()
+          else runNext()
+        })
+      }
+      if (validMessages.length === 0) resolve()
+    }
+    runNext()
+  })
+
+  // Filter nulls (failed messages) while preserving order
+  const filteredImages = quoteImages.filter(Boolean)
+
+  if (filteredImages.length === 0) {
     return { error: 'empty_messages' }
   }
 
   let canvasQuote
 
-  if (quoteImages.length > 1) {
+  if (filteredImages.length > 1) {
     let width = 0
     let height = 0
 
-    for (let index = 0; index < quoteImages.length; index++) {
-      if (quoteImages[index].width > width) width = quoteImages[index].width
-      height += quoteImages[index].height
+    for (let index = 0; index < filteredImages.length; index++) {
+      if (filteredImages[index].width > width) width = filteredImages[index].width
+      height += filteredImages[index].height
     }
 
     const quoteMargin = 5 * scale
 
-    const canvas = createCanvas(width, height + (quoteMargin * quoteImages.length))
+    const canvas = createCanvas(width, height + (quoteMargin * filteredImages.length))
     const canvasCtx = canvas.getContext('2d')
 
     let imageY = 0
-    for (let index = 0; index < quoteImages.length; index++) {
-      canvasCtx.drawImage(quoteImages[index], 0, imageY)
-      imageY += quoteImages[index].height + quoteMargin
+    for (let index = 0; index < filteredImages.length; index++) {
+      canvasCtx.drawImage(filteredImages[index], 0, imageY)
+      imageY += filteredImages[index].height + quoteMargin
     }
     canvasQuote = canvas
   } else {
-    canvasQuote = quoteImages[0]
+    canvasQuote = filteredImages[0]
   }
 
   let quoteImage
