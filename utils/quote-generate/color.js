@@ -56,11 +56,25 @@ function rgbToHex ([r, g, b]) {
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
 }
 
+const normalizeColorCache = new Map()
+const NORMALIZE_COLOR_CACHE_MAX = 1000
+
 function normalizeColor (color) {
+  const cached = normalizeColorCache.get(color)
+  if (cached !== undefined) return cached
+
   const canvas = createCanvas(0, 0)
   const canvasCtx = canvas.getContext('2d')
   canvasCtx.fillStyle = color
-  return canvasCtx.fillStyle
+  const result = canvasCtx.fillStyle
+
+  if (normalizeColorCache.size >= NORMALIZE_COLOR_CACHE_MAX) {
+    const firstKey = normalizeColorCache.keys().next().value
+    normalizeColorCache.delete(firstKey)
+  }
+  normalizeColorCache.set(color, result)
+
+  return result
 }
 
 function colorLuminance (hex, lum) {
