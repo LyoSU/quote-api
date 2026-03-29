@@ -1,16 +1,18 @@
 const https = require('https')
-const http = require('http')
 
 module.exports = (url, filter = false) => {
   return new Promise((resolve, reject) => {
     const options = new URL(url)
+
+    if (options.protocol !== 'https:') {
+      return reject(new Error(`Unsupported protocol ${options.protocol} for ${url}`))
+    }
+
     options.headers = {
       'User-Agent': 'curl/8.4.0'
     }
 
-    const client = options.protocol === 'http:' ? http : https
-
-    const req = client.get(options, (res) => {
+    const req = https.get(options, (res) => {
       if (res.statusCode < 200 || res.statusCode >= 300) {
         res.resume()
         return reject(new Error(`HTTP ${res.statusCode} for ${url}`))
