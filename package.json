@@ -24,7 +24,7 @@
   "dependencies": {
     "canvas": "^2.8.0",
     "dotenv": "^7.0.0",
-    "emoji-db": "^15.1.2",
+    "emoji-db": "^16.0.1",
     "jimp": "^1.6.0",
     "jsdom": "^16.5.3",
     "koa": "^2.11.0",
