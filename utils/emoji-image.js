@@ -24,18 +24,38 @@ const emojiJsonByBrand = {
   blob: 'emoji-blob-image.json'
 }
 
-let emojiImageByBrand = {
-  apple: [],
-  google: [],
-  twitter: [],
-  joypixels: [],
-  blob: []
+// Lazy-loaded emoji data — only apple is loaded eagerly (default brand)
+const emojiImageByBrand = {}
+
+function loadBrand (brand) {
+  if (emojiImageByBrand[brand]) return emojiImageByBrand[brand]
+
+  const jsonFile = emojiJsonByBrand[brand]
+  if (!jsonFile) return []
+
+  const filePath = path.resolve(__dirname, emojiJFilesDir + jsonFile)
+
+  try {
+    if (fs.existsSync(filePath)) {
+      emojiImageByBrand[brand] = require(filePath)
+    } else {
+      emojiImageByBrand[brand] = []
+    }
+  } catch (error) {
+    console.error('Failed to load emoji brand', brand, error.message)
+    emojiImageByBrand[brand] = []
+  }
+
+  return emojiImageByBrand[brand]
 }
+
+// Eager-load apple (default brand) at startup
+loadBrand('apple')
 
 async function downloadEmoji (brand) {
   console.log('emoji image load start')
 
-  const emojiImage = emojiImageByBrand[brand]
+  const emojiImage = loadBrand(brand)
 
   const emojiJsonFile = path.resolve(
     __dirname,
@@ -89,18 +109,4 @@ async function downloadEmoji (brand) {
   console.log('emoji image load end')
 }
 
-for (const brand in emojiJsonByBrand) {
-  const emojiJsonFile = path.resolve(
-    __dirname,
-    emojiJFilesDir + emojiJsonByBrand[brand]
-  )
-
-  try {
-    if (fs.existsSync(emojiJsonFile)) emojiImageByBrand[brand] = require(emojiJsonFile)
-  } catch (error) {
-    console.log(error)
-  }
-  // downloadEmoji(brand)
-}
-
-module.exports = emojiImageByBrand
+module.exports = { loadBrand, brands: emojiJsonByBrand }
