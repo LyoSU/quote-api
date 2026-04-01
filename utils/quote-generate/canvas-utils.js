@@ -150,7 +150,7 @@ function addQuoteMarkPath (ctx, x, y, r, s) {
 function drawForwardLabel (text, fontSize, color) {
   const canvas = createCanvas(1, 1)
   const ctx = canvas.getContext('2d')
-  ctx.font = `italic ${fontSize}px "Noto Sans", "SF Pro", sans-serif`
+  ctx.font = `bold ${fontSize}px "Noto Sans", "SF Pro", sans-serif`
   const metrics = ctx.measureText(text)
   const w = Math.ceil(metrics.width) + 4
   const h = Math.ceil(fontSize * 1.4)
@@ -159,7 +159,6 @@ function drawForwardLabel (text, fontSize, color) {
   const rctx = result.getContext('2d')
   rctx.font = ctx.font
   rctx.fillStyle = color
-  rctx.globalAlpha = 0.55
   rctx.fillText(text, 0, fontSize)
   return result
 }

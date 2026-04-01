@@ -14,6 +14,7 @@ function drawQuote (options) {
     media,
     isForward,
     forwardLabel,
+    nameColor,
     senderTag,
     isQuote
   } = options
@@ -34,8 +35,8 @@ function drawQuote (options) {
   // --- Pre-render forward label ---
   let forwardCanvas = null
   if (isForward && forwardLabel) {
-    const fwdFontSize = 14 * scale
-    const fwdColor = background.textColor || '#fff'
+    const fwdFontSize = 22 * scale
+    const fwdColor = nameColor || background.textColor || '#fff'
     forwardCanvas = drawForwardLabel(forwardLabel, fwdFontSize, fwdColor)
   }
 
@@ -62,21 +63,20 @@ function drawQuote (options) {
   // ============================
   // Everything is relative to inside the bubble (offset by blockPosX later)
   const positions = {}
-  let curY = pad
+  const gap = indent * 0.15 // tight gap between elements
+  let curY = indent
 
   // 1. Name
   if (nameCanvas) {
     positions.name = { x: pad, y: curY }
-    curY += nameCanvas.height + pad * 0.2
-  } else if (!forwardCanvas && !reply) {
-    // No name, no forward, no reply — reduce top padding for text-only
-    curY = pad * 0.6
+    curY += nameCanvas.height + gap
   }
 
-  // 2. Forward label (below name, like Telegram)
+  // 2. Forward label (below name)
   if (forwardCanvas) {
+    if (!nameCanvas) curY = indent
     positions.forward = { x: pad, y: curY }
-    curY += forwardCanvas.height + pad * 0.3
+    curY += forwardCanvas.height + gap
   }
 
   // 3. Reply block
@@ -88,7 +88,12 @@ function drawQuote (options) {
     positions.replyText = { x: pad + indent, y: curY + replyNameH }
     positions.replyLine = { x: pad, y: curY }
     positions.replyLineH = replyNameH + replyTextH
-    curY += replyNameH + replyTextH + pad * 0.5
+    curY += replyNameH + replyTextH + gap * 2
+  }
+
+  // No name/forward/reply — keep top padding minimal
+  if (!nameCanvas && !forwardCanvas && !reply) {
+    curY = indent * 0.5
   }
 
   // 4. Media
@@ -110,8 +115,9 @@ function drawQuote (options) {
     curY += text.height
   }
 
-  // Final bubble height
-  const bubbleHeight = curY + pad * 0.5
+  // Final bubble height — symmetric bottom padding
+  const bottomPad = (!nameCanvas && !forwardCanvas && !reply) ? indent * 0.5 : indent * 0.5
+  const bubbleHeight = curY + bottomPad
 
   // ============================
   // Width calculation
@@ -223,7 +229,7 @@ function drawQuote (options) {
   // Draw reply
   if (reply && positions.replyName) {
     canvasCtx.drawImage(
-      drawReplyLine(3 * scale, positions.replyLineH, reply.nameColor),
+      drawReplyLine(4 * scale, positions.replyLineH, reply.nameColor),
       ox + positions.replyLine.x, positions.replyLine.y
     )
     canvasCtx.drawImage(reply.name, ox + positions.replyName.x, positions.replyName.y)

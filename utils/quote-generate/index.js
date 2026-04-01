@@ -203,6 +203,7 @@ class QuoteGenerate {
       media: mediaCanvas ? { canvas: mediaCanvas, type: mediaType, maxSize: maxMediaSize } : null,
       isForward,
       forwardLabel,
+      nameColor,
       senderTag,
       isQuote: !!message.isQuote
     })
