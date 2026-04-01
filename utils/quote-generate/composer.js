@@ -63,35 +63,35 @@ function drawQuote (options) {
   // ============================
   // Everything is relative to inside the bubble (offset by blockPosX later)
   const positions = {}
-  const gap = indent * 0.15 // tight gap between elements
-  let curY = indent
+  let curY = 0
 
-  // 1. Name
+  // 1. Name — original: no top padding when name present, name IS the top
   if (nameCanvas) {
-    positions.name = { x: pad, y: curY }
-    curY += nameCanvas.height + gap
+    positions.name = { x: pad, y: 0 }
+    curY = nameCanvas.height + indent * 0.25
   }
 
   // 2. Forward label (below name)
   if (forwardCanvas) {
-    if (!nameCanvas) curY = indent
+    if (!nameCanvas) curY = indent * 0.5
     positions.forward = { x: pad, y: curY }
-    curY += forwardCanvas.height + gap
+    curY += forwardCanvas.height + indent * 0.25
   }
 
   // 3. Reply block
   if (reply) {
+    if (!nameCanvas && !forwardCanvas) curY = indent
     const replyNameH = reply.name.height
-    const replyTextH = reply.text.height
+    const replyTextH = reply.text.height * 0.5
 
     positions.replyName = { x: pad + indent, y: curY }
     positions.replyText = { x: pad + indent, y: curY + replyNameH }
     positions.replyLine = { x: pad, y: curY }
     positions.replyLineH = replyNameH + replyTextH
-    curY += replyNameH + replyTextH + gap * 2
+    curY += replyNameH + replyTextH + indent * 0.25
   }
 
-  // No name/forward/reply — keep top padding minimal
+  // Text-only: symmetric padding
   if (!nameCanvas && !forwardCanvas && !reply) {
     curY = indent * 0.5
   }
@@ -99,6 +99,7 @@ function drawQuote (options) {
   // 4. Media
   let mediaWidth, mediaHeight
   if (mediaCanvas) {
+    if (!nameCanvas && !forwardCanvas && !reply) curY = indent
     mediaWidth = mediaCanvas.width * (maxMediaSize / mediaCanvas.height)
     mediaHeight = maxMediaSize
     if (mediaWidth >= maxMediaSize) {
@@ -115,9 +116,8 @@ function drawQuote (options) {
     curY += text.height
   }
 
-  // Final bubble height — symmetric bottom padding
-  const bottomPad = (!nameCanvas && !forwardCanvas && !reply) ? indent * 0.5 : indent * 0.5
-  const bubbleHeight = curY + bottomPad
+  // Final bubble height
+  const bubbleHeight = curY + (nameCanvas ? 0 : indent * 0.5)
 
   // ============================
   // Width calculation
