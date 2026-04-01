@@ -225,7 +225,7 @@ function drawQuote (options) {
   if (nameCanvas) {
     if (tagCanvas) {
       const tagX = rectPosX + rectWidth - tagCanvas.width - indent * 0.5
-      const tagY = namePosY + (nameCanvas.height - tagCanvas.height) / 2
+      const tagY = namePosY + (nameCanvas.height - tagCanvas.height) * 0.35
       const minGap = 8 * scale
       const availableForTag = rectWidth - indent - indent * 0.5
 

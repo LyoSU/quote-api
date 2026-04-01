@@ -87,7 +87,7 @@ function roundImage (image, r) {
 function drawReplyLine (lineWidth, height, color) {
   const r = lineWidth
   const w = lineWidth
-  const h = height + lineWidth * 2
+  const h = height + lineWidth
   const x = 5
   const canvas = createCanvas(w + 10, h)
   const ctx = canvas.getContext('2d')
