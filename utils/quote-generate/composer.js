@@ -261,7 +261,8 @@ function drawQuote (options) {
 
   // Reply
   if (reply) {
-    const replyLineH = reply.name.height * 0.85 + reply.text.height * 0.42
+    // Line from reply name top to reply text bottom (visual area only)
+    const replyLineH = (replyTextPosY - replyNamePosY) + reply.text.height * 0.55
     canvasCtx.drawImage(drawReplyLine(4 * scale, replyLineH, reply.nameColor), textPosX - 3, replyNamePosY)
     canvasCtx.drawImage(reply.name, replyPosX, replyNamePosY)
     canvasCtx.drawImage(reply.text, replyPosX, replyTextPosY)
