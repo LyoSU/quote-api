@@ -212,14 +212,14 @@ function drawQuote (options) {
     tailOffset = rect._tailOffset || 0
   }
 
-  // Avatar at BOTTOM-LEFT
+  // Bubble background (draw FIRST so tail doesn't cover avatar)
+  if (rect) canvasCtx.drawImage(rect, rectPosX - tailOffset, rectPosY)
+
+  // Avatar at BOTTOM-LEFT (draw AFTER bubble)
   if (avatar) {
     const avatarY = height - avatarSize - 2 * scale
     canvasCtx.drawImage(avatar, avatarPosX, Math.max(0, avatarY), avatarSize, avatarSize)
   }
-
-  // Bubble background
-  if (rect) canvasCtx.drawImage(rect, rectPosX - tailOffset, rectPosY)
 
   // Name + tag
   if (nameCanvas) {
@@ -262,7 +262,7 @@ function drawQuote (options) {
   // Reply
   if (reply) {
     // Line from reply name top to reply text bottom (visual area only)
-    const replyLineH = (replyTextPosY - replyNamePosY) + reply.text.height * 0.55
+    const replyLineH = Math.max(1, (replyTextPosY - replyNamePosY) + reply.text.height * 0.55)
     canvasCtx.drawImage(drawReplyLine(4 * scale, replyLineH, reply.nameColor), textPosX - 3, replyNamePosY)
     canvasCtx.drawImage(reply.name, replyPosX, replyNamePosY)
     canvasCtx.drawImage(reply.text, replyPosX, replyTextPosY)
