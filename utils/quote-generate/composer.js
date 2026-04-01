@@ -68,6 +68,9 @@ function drawQuote (options) {
   if (nameCanvas) {
     positions.name = { x: pad, y: curY }
     curY += nameCanvas.height + pad * 0.2
+  } else if (!forwardCanvas && !reply) {
+    // No name, no forward, no reply — reduce top padding for text-only
+    curY = pad * 0.6
   }
 
   // 2. Forward label (below name, like Telegram)
