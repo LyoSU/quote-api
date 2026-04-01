@@ -20,16 +20,17 @@ function drawQuote (options) {
   } = options
 
   const avatarPosX = 0
-  const avatarPosY = 5 * scale
   const avatarSize = 50 * scale
 
   const blockPosX = avatarSize + 10 * scale
+  const blockPosY = 0
+
   const indent = 14 * scale
-  const pad = indent
 
   let mediaType = media ? media.type : null
   let mediaCanvas = media ? media.canvas : null
   let maxMediaSize = media ? media.maxSize : null
+
   let nameCanvas = (mediaType === 'sticker') ? undefined : name
 
   // --- Pre-render forward label ---
@@ -40,7 +41,7 @@ function drawQuote (options) {
     forwardCanvas = drawForwardLabel(forwardLabel, fwdFontSize, fwdColor)
   }
 
-  // --- Pre-render sender tag (plain grey text) ---
+  // --- Pre-render sender tag ---
   let tagCanvas = null
   if (senderTag && nameCanvas) {
     const tagFontSize = 14 * scale
@@ -49,7 +50,6 @@ function drawQuote (options) {
     tmpCtx.font = `${tagFontSize}px "Noto Sans", "SF Pro", sans-serif`
     const tagW = Math.ceil(tmpCtx.measureText(senderTag).width) + 4
     const tagH = Math.ceil(tagFontSize * 1.4)
-
     tagCanvas = createCanvas(tagW, tagH)
     const tagCtx = tagCanvas.getContext('2d')
     tagCtx.font = `${tagFontSize}px "Noto Sans", "SF Pro", sans-serif`
@@ -59,92 +59,122 @@ function drawQuote (options) {
   }
 
   // ============================
-  // Layout: compute Y positions top-down
+  // ORIGINAL layout math — preserved exactly
   // ============================
-  // Everything is relative to inside the bubble (offset by blockPosX later)
-  const positions = {}
-  let curY = 0
-
-  // 1. Name — original: no top padding when name present, name IS the top
-  if (nameCanvas) {
-    positions.name = { x: pad, y: 0 }
-    curY = nameCanvas.height + indent * 0.25
+  let width = 0
+  if (text && width < text.width + indent) width = text.width + indent
+  if (nameCanvas && width < nameCanvas.width + indent) width = nameCanvas.width + indent
+  if (nameCanvas && tagCanvas && width < nameCanvas.width + tagCanvas.width + indent * 2) {
+    width = nameCanvas.width + tagCanvas.width + indent * 2
   }
-
-  // 2. Forward label (below name)
-  if (forwardCanvas) {
-    if (!nameCanvas) curY = indent * 0.5
-    positions.forward = { x: pad, y: curY }
-    curY += forwardCanvas.height + indent * 0.25
-  }
-
-  // 3. Reply block
+  if (forwardCanvas && width < forwardCanvas.width + indent) width = forwardCanvas.width + indent
   if (reply) {
-    if (!nameCanvas && !forwardCanvas) curY = indent
-    const replyNameH = reply.name.height
-    const replyTextH = reply.text.height * 0.5
-
-    positions.replyName = { x: pad + indent, y: curY }
-    positions.replyText = { x: pad + indent, y: curY + replyNameH }
-    positions.replyLine = { x: pad, y: curY }
-    positions.replyLineH = replyNameH + replyTextH
-    curY += replyNameH + replyTextH + indent * 0.25
+    if (width < reply.name.width) width = reply.name.width + indent * 2
+    if (reply.text && width < reply.text.width) width = reply.text.width + indent * 2
   }
 
-  // Text-only: symmetric padding
-  if (!nameCanvas && !forwardCanvas && !reply) {
-    curY = indent * 0.5
+  let height = indent
+  if (text) height += text.height
+  else height += indent
+
+  if (nameCanvas) {
+    height = nameCanvas.height
+    if (text) height = text.height + nameCanvas.height
+    else height += indent
   }
 
-  // 4. Media
+  // Forward label adds to height
+  if (forwardCanvas) {
+    height += forwardCanvas.height + indent * 0.25
+  }
+
+  width += blockPosX + indent
+  height += blockPosY
+
+  let namePosX = blockPosX + indent
+  let namePosY = indent
+
+  if (!nameCanvas) {
+    namePosX = 0
+    namePosY = -indent
+  }
+
+  // Forward label position: below name
+  let forwardPosX = blockPosX + indent
+  let forwardPosY = 0
+  if (forwardCanvas) {
+    if (nameCanvas) {
+      forwardPosY = namePosY + nameCanvas.height * 0.75
+    } else {
+      forwardPosY = indent * 0.5
+    }
+  }
+
+  const textPosX = blockPosX + indent
+  let textPosY = indent
+  if (nameCanvas) {
+    textPosY = nameCanvas.height + indent * 0.25
+    height += indent * 0.25
+  }
+  if (forwardCanvas) {
+    textPosY += forwardCanvas.height + indent * 0.25
+  }
+
+  let replyPosX = 0
+  let replyNamePosY = 0
+  let replyTextPosY = 0
+
+  if (reply) {
+    replyPosX = textPosX + indent
+
+    const replyNameHeight = reply.name.height
+    const replyTextHeight = reply.text.height * 0.5
+
+    replyNamePosY = namePosY + replyNameHeight
+    if (forwardCanvas) replyNamePosY += forwardCanvas.height + indent * 0.25
+    replyTextPosY = replyNamePosY + replyTextHeight
+
+    textPosY += replyNameHeight + replyTextHeight + (indent / 4)
+    height += replyNameHeight + replyTextHeight + (indent / 4)
+  }
+
+  let mediaPosX = 0
+  let mediaPosY = 0
   let mediaWidth, mediaHeight
+
   if (mediaCanvas) {
-    if (!nameCanvas && !forwardCanvas && !reply) curY = indent
     mediaWidth = mediaCanvas.width * (maxMediaSize / mediaCanvas.height)
     mediaHeight = maxMediaSize
+
     if (mediaWidth >= maxMediaSize) {
       mediaWidth = maxMediaSize
       mediaHeight = mediaCanvas.height * (maxMediaSize / mediaCanvas.width)
     }
-    positions.media = { x: pad, y: curY }
-    curY += mediaHeight + 5 * scale
+
+    if (!text || text.width <= mediaWidth || mediaWidth > (width - blockPosX)) {
+      width = mediaWidth + indent * 6
+    }
+
+    height += mediaHeight
+    if (!text) height += indent
+
+    if (nameCanvas) {
+      mediaPosX = namePosX
+      mediaPosY = nameCanvas.height + 5 * scale
+      if (forwardCanvas) mediaPosY += forwardCanvas.height + indent * 0.25
+    } else {
+      mediaPosX = blockPosX + indent
+      mediaPosY = indent
+    }
+    if (reply) mediaPosY += replyNamePosY + indent / 2
+    textPosY = mediaPosY + mediaHeight + 5 * scale
   }
-
-  // 5. Text
-  if (text) {
-    positions.text = { x: pad, y: curY }
-    curY += text.height
-  }
-
-  // Final bubble height
-  const bubbleHeight = curY + (nameCanvas ? 0 : indent * 0.5)
-
-  // ============================
-  // Width calculation
-  // ============================
-  let contentWidth = 0
-  if (text) contentWidth = Math.max(contentWidth, text.width)
-  if (nameCanvas) contentWidth = Math.max(contentWidth, nameCanvas.width)
-  if (nameCanvas && tagCanvas) contentWidth = Math.max(contentWidth, nameCanvas.width + tagCanvas.width + 8 * scale)
-  if (forwardCanvas) contentWidth = Math.max(contentWidth, forwardCanvas.width)
-  if (reply) {
-    contentWidth = Math.max(contentWidth, reply.name.width + indent)
-    if (reply.text) contentWidth = Math.max(contentWidth, reply.text.width + indent)
-  }
-  if (mediaCanvas && mediaWidth) {
-    contentWidth = Math.max(contentWidth, mediaWidth)
-  }
-
-  let rectWidth = contentWidth + pad * 2
-  const minBubbleWidth = 100 * scale
-  if (rectWidth < minBubbleWidth) rectWidth = minBubbleWidth
-
-  let rectHeight = bubbleHeight
-
-  const totalWidth = blockPosX + rectWidth
 
   let backgroundColorOne = background.colorOne
   let backgroundColorTwo = background.colorTwo
+
+  let rectWidth = width - blockPosX
+  let rectHeight = height
 
   if (mediaType === 'sticker' && (nameCanvas || reply)) {
     rectHeight = reply
@@ -153,16 +183,24 @@ function drawQuote (options) {
     backgroundColorOne = backgroundColorTwo = 'rgba(0, 0, 0, 0.5)'
   }
 
+  // Min bubble width
+  const minBubbleWidth = 100 * scale
+  if (rectWidth < minBubbleWidth) {
+    rectWidth = minBubbleWidth
+    width = rectWidth + blockPosX
+  }
+
   // --- Tail ---
   const hasTail = !!avatar
   const tailSize = hasTail ? 14 * scale : 0
 
-  const canvas = createCanvas(totalWidth, rectHeight)
+  const canvas = createCanvas(width, height)
   const canvasCtx = canvas.getContext('2d')
 
+  const rectPosX = blockPosX
+  const rectPosY = blockPosY
   const rectRoundRadius = 25 * scale
 
-  // Draw bubble
   let rect
   let tailOffset = 0
   if (mediaType !== 'sticker' || nameCanvas || reply) {
@@ -174,90 +212,66 @@ function drawQuote (options) {
     tailOffset = rect._tailOffset || 0
   }
 
-  // Avatar at BOTTOM-LEFT, aligned with the tail
+  // Avatar at BOTTOM-LEFT
   if (avatar) {
-    const avatarY = rectHeight - avatarSize - 2 * scale
+    const avatarY = height - avatarSize - 2 * scale
     canvasCtx.drawImage(avatar, avatarPosX, Math.max(0, avatarY), avatarSize, avatarSize)
   }
 
-  // Draw bubble background (shifted right by tailOffset so tail extends into avatar area)
-  const bubbleX = blockPosX - tailOffset
-  if (rect) canvasCtx.drawImage(rect, bubbleX, 0)
+  // Bubble background
+  if (rect) canvasCtx.drawImage(rect, rectPosX - tailOffset, rectPosY)
 
-  // All content is offset by blockPosX (inside the bubble, past the tail)
-  const ox = blockPosX
-
-  // Draw name + tag
-  if (nameCanvas && positions.name) {
-    const nameX = ox + positions.name.x
-    const nameY = positions.name.y
-
+  // Name + tag
+  if (nameCanvas) {
     if (tagCanvas) {
-      const tagX = ox + rectWidth - tagCanvas.width - pad * 0.5
-      const tagY = nameY + (nameCanvas.height - tagCanvas.height) / 2
+      const tagX = rectPosX + rectWidth - tagCanvas.width - indent * 0.5
+      const tagY = namePosY + (nameCanvas.height - tagCanvas.height) / 2
       const minGap = 8 * scale
-      const availableForTag = rectWidth - positions.name.x - pad * 0.5
+      const availableForTag = rectWidth - indent - indent * 0.5
 
       if (availableForTag >= tagCanvas.width + minGap) {
-        // Tag fits — clip name if it would overlap
-        const maxNameW = tagX - nameX - minGap
+        const maxNameW = tagX - namePosX - minGap
         if (nameCanvas.width > maxNameW) {
           canvasCtx.save()
           canvasCtx.beginPath()
-          canvasCtx.rect(nameX, nameY, maxNameW, nameCanvas.height)
+          canvasCtx.rect(namePosX, namePosY, maxNameW, nameCanvas.height)
           canvasCtx.clip()
-          canvasCtx.drawImage(nameCanvas, nameX, nameY)
+          canvasCtx.drawImage(nameCanvas, namePosX, namePosY)
           canvasCtx.restore()
         } else {
-          canvasCtx.drawImage(nameCanvas, nameX, nameY)
+          canvasCtx.drawImage(nameCanvas, namePosX, namePosY)
         }
         canvasCtx.drawImage(tagCanvas, tagX, tagY)
       } else {
-        // Too narrow — show only name, no tag
-        canvasCtx.drawImage(nameCanvas, nameX, nameY)
+        canvasCtx.drawImage(nameCanvas, namePosX, namePosY)
       }
     } else {
-      canvasCtx.drawImage(nameCanvas, nameX, nameY)
+      canvasCtx.drawImage(nameCanvas, namePosX, namePosY)
     }
   }
 
-  // Draw forward label
-  if (forwardCanvas && positions.forward) {
-    canvasCtx.drawImage(forwardCanvas, ox + positions.forward.x, positions.forward.y)
-  }
+  // Forward label
+  if (forwardCanvas) canvasCtx.drawImage(forwardCanvas, forwardPosX, forwardPosY)
 
-  // Draw reply
-  if (reply && positions.replyName) {
-    canvasCtx.drawImage(
-      drawReplyLine(4 * scale, positions.replyLineH, reply.nameColor),
-      ox + positions.replyLine.x, positions.replyLine.y
-    )
-    canvasCtx.drawImage(reply.name, ox + positions.replyName.x, positions.replyName.y)
-    canvasCtx.drawImage(reply.text, ox + positions.replyText.x, positions.replyText.y)
+  // Text
+  if (text) canvasCtx.drawImage(text, textPosX, textPosY)
 
-    // Quote icon " — only when text is a partial quote (isQuote)
-    // Positioned at the reply name level, right side
+  // Media
+  if (mediaCanvas) canvasCtx.drawImage(roundImage(mediaCanvas, 5 * scale), mediaPosX, mediaPosY, mediaWidth, mediaHeight)
+
+  // Reply
+  if (reply) {
+    canvasCtx.drawImage(drawReplyLine(4 * scale, reply.name.height + reply.text.height * 0.5, reply.nameColor), textPosX - 3, replyNamePosY)
+    canvasCtx.drawImage(reply.name, replyPosX, replyNamePosY)
+    canvasCtx.drawImage(reply.text, replyPosX, replyTextPosY)
+
+    // Quote icon — only for partial quotes
     if (isQuote) {
       const iconSize = 28 * scale
       const iconColor = background.textColor || '#fff'
       const quoteIcon = drawQuoteIcon(iconSize, iconColor)
-      const iconX = ox + rectWidth - iconSize - pad * 0.3
-      const iconY = positions.replyName.y + (reply.name.height - iconSize) / 2
-      canvasCtx.drawImage(quoteIcon, iconX, iconY)
+      canvasCtx.drawImage(quoteIcon, rectPosX + rectWidth - iconSize - indent * 0.3, replyNamePosY + (reply.name.height - iconSize) / 2)
     }
-  }
-
-  // Draw media
-  if (mediaCanvas && positions.media) {
-    canvasCtx.drawImage(
-      roundImage(mediaCanvas, 5 * scale),
-      ox + positions.media.x, positions.media.y, mediaWidth, mediaHeight
-    )
-  }
-
-  // Draw text
-  if (text && positions.text) {
-    canvasCtx.drawImage(text, ox + positions.text.x, positions.text.y)
   }
 
   return canvas
