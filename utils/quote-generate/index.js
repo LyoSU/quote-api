@@ -130,7 +130,9 @@ class QuoteGenerate {
           0, replyTextFontSize, width * 0.9, replyTextFontSize, emojiBrand, this.telegram
         )
 
-        replyData = { name: replyNameCanvas, nameColor: replyNameColor, text: replyTextCanvas }
+        if (replyNameCanvas && replyTextCanvas) {
+          replyData = { name: replyNameCanvas, nameColor: replyNameColor, text: replyTextCanvas }
+        }
       } catch (error) {
         console.error('Error generating reply message:', error)
         replyData = null

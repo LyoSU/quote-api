@@ -50,7 +50,7 @@ async function downloadAvatarImage (user, telegram) {
   if (user.first_name && user.last_name) {
     nameLetters = runes(user.first_name)[0] + (runes(user.last_name || '')[0])
   } else {
-    let name = user.first_name || user.name || user.title
+    let name = user.first_name || user.name || user.title || '?'
     name = name.toUpperCase()
     const nameWord = name.split(' ')
 
