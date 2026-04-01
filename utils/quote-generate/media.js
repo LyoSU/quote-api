@@ -96,8 +96,14 @@ async function downloadMediaImage (media, mediaSize, type, crop, telegram) {
       try {
         return await loadImage(load)
       } catch (loadError) {
-        console.warn('Failed to load image:', loadError.message)
-        return null
+        // canvas can't decode this format natively — convert via sharp to PNG
+        try {
+          const pngBuffer = await sharp(load).png({ force: true }).toBuffer()
+          return await loadImage(pngBuffer)
+        } catch (convertError) {
+          console.warn('Failed to load image:', loadError.message)
+          return null
+        }
       }
     }
   } catch (error) {

@@ -110,6 +110,7 @@ function lightOrDark (color) {
 }
 
 function parseBackgroundColor (backgroundColor) {
+  if (typeof backgroundColor !== 'string') backgroundColor = null
   backgroundColor = backgroundColor || '//#292232'
   const split = backgroundColor.split('/')
   if (split.length > 1 && split[0] !== '') {

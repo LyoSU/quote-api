@@ -42,9 +42,10 @@ class QuoteGenerate {
 
   async generate (backgroundColorOne, backgroundColorTwo, message, width, height, scale, emojiBrand) {
     scale = scale || 2
+    if (!Number.isFinite(scale) || scale < 1) scale = 1
     if (scale > 20) scale = 20
-    width = (width || 512) * scale
-    height = (height || 512) * scale
+    width = Math.max(1, (width || 512) * scale)
+    height = Math.max(1, (height || 512) * scale)
 
     const backStyle = lightOrDark(backgroundColorOne)
     const nameColorArray = backStyle === 'light' ? NAME_COLORS_LIGHT : NAME_COLORS_DARK

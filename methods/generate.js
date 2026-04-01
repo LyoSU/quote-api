@@ -1,12 +1,16 @@
+const path = require('path')
 const { QuoteGenerate } = require('../utils')
 const { createCanvas, loadImage } = require('canvas')
 const sharp = require('sharp')
 const { parseBackgroundColor, colorLuminance } = require('../utils/quote-generate/color')
+const { brands: emojiBrands } = require('../utils/emoji-image')
+
+const ALLOWED_EMOJI_BRANDS = new Set(Object.keys(emojiBrands))
 
 let cachedPatternImage = null
 async function getPatternImage () {
   if (!cachedPatternImage) {
-    cachedPatternImage = await loadImage('./assets/pattern_02.png')
+    cachedPatternImage = await loadImage(path.join(__dirname, '..', 'assets', 'pattern_02.png'))
   }
   return cachedPatternImage
 }
@@ -73,12 +77,14 @@ async function drawPatternBackground (canvas, colorOne, colorTwo, patternImage, 
 
 module.exports = async (parm) => {
   if (!parm) return { error: 'query_empty' }
-  if (!parm.messages || parm.messages.length < 1) return { error: 'messages_empty' }
+  if (!Array.isArray(parm.messages) || parm.messages.length < 1) return { error: 'messages_empty' }
 
   const botToken = parm.botToken || process.env.BOT_TOKEN
   const quoteGenerate = new QuoteGenerate(botToken)
-  const scale = parseFloat(parm.scale) || 2
-  const emojiBrand = parm.emojiBrand || 'apple'
+  const rawScale = parseFloat(parm.scale) || 2
+  const scale = Math.min(20, Math.max(1, Number.isFinite(rawScale) ? rawScale : 2))
+  const rawBrand = parm.emojiBrand || 'apple'
+  const emojiBrand = ALLOWED_EMOJI_BRANDS.has(rawBrand) ? rawBrand : 'apple'
 
   const background = parseBackgroundColor(parm.backgroundColor)
 
