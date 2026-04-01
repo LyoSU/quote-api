@@ -261,7 +261,8 @@ function drawQuote (options) {
 
   // Reply
   if (reply) {
-    canvasCtx.drawImage(drawReplyLine(4 * scale, reply.name.height + reply.text.height * 0.5, reply.nameColor), textPosX - 3, replyNamePosY)
+    const replyLineH = reply.name.height * 0.7 + reply.text.height * 0.35
+    canvasCtx.drawImage(drawReplyLine(4 * scale, replyLineH, reply.nameColor), textPosX - 3, replyNamePosY)
     canvasCtx.drawImage(reply.name, replyPosX, replyNamePosY)
     canvasCtx.drawImage(reply.text, replyPosX, replyTextPosY)
 
