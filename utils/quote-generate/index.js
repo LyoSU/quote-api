@@ -186,14 +186,25 @@ class QuoteGenerate {
       maxMediaSize = width / 3 * scale
     }
 
+    // Forward label
+    const isForward = !!message.forward
+    const forwardLabel = isForward ? (message.forward.label || 'Forwarded message') : null
+
+    // Sender tag (user role in group)
+    const senderTag = message.senderTag || null
+
     return drawQuote({
       scale,
-      background: { colorOne: backgroundColorOne, colorTwo: backgroundColorTwo },
+      background: { colorOne: backgroundColorOne, colorTwo: backgroundColorTwo, textColor },
       avatar: avatarCanvas,
       reply: replyData,
       name: nameCanvas,
       text: textCanvas,
-      media: mediaCanvas ? { canvas: mediaCanvas, type: mediaType, maxSize: maxMediaSize } : null
+      media: mediaCanvas ? { canvas: mediaCanvas, type: mediaType, maxSize: maxMediaSize } : null,
+      isForward,
+      forwardLabel,
+      senderTag,
+      isQuote: !!message.isQuote
     })
   }
 }
