@@ -100,14 +100,12 @@ function drawQuote (options) {
   }
 
   // Forward label position: below name
-  let forwardPosX = blockPosX + indent
-  let forwardPosY = 0
+  let forwardPosX, forwardPosY
   if (forwardCanvas) {
-    if (nameCanvas) {
-      forwardPosY = namePosY + nameCanvas.height * 0.75
-    } else {
-      forwardPosY = indent * 0.5
-    }
+    forwardPosX = blockPosX + indent
+    forwardPosY = nameCanvas
+      ? namePosY + nameCanvas.height * 0.75
+      : indent * 0.5
   }
 
   const textPosX = blockPosX + indent
