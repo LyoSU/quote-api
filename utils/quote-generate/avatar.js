@@ -29,7 +29,7 @@ function avatarImageLetters (letters, color) {
   context.fillStyle = '#FFF'
   context.textAlign = 'center'
   context.textBaseline = 'middle'
-  context.fillText(letters, size / 2, size / 2 + fontSize * 0.05)
+  context.fillText(letters, size / 2, size / 2)
 
   return canvas
 }
