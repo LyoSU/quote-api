@@ -4,7 +4,6 @@ const { createCanvas, loadImage } = require('canvas')
 const LRU = require('lru-cache')
 const runes = require('runes')
 const loadImageFromUrl = require('../image-load-url')
-const { drawMultilineText } = require('./text-renderer')
 const { AVATAR_COLORS } = require('./constants')
 
 const avatarCache = new LRU({
@@ -12,7 +11,7 @@ const avatarCache = new LRU({
   maxAge: 1000 * 60 * 5
 })
 
-async function avatarImageLetters (letters, color, telegram) {
+function avatarImageLetters (letters, color) {
   const size = 500
   const canvas = createCanvas(size, size)
   const context = canvas.getContext('2d')
@@ -24,22 +23,14 @@ async function avatarImageLetters (letters, color, telegram) {
   context.fillStyle = gradient
   context.fillRect(0, 0, canvas.width, canvas.height)
 
-  const drawLetters = await drawMultilineText(
-    letters,
-    null,
-    size / 2,
-    '#FFF',
-    0,
-    size,
-    size * 5,
-    size * 5,
-    'apple',
-    telegram
-  )
+  const letterCount = runes(letters).length
+  const fontSize = letterCount > 1 ? size * 0.38 : size * 0.48
+  context.font = `600 ${fontSize}px NotoSans`
+  context.fillStyle = '#FFF'
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
+  context.fillText(letters, size / 2, size / 2 + fontSize * 0.05)
 
-  context.drawImage(drawLetters, (canvas.width - drawLetters.width) / 2, (canvas.height - drawLetters.height) / 1.5)
-
-  // Return canvas directly — avoid toBuffer() -> loadImage() cycle
   return canvas
 }
 
@@ -89,7 +80,7 @@ async function downloadAvatarImage (user, telegram) {
         } else if (user.username) {
           userPhotoUrl = `https://telega.one/i/userpic/320/${user.username}.jpg`
         } else {
-          avatarImage = await avatarImageLetters(nameLetters, avatarColor, telegram)
+          avatarImage = avatarImageLetters(nameLetters, avatarColor)
         }
       }
 
@@ -117,7 +108,7 @@ async function downloadAvatarImage (user, telegram) {
 
     if (!avatarImage) {
       try {
-        avatarImage = await avatarImageLetters(nameLetters, avatarColor, telegram)
+        avatarImage = avatarImageLetters(nameLetters, avatarColor)
         avatarCache.set(cacheKey, avatarImage)
       } catch (error) {
         console.warn('Failed to create letters avatar:', error.message)
