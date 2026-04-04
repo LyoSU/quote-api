@@ -90,7 +90,15 @@ class QuoteGenerate {
           0, nameSize, width, nameSize, emojiBrand, this.telegram
         )
       } catch (error) {
-        console.warn('Failed to render name text:', error.message)
+        console.error('Failed to render name:', error.message, error.stack)
+        // Retry without entities (drop emoji status etc)
+        try {
+          const plainName = name.replace(/\s*\uD83E\uDD21$/, '') // strip emoji placeholder
+          nameCanvas = await drawMultilineText(
+            plainName, [{ type: 'bold', offset: 0, length: plainName.length }],
+            nameSize, nameColor, 0, nameSize, width, nameSize, emojiBrand, this.telegram
+          )
+        } catch (_) { /* name is optional — continue without it */ }
       }
     }
 
@@ -106,7 +114,17 @@ class QuoteGenerate {
           0, fontSize, width, height - fontSize, emojiBrand, this.telegram
         )
       } catch (error) {
-        console.warn('Failed to render message text:', error.message)
+        console.error('Failed to render message text:', error.message, error.stack)
+        // Retry without entities (plain text fallback)
+        try {
+          textCanvas = await drawMultilineText(
+            text, [], fontSize, textColor,
+            0, fontSize, width, height - fontSize, emojiBrand, this.telegram
+          )
+        } catch (retryError) {
+          console.error('Failed to render plain text fallback:', retryError.message)
+          return null
+        }
       }
     }
 
@@ -147,7 +165,7 @@ class QuoteGenerate {
           replyData = { name: replyNameCanvas, nameColor: replyNameColor, text: replyTextCanvas }
         }
       } catch (error) {
-        console.warn('Failed to render reply:', error.message)
+        console.error('Failed to render reply:', error.message, error.stack)
         replyData = null
       }
     }
