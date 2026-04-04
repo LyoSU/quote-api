@@ -64,7 +64,7 @@ class QuoteGenerate {
     const nameSize = 22 * scale
 
     let nameCanvas
-    if ((message.from && message.from.name) || (message.from && (message.from.first_name || message.from.last_name))) {
+    if (message.from && message.from.name !== false && (message.from.name || message.from.first_name || message.from.last_name)) {
       let name = message.from.name || `${message.from.first_name || ''} ${message.from.last_name || ''}`.trim()
       if (!name) name = 'User'
 
