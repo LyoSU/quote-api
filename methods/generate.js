@@ -30,7 +30,7 @@ function normalizeMessage (message) {
   if (!message.from.photo) {
     message.from.photo = {}
   }
-  if (!message.from.name && (message.from.first_name || message.from.last_name)) {
+  if (message.from.name !== false && !message.from.name && (message.from.first_name || message.from.last_name)) {
     message.from.name = [message.from.first_name, message.from.last_name]
       .filter(Boolean)
       .join(' ')
