@@ -177,8 +177,12 @@ class QuoteGenerate {
       if (message.text && textCanvas && maxMediaSize < textCanvas.width) maxMediaSize = textCanvas.width
 
       if (media && media.is_animated) {
-        media = media.thumb
-        maxMediaSize = maxMediaSize / 2
+        if (media.thumb) {
+          media = media.thumb
+          maxMediaSize = maxMediaSize / 2
+        } else {
+          media = null
+        }
       }
 
       try {
@@ -193,7 +197,7 @@ class QuoteGenerate {
       }
     }
 
-    if (message.voice) {
+    if (message.voice && Array.isArray(message.voice.waveform)) {
       mediaCanvas = drawWaveform(message.voice.waveform)
       maxMediaSize = width / 3 * scale
     }

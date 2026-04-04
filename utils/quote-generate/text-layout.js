@@ -288,6 +288,12 @@ function layoutText (prepared, maxWidth, maxHeight) {
 function applyTruncation (line, prepared, maxWidth) {
   const ctx = require('./text-prepare').getMeasureCtx()
   const ellipsis = '\u2026'
+  // Set font to last segment's font so ellipsis is measured at the correct size
+  const lastLayoutSeg = line.segments[line.segments.length - 1]
+  if (lastLayoutSeg) {
+    const lastSeg = prepared.segments[lastLayoutSeg.index]
+    if (lastSeg) ctx.font = lastSeg.font
+  }
   const ellipsisWidth = ctx.measureText(ellipsis).width
   const targetWidth = maxWidth - ellipsisWidth
 

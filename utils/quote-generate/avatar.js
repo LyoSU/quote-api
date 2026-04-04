@@ -49,9 +49,9 @@ async function downloadAvatarImage (user, telegram) {
     else nameLetters = runes(nameWord[0])[0]
   }
 
-  const cacheKey = user.id
+  const cacheKey = user.id != null ? user.id : `noId:${user.username || nameLetters}`
   const avatarImageCached = avatarCache.get(cacheKey)
-  const nameIndex = Math.abs(user.id) % 7
+  const nameIndex = user.id != null ? Math.abs(user.id) % 7 : 0
   const avatarColor = AVATAR_COLORS[nameIndex]
 
   if (avatarImageCached) {
@@ -59,8 +59,10 @@ async function downloadAvatarImage (user, telegram) {
   }
 
   if (user.photo && user.photo.url) {
-    avatarImage = await loadImage(user.photo.url)
-  } else {
+    avatarImage = await loadImage(user.photo.url).catch(() => null)
+  }
+
+  if (!avatarImage) {
     try {
       let userPhoto, userPhotoUrl
 
@@ -69,7 +71,9 @@ async function downloadAvatarImage (user, telegram) {
       }
 
       if (!userPhotoUrl) {
-        const getChat = await telegram.getChat(user.id).catch(() => {})
+        const getChat = user.id != null
+          ? await telegram.getChat(user.id).catch(() => {})
+          : null
 
         if (getChat && getChat.photo && getChat.photo.big_file_id) {
           userPhoto = getChat.photo.big_file_id
@@ -79,8 +83,6 @@ async function downloadAvatarImage (user, telegram) {
           userPhotoUrl = await telegram.getFileLink(userPhoto).catch(() => {})
         } else if (user.username) {
           userPhotoUrl = `https://telega.one/i/userpic/320/${user.username}.jpg`
-        } else {
-          avatarImage = avatarImageLetters(nameLetters, avatarColor)
         }
       }
 
@@ -105,15 +107,16 @@ async function downloadAvatarImage (user, telegram) {
       console.warn('Error getting user photo:', error.message)
       avatarImage = null
     }
+  }
 
-    if (!avatarImage) {
-      try {
-        avatarImage = avatarImageLetters(nameLetters, avatarColor)
-        avatarCache.set(cacheKey, avatarImage)
-      } catch (error) {
-        console.warn('Failed to create letters avatar:', error.message)
-        avatarImage = null
-      }
+  // Final fallback — initials avatar
+  if (!avatarImage) {
+    try {
+      avatarImage = avatarImageLetters(nameLetters, avatarColor)
+      avatarCache.set(cacheKey, avatarImage)
+    } catch (error) {
+      console.warn('Failed to create letters avatar:', error.message)
+      avatarImage = null
     }
   }
 

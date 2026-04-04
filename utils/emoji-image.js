@@ -19,7 +19,7 @@ function loadBrand (brand) {
   if (emojiImageByBrand[brand]) return emojiImageByBrand[brand]
 
   const jsonFile = emojiJsonByBrand[brand]
-  if (!jsonFile) return []
+  if (!jsonFile) return {}
 
   const filePath = path.resolve(__dirname, emojiJFilesDir + jsonFile)
 
@@ -27,11 +27,11 @@ function loadBrand (brand) {
     if (fs.existsSync(filePath)) {
       emojiImageByBrand[brand] = require(filePath)
     } else {
-      emojiImageByBrand[brand] = []
+      emojiImageByBrand[brand] = {}
     }
   } catch (error) {
     console.error('Failed to load emoji brand', brand, error.message)
-    emojiImageByBrand[brand] = []
+    emojiImageByBrand[brand] = {}
   }
 
   return emojiImageByBrand[brand]
