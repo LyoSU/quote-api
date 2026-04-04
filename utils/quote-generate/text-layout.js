@@ -286,6 +286,13 @@ function layoutText (prepared, maxWidth, maxHeight) {
  * Trim segments from line to fit within maxWidth and mark as truncated.
  */
 function applyTruncation (line, prepared, maxWidth) {
+  // Empty line (e.g. truncation hit at a \n\n boundary) — nothing to trim
+  if (line.segments.length === 0) {
+    line.width = 0
+    line.truncated = true
+    return
+  }
+
   const ctx = require('./text-prepare').getMeasureCtx()
   const ellipsis = '\u2026'
   // Set font to last segment's font so ellipsis is measured at the correct size
@@ -309,8 +316,7 @@ function applyTruncation (line, prepared, maxWidth) {
   }
 
   line.segments.length = Math.max(1, trimIndex)
-  // If first segment exceeds target, keep its actual width (don't set to 0)
-  if (totalWidth === 0 && line.segments.length > 0) {
+  if (totalWidth === 0) {
     totalWidth = line.segments[0].width
   }
   line.width = totalWidth
