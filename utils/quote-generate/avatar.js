@@ -41,7 +41,8 @@ async function downloadAvatarImage (user, telegram) {
   if (user.first_name && user.last_name) {
     nameLetters = runes(user.first_name)[0] + (runes(user.last_name || '')[0])
   } else {
-    let name = user.first_name || user.name || user.title || '?'
+    let name = user.first_name || (user.name && user.name !== false && user.name) || user.title || '?'
+    if (typeof name !== 'string') name = String(name)
     name = name.toUpperCase()
     const nameWord = name.split(' ')
 
@@ -75,8 +76,21 @@ async function downloadAvatarImage (user, telegram) {
           ? await telegram.getChat(user.id).catch(() => {})
           : null
 
-        if (getChat && getChat.photo && getChat.photo.big_file_id) {
-          userPhoto = getChat.photo.big_file_id
+        if (getChat) {
+          // Use chat data to fix missing initials
+          if (nameLetters === '?') {
+            const chatName = getChat.first_name || getChat.title
+            if (chatName) {
+              const upper = chatName.toUpperCase()
+              const words = upper.split(' ')
+              if (words.length > 1) nameLetters = runes(words[0])[0] + runes(words[words.length - 1])[0]
+              else nameLetters = runes(words[0])[0]
+            }
+          }
+
+          if (getChat.photo && getChat.photo.big_file_id) {
+            userPhoto = getChat.photo.big_file_id
+          }
         }
 
         if (userPhoto) {

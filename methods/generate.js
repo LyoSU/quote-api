@@ -91,13 +91,7 @@ module.exports = async (parm) => {
   // Normalize all messages first (sync, no I/O)
   const validMessages = parm.messages.filter(Boolean)
   for (const message of validMessages) {
-    if (message.avatar) {
-      console.log('[DEBUG-AVATAR] before normalize:', JSON.stringify(message.from))
-    }
     normalizeMessage(message)
-    if (message.avatar) {
-      console.log('[DEBUG-AVATAR] after normalize:', JSON.stringify(message.from))
-    }
   }
 
   // Generate quotes with concurrency limit to avoid Telegram API rate limits
