@@ -1,21 +1,37 @@
 const https = require('https')
+const http = require('http')
 
 const REQUEST_TIMEOUT_MS = 10_000
 const MAX_RESPONSE_BYTES = 20 * 1024 * 1024
+const MAX_REDIRECTS = 5
 
-module.exports = (url, filter = false) => {
+function doRequest (url, filter, redirectCount) {
   return new Promise((resolve, reject) => {
-    const options = new URL(url)
+    const parsed = new URL(url)
+    const transport = parsed.protocol === 'https:' ? https : http
 
-    if (options.protocol !== 'https:') {
-      return reject(new Error(`Unsupported protocol ${options.protocol} for ${url}`))
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      return reject(new Error(`Unsupported protocol ${parsed.protocol} for ${url}`))
     }
 
-    options.headers = {
-      'User-Agent': 'curl/8.4.0'
+    const options = {
+      hostname: parsed.hostname,
+      port: parsed.port,
+      path: parsed.pathname + parsed.search,
+      headers: { 'User-Agent': 'curl/8.4.0' }
     }
 
-    const req = https.get(options, (res) => {
+    const req = transport.get(options, (res) => {
+      // Follow redirects (301, 302, 307, 308)
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume()
+        if (redirectCount >= MAX_REDIRECTS) {
+          return reject(new Error(`Too many redirects (${MAX_REDIRECTS}) for ${url}`))
+        }
+        const redirectUrl = new URL(res.headers.location, url).href
+        return resolve(doRequest(redirectUrl, filter, redirectCount + 1))
+      }
+
       if (res.statusCode < 200 || res.statusCode >= 300) {
         res.resume()
         return reject(new Error(`HTTP ${res.statusCode} for ${url}`))
@@ -50,3 +66,5 @@ module.exports = (url, filter = false) => {
     req.on('error', (err) => reject(err))
   })
 }
+
+module.exports = (url, filter = false) => doRequest(url, filter, 0)

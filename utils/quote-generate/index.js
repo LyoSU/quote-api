@@ -84,10 +84,14 @@ class QuoteGenerate {
         })
       }
 
-      nameCanvas = await drawMultilineText(
-        name, nameEntities, nameSize, nameColor,
-        0, nameSize, width, nameSize, emojiBrand, this.telegram
-      )
+      try {
+        nameCanvas = await drawMultilineText(
+          name, nameEntities, nameSize, nameColor,
+          0, nameSize, width, nameSize, emojiBrand, this.telegram
+        )
+      } catch (error) {
+        console.warn('Failed to render name text:', error.message)
+      }
     }
 
     const fontSize = 24 * scale
@@ -95,10 +99,15 @@ class QuoteGenerate {
 
     let textCanvas
     if (message.text) {
-      textCanvas = await drawMultilineText(
-        message.text, message.entities, fontSize, textColor,
-        0, fontSize, width, height - fontSize, emojiBrand, this.telegram
-      )
+      const text = typeof message.text === 'string' ? message.text : String(message.text)
+      try {
+        textCanvas = await drawMultilineText(
+          text, message.entities, fontSize, textColor,
+          0, fontSize, width, height - fontSize, emojiBrand, this.telegram
+        )
+      } catch (error) {
+        console.warn('Failed to render message text:', error.message)
+      }
     }
 
     let avatarCanvas
@@ -118,15 +127,18 @@ class QuoteGenerate {
         const replyNameIndex = Math.abs(chatId) % 7
         const replyNameColor = nameColorArray[replyNameIndex]
 
+        const replyName = typeof message.replyMessage.name === 'string' ? message.replyMessage.name : String(message.replyMessage.name)
+        const replyText = typeof message.replyMessage.text === 'string' ? message.replyMessage.text : String(message.replyMessage.text)
+
         const replyNameFontSize = 16 * scale
         const replyNameCanvas = await drawMultilineText(
-          message.replyMessage.name, 'bold', replyNameFontSize, replyNameColor,
+          replyName, 'bold', replyNameFontSize, replyNameColor,
           0, replyNameFontSize, width * 0.9, replyNameFontSize, emojiBrand, this.telegram
         )
 
         const replyTextFontSize = 21 * scale
         const replyTextCanvas = await drawMultilineText(
-          message.replyMessage.text, message.replyMessage.entities || [],
+          replyText, message.replyMessage.entities || [],
           replyTextFontSize, textColor,
           0, replyTextFontSize, width * 0.9, replyTextFontSize, emojiBrand, this.telegram
         )
@@ -135,7 +147,7 @@ class QuoteGenerate {
           replyData = { name: replyNameCanvas, nameColor: replyNameColor, text: replyTextCanvas }
         }
       } catch (error) {
-        console.error('Error generating reply message:', error)
+        console.warn('Failed to render reply:', error.message)
         replyData = null
       }
     }
@@ -192,6 +204,11 @@ class QuoteGenerate {
 
     // Sender tag (user role in group)
     const senderTag = message.senderTag || null
+
+    // Nothing to render — skip this message
+    if (!textCanvas && !nameCanvas && !mediaCanvas && !replyData) {
+      return null
+    }
 
     return drawQuote({
       scale,
