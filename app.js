@@ -34,7 +34,10 @@ app.use(ratelimit({
   max: 20,
   disableHeader: false,
   whitelist: (ctx) => {
-    return ctx.query.botToken === process.env.BOT_TOKEN
+    // The bot sends its token in the request body (kept out of the URL/access
+    // logs); accept either location so its own requests stay un-throttled.
+    const token = ctx.query.botToken || (ctx.request.body && ctx.request.body.botToken)
+    return token === process.env.BOT_TOKEN
   },
   blacklist: (ctx) => {
   }
