@@ -1,7 +1,7 @@
 // utils/quote-generate/composer.js
 
 const { createCanvas } = require('canvas')
-const { drawRoundRect, drawGradientRoundRect, roundImage, drawReplyLine, drawQuoteIcon, drawForwardLabel } = require('./canvas-utils')
+const { drawRoundRect, drawGradientRoundRect, roundImage, drawReplyLine, drawQuoteBlock, drawForwardLabel } = require('./canvas-utils')
 
 function drawQuote (options) {
   const {
@@ -10,7 +10,6 @@ function drawQuote (options) {
     avatar,
     reply,
     name,
-    text,
     media,
     isForward,
     forwardLabel,
@@ -18,6 +17,20 @@ function drawQuote (options) {
     senderTag,
     isQuote
   } = options
+
+  // Partial quote (message.quote): wrap the rendered text into a
+  // Telegram-style quote block. Downstream layout math just sees a
+  // slightly larger text canvas. Transparent margins keep the block from
+  // hugging the name above and the bubble edge below.
+  let text = options.text
+  if (isQuote && text) {
+    const block = drawQuoteBlock(text, nameColor || background.textColor || '#fff', scale)
+    const gapTop = 5 * scale
+    const gapBottom = 4 * scale
+    const padded = createCanvas(block.width, block.height + gapTop + gapBottom)
+    padded.getContext('2d').drawImage(block, 0, gapTop)
+    text = padded
+  }
 
   const avatarPosX = 0
   const avatarSize = 50 * scale
@@ -82,6 +95,12 @@ function drawQuote (options) {
     if (text) height = text.height + nameCanvas.height
     else height += indent
   }
+
+  // Explicit bottom inset: the text canvas bottom edge coincides with the
+  // bubble bottom (textPosY + text.height == height), so the only visible
+  // "padding" used to be the descender slack inside the text canvas — the
+  // last line looked glued to the edge.
+  if (text) height += indent * 0.45
 
   // Forward label adds to height
   if (forwardCanvas) {
@@ -264,14 +283,6 @@ function drawQuote (options) {
     canvasCtx.drawImage(drawReplyLine(4 * scale, replyLineH, reply.nameColor), textPosX - 3, replyNamePosY)
     canvasCtx.drawImage(reply.name, replyPosX, replyNamePosY)
     canvasCtx.drawImage(reply.text, replyPosX, replyTextPosY)
-
-    // Quote icon — only for partial quotes
-    if (isQuote) {
-      const iconSize = 28 * scale
-      const iconColor = background.textColor || '#fff'
-      const quoteIcon = drawQuoteIcon(iconSize, iconColor)
-      canvasCtx.drawImage(quoteIcon, rectPosX + rectWidth - iconSize - indent * 0.3, replyNamePosY + (reply.name.height - iconSize) / 2)
-    }
   }
 
   return canvas
