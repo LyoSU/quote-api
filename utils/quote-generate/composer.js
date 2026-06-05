@@ -16,6 +16,7 @@ const SP = {
   padY: 12, // bubble inner padding → ink, vertical
   gap: 8, // vertical rhythm between stacked blocks (name/forward/reply/media/text)
   headerGap: 8, // min gap between name and sender tag
+  maxHeader: 300, // header/forward-label width cap — longer names fade out instead of inflating the bubble
   radius: 25, // bubble corner radius
   tail: 14, // bubble tail size (when avatar is shown)
   minWidth: 100, // min bubble width
@@ -71,13 +72,13 @@ function drawQuote (options) {
       tagLeaf = leaf(tagCanvas)
     }
     headerNode = tagLeaf
-      ? box({ dir: 'row', justify: 'between', align: 'center', gap: s(SP.headerGap), stretch: true, children: [leaf(nameCanvas), tagLeaf] })
-      : leaf(nameCanvas)
+      ? box({ dir: 'row', justify: 'between', align: 'center', gap: s(SP.headerGap), stretch: true, maxW: s(SP.maxHeader), children: [leaf(nameCanvas), tagLeaf] })
+      : leaf(nameCanvas, { maxW: s(SP.maxHeader) })
   }
 
   let forwardNode = null
   if (isForward && forwardLabel) {
-    forwardNode = leaf(drawForwardLabel(forwardLabel, s(22), accent))
+    forwardNode = leaf(drawForwardLabel(forwardLabel, s(22), accent), { maxW: s(SP.maxHeader) })
   }
 
   let replyNode = null

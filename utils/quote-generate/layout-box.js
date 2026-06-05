@@ -12,6 +12,7 @@
 // a source-crop. Children honestly report their real size once, at intake;
 // everything above is a pure box model.
 
+const { createCanvas } = require('canvas')
 const { inkBounds } = require('./canvas-utils')
 
 const ZERO_PAD = { t: 0, r: 0, b: 0, l: 0 }
@@ -38,12 +39,14 @@ function leaf (canvas, opts = {}) {
   if (trim && !ink) return null
   const srcY = ink ? ink.top : 0
   const srcH = ink ? ink.bottom - ink.top + 1 : canvas.height
+  let w = opts.w !== undefined ? opts.w : canvas.width
+  if (opts.maxW && w > opts.maxW) w = opts.maxW // overflow renders as a fade
   return {
     kind: 'leaf',
     canvas,
     srcY,
     srcH,
-    w: opts.w !== undefined ? opts.w : canvas.width,
+    w,
     h: opts.h !== undefined ? opts.h : srcH,
     bleed: !!opts.bleed,
     paint: opts.paint || null
@@ -68,6 +71,7 @@ function box (opts = {}) {
     bg: opts.bg || null,
     fg: opts.fg || null,
     minW: opts.minW || 0,
+    maxW: opts.maxW || 0,
     children: (opts.children || []).filter(Boolean)
   }
 }
@@ -101,6 +105,9 @@ function measure (n) {
   n.w = Math.ceil(n.w)
   n.h = Math.ceil(h + n.pad.t + n.pad.b)
   if (n.w < n.minW) n.w = n.minW
+  // A capped box keeps its children's natural sizes; overflowing leaves
+  // are resolved at place/render time (justify-between squeeze → fade).
+  if (n.maxW && n.w > n.maxW) n.w = n.maxW
   return n
 }
 
@@ -153,20 +160,39 @@ function render (ctx, n) {
   if (n.kind === 'leaf') {
     if (n.paint) {
       n.paint(ctx, n)
+    } else if (n.canvas.width > n.w + 1) {
+      // Overflowing leaf (e.g. a long name sharing a row with a tag):
+      // fade the trailing edge out instead of a hard mid-glyph cut.
+      ctx.drawImage(fadeOverflow(n), n.x, n.y)
     } else {
-      // Clip to the laid-out box so an overflowing child (e.g. a long name
-      // sharing a row with a tag) is cut instead of overlapping its sibling.
-      ctx.save()
-      ctx.beginPath()
-      ctx.rect(n.x, n.y, n.w, n.h)
-      ctx.clip()
       ctx.drawImage(n.canvas, 0, n.srcY, n.canvas.width, n.srcH, n.x, n.y, n.canvas.width, n.srcH)
-      ctx.restore()
     }
   } else {
     for (const c of n.children) render(ctx, c)
   }
   if (n.fg) n.fg(ctx, n)
+}
+
+/**
+ * Crops a leaf's canvas to its assigned width and dissolves the trailing
+ * ~one-glyph stretch to transparent, so truncation reads as a graceful
+ * fade rather than a sliced character.
+ */
+function fadeOverflow (n) {
+  const w = Math.max(1, Math.round(n.w))
+  const out = createCanvas(w, n.srcH)
+  const ctx = out.getContext('2d')
+  ctx.drawImage(n.canvas, 0, n.srcY, w, n.srcH, 0, 0, w, n.srcH)
+
+  // Fade width ≈ the line height (about one character), capped to the box.
+  const fadeW = Math.min(w, Math.round(n.srcH * 0.9))
+  const grad = ctx.createLinearGradient(w - fadeW, 0, w, 0)
+  grad.addColorStop(0, 'rgba(0, 0, 0, 0)')
+  grad.addColorStop(1, 'rgba(0, 0, 0, 1)')
+  ctx.globalCompositeOperation = 'destination-out'
+  ctx.fillStyle = grad
+  ctx.fillRect(w - fadeW, 0, fadeW, n.srcH)
+  return out
 }
 
 module.exports = { leaf, box, measure, place, render }
