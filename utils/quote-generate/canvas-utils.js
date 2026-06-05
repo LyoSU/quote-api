@@ -147,6 +147,33 @@ function addQuoteMarkPath (ctx, x, y, r, s) {
   ctx.closePath()
 }
 
+// Crops the transparent slack above/below the actual ink of a canvas.
+// Text canvases from drawMultilineText reserve ~0.8×fontSize below the
+// last baseline; harmless for plain bubbles, but inside a tinted quote
+// block that slack reads as bottom-heavy padding.
+function trimVerticalSlack (canvas) {
+  const w = canvas.width
+  const h = canvas.height
+  if (w <= 1 || h <= 1) return canvas
+  const data = canvas.getContext('2d').getImageData(0, 0, w, h).data
+  let top = -1
+  let bottom = -1
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] > 8) {
+        if (top === -1) top = y
+        bottom = y
+        break
+      }
+    }
+  }
+  if (top <= 0 && bottom >= h - 1) return canvas
+  if (top === -1) return canvas
+  const out = createCanvas(w, bottom - top + 1)
+  out.getContext('2d').drawImage(canvas, 0, -top)
+  return out
+}
+
 // Telegram-style block for a partial quote (message.quote): the rendered
 // text canvas is wrapped into a tinted rounded rect with a solid accent bar
 // on the left and a small solid ❝ in the top-right corner. The accent color
@@ -157,7 +184,10 @@ function drawQuoteBlock (textCanvas, color, scale = 1) {
   const iconSize = 15 * scale
   const padLeft = barWidth + 8 * scale
   const padRight = iconSize + 7 * scale
-  const padY = 6 * scale
+  const padY = 7 * scale
+
+  // The tinted backdrop must hug the ink, not the canvas's descender slack.
+  textCanvas = trimVerticalSlack(textCanvas)
 
   const w = Math.ceil(padLeft + textCanvas.width + padRight)
   const h = Math.ceil(padY * 2 + textCanvas.height)

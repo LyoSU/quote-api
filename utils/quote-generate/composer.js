@@ -26,7 +26,7 @@ function drawQuote (options) {
   if (isQuote && text) {
     const block = drawQuoteBlock(text, nameColor || background.textColor || '#fff', scale)
     const gapTop = 5 * scale
-    const gapBottom = 4 * scale
+    const gapBottom = 8 * scale
     const padded = createCanvas(block.width, block.height + gapTop + gapBottom)
     padded.getContext('2d').drawImage(block, 0, gapTop)
     text = padded
@@ -95,12 +95,6 @@ function drawQuote (options) {
     if (text) height = text.height + nameCanvas.height
     else height += indent
   }
-
-  // Explicit bottom inset: the text canvas bottom edge coincides with the
-  // bubble bottom (textPosY + text.height == height), so the only visible
-  // "padding" used to be the descender slack inside the text canvas — the
-  // last line looked glued to the edge.
-  if (text) height += indent * 0.45
 
   // Forward label adds to height
   if (forwardCanvas) {
