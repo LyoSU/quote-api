@@ -38,7 +38,9 @@ async function loadFonts () {
 
 class QuoteGenerate {
   constructor (botToken) {
-    this.telegram = new Telegram(botToken)
+    // Self-hosted Bot API server (getFile + file downloads served cloud-style).
+    // Without the env the behavior is unchanged (Telegram cloud).
+    this.telegram = new Telegram(botToken, process.env.BOT_API_ROOT ? { apiRoot: process.env.BOT_API_ROOT } : undefined)
   }
 
   async generate (backgroundColorOne, backgroundColorTwo, message, width, height, scale, emojiBrand) {
