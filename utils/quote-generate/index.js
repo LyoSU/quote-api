@@ -2,8 +2,9 @@
 
 const fs = require('fs')
 const path = require('path')
-const { registerFont } = require('canvas')
+const { registerFont, createCanvas, loadImage } = require('canvas')
 const { Telegram } = require('telegraf')
+const loadImageFromUrl = require('../image-load-url')
 
 const { drawMultilineText } = require('./text-renderer')
 const { drawAvatar } = require('./avatar')
@@ -106,17 +107,35 @@ class QuoteGenerate {
     let textColor = backStyle === 'light' ? '#000' : '#fff'
 
     let textCanvas
+    let textBlocks = null
     if (message.text) {
       const text = typeof message.text === 'string' ? message.text : String(message.text)
       try {
-        textCanvas = await drawMultilineText(
-          text, message.entities, fontSize, textColor,
-          0, fontSize, width, height - fontSize, emojiBrand, this.telegram
-        )
+        // Blockquote entities split the text into plain/quote runs, each
+        // rendered separately so the composer can give quotes the accent
+        // block treatment.
+        const parts = splitByBlockquotes(text, message.entities)
+        if (parts) {
+          textBlocks = []
+          for (const part of parts) {
+            const canvas = await drawMultilineText(
+              part.text, part.entities, fontSize, textColor,
+              0, fontSize, width, height - fontSize, emojiBrand, this.telegram
+            )
+            textBlocks.push({ canvas, quote: part.quote })
+          }
+          textCanvas = textBlocks[0] && textBlocks[0].canvas // width hints below
+        } else {
+          textCanvas = await drawMultilineText(
+            text, message.entities, fontSize, textColor,
+            0, fontSize, width, height - fontSize, emojiBrand, this.telegram
+          )
+        }
       } catch (error) {
         console.error('Failed to render message text:', error.message, error.stack)
         // Retry without entities (plain text fallback)
         try {
+          textBlocks = null
           textCanvas = await drawMultilineText(
             text, [], fontSize, textColor,
             0, fontSize, width, height - fontSize, emojiBrand, this.telegram
@@ -163,6 +182,19 @@ class QuoteGenerate {
 
         if (replyNameCanvas && replyTextCanvas) {
           replyData = { name: replyNameCanvas, nameColor: replyNameColor, text: replyTextCanvas }
+
+          // Thumbnail of the replied media (photo/video/sticker…), like the
+          // modern Telegram reply preview. Best-effort — silently skipped.
+          const replyMedia = message.replyMessage.media
+          if (replyMedia && replyMedia.fileId) {
+            try {
+              const fileUrl = await this.telegram.getFileLink(replyMedia.fileId)
+              const buffer = await loadImageFromUrl(fileUrl)
+              replyData.thumb = await loadImage(buffer)
+            } catch (error) {
+              console.warn('Failed to load reply thumb:', error.message)
+            }
+          }
         }
       } catch (error) {
         console.error('Failed to render reply:', error.message, error.stack)
@@ -227,6 +259,21 @@ class QuoteGenerate {
     // Sender tag (user role in group)
     const senderTag = message.senderTag || null
 
+    // "via @bot" chip (inline-bot messages)
+    let viaBotCanvas = null
+    if (message.viaBot) {
+      const viaFontSize = 14 * scale
+      const viaText = `via @${String(message.viaBot).replace(/^@/, '')}`
+      const tmpCtx = createCanvas(1, 1).getContext('2d')
+      tmpCtx.font = `${viaFontSize}px "Noto Sans", "SF Pro", sans-serif`
+      viaBotCanvas = createCanvas(Math.ceil(tmpCtx.measureText(viaText).width) + 4, Math.ceil(viaFontSize * 1.4))
+      const viaCtx = viaBotCanvas.getContext('2d')
+      viaCtx.font = `${viaFontSize}px "Noto Sans", "SF Pro", sans-serif`
+      viaCtx.fillStyle = nameColor
+      viaCtx.globalAlpha = 0.8
+      viaCtx.fillText(viaText, 0, viaFontSize)
+    }
+
     // Nothing to render — skip this message
     if (!textCanvas && !nameCanvas && !mediaCanvas && !replyData) {
       return null
@@ -239,14 +286,56 @@ class QuoteGenerate {
       reply: replyData,
       name: nameCanvas,
       text: textCanvas,
+      textBlocks,
       media: mediaCanvas ? { canvas: mediaCanvas, type: mediaType, maxSize: maxMediaSize } : null,
       isForward,
       forwardLabel,
       nameColor,
       senderTag,
+      viaBot: viaBotCanvas,
+      groupPos: message.groupPos || 'single',
       isQuote: !!message.isQuote
     })
   }
+}
+
+/**
+ * Splits text into plain/quote runs around blockquote entities. Returns
+ * null when there are none (the common case — render as a single canvas).
+ * Entity offsets are UTF-16 code units, which is exactly how JS slices.
+ */
+function splitByBlockquotes (text, entities) {
+  if (!Array.isArray(entities)) return null
+  const quotes = entities
+    .filter((e) => e.type === 'blockquote' || e.type === 'expandable_blockquote')
+    .sort((a, b) => a.offset - b.offset)
+  if (quotes.length === 0) return null
+
+  const sliceEntities = (start, end) => entities
+    .filter((e) => e.type !== 'blockquote' && e.type !== 'expandable_blockquote')
+    .filter((e) => e.offset < end && e.offset + e.length > start)
+    .map((e) => {
+      const from = Math.max(e.offset, start)
+      const to = Math.min(e.offset + e.length, end)
+      return { ...e, offset: from - start, length: to - from }
+    })
+
+  const parts = []
+  let pos = 0
+  for (const q of quotes) {
+    if (q.offset < pos) continue // overlapping quotes — keep the first
+    if (q.offset > pos) {
+      const plain = text.slice(pos, q.offset).replace(/\n+$/, '')
+      if (plain) parts.push({ text: plain, entities: sliceEntities(pos, q.offset), quote: false })
+    }
+    parts.push({ text: text.slice(q.offset, q.offset + q.length), entities: sliceEntities(q.offset, q.offset + q.length), quote: true })
+    pos = q.offset + q.length
+  }
+  if (pos < text.length) {
+    const tail = text.slice(pos).replace(/^\n+/, '')
+    if (tail) parts.push({ text: tail, entities: sliceEntities(pos, text.length), quote: false })
+  }
+  return parts.length > 0 ? parts : null
 }
 
 module.exports = QuoteGenerate

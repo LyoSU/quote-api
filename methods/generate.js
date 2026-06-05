@@ -94,6 +94,14 @@ module.exports = async (parm) => {
     normalizeMessage(message)
   }
 
+  // Same-sender runs render with grouped corners (small radii between
+  // neighbours), like consecutive messages in Telegram.
+  for (let i = 0; i < validMessages.length; i++) {
+    const prevSame = i > 0 && validMessages[i - 1].chatId === validMessages[i].chatId
+    const nextSame = i < validMessages.length - 1 && validMessages[i + 1].chatId === validMessages[i].chatId
+    validMessages[i].groupPos = prevSame && nextSame ? 'middle' : prevSame ? 'last' : nextSame ? 'first' : 'single'
+  }
+
   // Generate quotes with concurrency limit to avoid Telegram API rate limits
   const CONCURRENCY = 3
   const quoteImages = new Array(validMessages.length).fill(null)
@@ -130,8 +138,12 @@ module.exports = async (parm) => {
     runNext()
   })
 
-  // Filter nulls (failed messages) while preserving order
-  const filteredImages = quoteImages.filter(Boolean)
+  // Filter nulls (failed messages) while preserving order, keeping each
+  // image paired with its source message (for grouped-margin decisions).
+  const pairs = validMessages
+    .map((message, i) => ({ message, image: quoteImages[i] }))
+    .filter((p) => p.image)
+  const filteredImages = pairs.map((p) => p.image)
 
   if (filteredImages.length === 0) {
     return { error: 'empty_messages' }
@@ -148,15 +160,23 @@ module.exports = async (parm) => {
       height += filteredImages[index].height
     }
 
-    const quoteMargin = 5 * scale
+    // Tighter spacing inside a same-sender group, roomier between groups.
+    const margins = []
+    let totalMargin = 0
+    for (let index = 0; index < pairs.length - 1; index++) {
+      const grouped = pairs[index].message.chatId === pairs[index + 1].message.chatId
+      const m = (grouped ? 2 : 6) * scale
+      margins.push(m)
+      totalMargin += m
+    }
 
-    const canvas = createCanvas(width, height + (quoteMargin * filteredImages.length))
+    const canvas = createCanvas(width, height + totalMargin)
     const canvasCtx = canvas.getContext('2d')
 
     let imageY = 0
     for (let index = 0; index < filteredImages.length; index++) {
       canvasCtx.drawImage(filteredImages[index], 0, imageY)
-      imageY += filteredImages[index].height + quoteMargin
+      imageY += filteredImages[index].height + (margins[index] || 0)
     }
     canvasQuote = canvas
   } else {

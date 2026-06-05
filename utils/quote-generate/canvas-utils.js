@@ -2,16 +2,22 @@ const { createCanvas } = require('canvas')
 
 // Draws the bubble path. When tailSize > 0, the bottom-left corner
 // becomes a tail: flat bottom extending left, rounded top curving up.
+// `r` is a single radius or per-corner {tl, tr, br, bl} (grouped bubbles
+// flatten the corners that face their neighbours, like Telegram).
 function bubblePath (ctx, w, h, r, tailSize) {
-  if (w < 2 * r) r = w / 2
-  if (h < 2 * r) r = h / 2
+  let { tl, tr, br, bl } = typeof r === 'number' ? { tl: r, tr: r, br: r, bl: r } : r
+  const cap = (v) => Math.min(v, w / 2, h / 2)
+  tl = cap(tl)
+  tr = cap(tr)
+  br = cap(br)
+  bl = cap(bl)
 
   ctx.beginPath()
-  ctx.moveTo(r, 0)
+  ctx.moveTo(tl, 0)
   // top-right corner
-  ctx.arcTo(w, 0, w, h, r)
+  ctx.arcTo(w, 0, w, h, tr)
   // bottom-right corner
-  ctx.arcTo(w, h, 0, h, r)
+  ctx.arcTo(w, h, 0, h, br)
 
   if (tailSize > 0) {
     const t = tailSize
@@ -23,16 +29,16 @@ function bubblePath (ctx, w, h, r, tailSize) {
     // Bottom stays flat, top is smoothly rounded.
     ctx.bezierCurveTo(
       -t * 0.4, h,
-      0, h - r * 0.3,
-      0, h - r
+      0, h - bl * 0.3,
+      0, h - bl
     )
   } else {
     // Normal bottom-left rounded corner
-    ctx.arcTo(0, h, 0, 0, r)
+    ctx.arcTo(0, h, 0, 0, bl)
   }
 
   // top-left corner
-  ctx.arcTo(0, 0, w, 0, r)
+  ctx.arcTo(0, 0, w, 0, tl)
   ctx.closePath()
 }
 
@@ -68,6 +74,8 @@ function roundImage (image, r) {
   const h = image.height
   const canvas = createCanvas(w, h)
   const ctx = canvas.getContext('2d')
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
   if (w < 2 * r) r = w / 2
   if (h < 2 * r) r = h / 2
   ctx.beginPath()
