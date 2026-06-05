@@ -126,6 +126,25 @@ function drawQuote (options) {
   // the photo IS the bubble, rounded with the bubble radius.
   const mediaOnly = !!mediaCanvas && !nameCanvas && !text && !reply && !forwardLabel
 
+  // Grouped bubbles flatten the left corners that face their neighbours.
+  const R = s(SP.radius)
+  const rSmall = s(SP.radiusGrouped)
+  const radii = {
+    tl: groupPos === 'middle' || groupPos === 'last' ? rSmall : R,
+    tr: R,
+    br: R,
+    bl: groupPos === 'first' || groupPos === 'middle' ? rSmall : R
+  }
+
+  // Like Telegram, media hugs the bubble edge it borders: with no caption
+  // below (or no header above) the bubble padding on that side collapses and
+  // the media corners inherit the bubble's own radii.
+  const isRound = mediaType === 'video_note' // round video — circular mask
+  const hasCaption = Boolean(text) || (Array.isArray(textBlocks) && textBlocks.length > 0)
+  const flushable = !!mediaCanvas && !mediaOnly && !isSticker && !isRound
+  const flushBottom = flushable && !hasCaption
+  const flushTop = flushable && !nameCanvas && !(isForward && forwardLabel) && !reply
+
   let mediaNode = null
   if (mediaCanvas) {
     const maxMediaSize = media.maxSize
@@ -135,8 +154,15 @@ function drawQuote (options) {
       mediaWidth = maxMediaSize
       mediaHeight = mediaCanvas.height * (maxMediaSize / mediaCanvas.width)
     }
-    const mediaRadius = mediaOnly || isSticker ? s(SP.radius * 0.6) : s(SP.mediaRound)
-    const isRound = mediaType === 'video_note' // round video — circular mask
+    const mr = s(SP.mediaRound)
+    const mediaRadius = mediaOnly || isSticker
+      ? s(SP.radius * 0.6)
+      : {
+        tl: flushTop ? radii.tl : mr,
+        tr: flushTop ? radii.tr : mr,
+        br: flushBottom ? radii.br : mr,
+        bl: flushBottom ? radii.bl : mr
+      }
     mediaNode = leaf(mediaCanvas, {
       trim: false,
       bleed: !isRound,
@@ -152,7 +178,14 @@ function drawQuote (options) {
           ctx.clip()
           ctx.drawImage(coverSquare(n.canvas), n.x, n.y, n.w, n.h)
         } else {
-          ctx.drawImage(roundImage(n.canvas, mediaRadius), n.x, n.y, n.w, n.h)
+          // roundImage clips in SOURCE pixel space; the leaf then scales the
+          // result down to n.w×n.h — so the radii must scale up by the same
+          // factor or hi-res photos end up with visually smaller corners.
+          const k = n.canvas.width / n.w
+          const rSrc = typeof mediaRadius === 'number'
+            ? mediaRadius * k
+            : { tl: mediaRadius.tl * k, tr: mediaRadius.tr * k, br: mediaRadius.br * k, bl: mediaRadius.bl * k }
+          ctx.drawImage(roundImage(n.canvas, rSrc), n.x, n.y, n.w, n.h)
         }
         ctx.restore()
       }
@@ -175,18 +208,13 @@ function drawQuote (options) {
 
   // ---- Tree ---------------------------------------------------------------
 
-  const bubblePad = { t: s(SP.padY), r: s(SP.padX), b: s(SP.padY), l: s(SP.padX) }
-  const tailSize = avatar ? s(SP.tail) : 0
-
-  // Grouped bubbles flatten the left corners that face their neighbours.
-  const R = s(SP.radius)
-  const rSmall = s(SP.radiusGrouped)
-  const radii = {
-    tl: groupPos === 'middle' || groupPos === 'last' ? rSmall : R,
-    tr: R,
-    br: R,
-    bl: groupPos === 'first' || groupPos === 'middle' ? rSmall : R
+  const bubblePad = {
+    t: flushTop ? 0 : s(SP.padY),
+    r: s(SP.padX),
+    b: flushBottom ? 0 : s(SP.padY),
+    l: s(SP.padX)
   }
+  const tailSize = avatar ? s(SP.tail) : 0
 
   const bubbleBg = (ctx, n) => {
     const one = background.colorOne

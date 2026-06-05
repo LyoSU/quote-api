@@ -69,6 +69,9 @@ function drawGradientRoundRect (colorOne, colorTwo, w, h, r, tailSize = 0) {
   return canvas
 }
 
+// Rounds an image's corners. `r` is a single radius or per-corner
+// {tl, tr, br, bl} — flush media inherits the bubble's corner radii on the
+// edges it touches while keeping the small media radius elsewhere.
 function roundImage (image, r) {
   const w = image.width
   const h = image.height
@@ -76,14 +79,18 @@ function roundImage (image, r) {
   const ctx = canvas.getContext('2d')
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
-  if (w < 2 * r) r = w / 2
-  if (h < 2 * r) r = h / 2
+  let { tl, tr, br, bl } = typeof r === 'number' ? { tl: r, tr: r, br: r, bl: r } : r
+  const cap = (v) => Math.min(v, w / 2, h / 2)
+  tl = cap(tl)
+  tr = cap(tr)
+  br = cap(br)
+  bl = cap(bl)
   ctx.beginPath()
-  ctx.moveTo(r, 0)
-  ctx.arcTo(w, 0, w, h, r)
-  ctx.arcTo(w, h, 0, h, r)
-  ctx.arcTo(0, h, 0, 0, r)
-  ctx.arcTo(0, 0, w, 0, r)
+  ctx.moveTo(tl, 0)
+  ctx.arcTo(w, 0, w, h, tr)
+  ctx.arcTo(w, h, 0, h, br)
+  ctx.arcTo(0, h, 0, 0, bl)
+  ctx.arcTo(0, 0, w, 0, tl)
   ctx.save()
   ctx.clip()
   ctx.closePath()
