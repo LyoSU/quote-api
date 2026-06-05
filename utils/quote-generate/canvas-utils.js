@@ -147,14 +147,15 @@ function addQuoteMarkPath (ctx, x, y, r, s) {
   ctx.closePath()
 }
 
-// Crops the transparent slack above/below the actual ink of a canvas.
-// Text canvases from drawMultilineText reserve ~0.8×fontSize below the
-// last baseline; harmless for plain bubbles, but inside a tinted quote
-// block that slack reads as bottom-heavy padding.
-function trimVerticalSlack (canvas) {
+// Vertical ink bounds of a canvas (rows with any non-transparent pixel),
+// or null for a blank canvas. Text canvases from drawMultilineText carry
+// transparent slack (~0.8×fontSize below the last baseline), so geometry
+// that should follow the VISIBLE glyphs must use these bounds instead of
+// canvas height.
+function inkBounds (canvas) {
   const w = canvas.width
   const h = canvas.height
-  if (w <= 1 || h <= 1) return canvas
+  if (w < 1 || h < 1) return null
   const data = canvas.getContext('2d').getImageData(0, 0, w, h).data
   let top = -1
   let bottom = -1
@@ -167,59 +168,7 @@ function trimVerticalSlack (canvas) {
       }
     }
   }
-  if (top <= 0 && bottom >= h - 1) return canvas
-  if (top === -1) return canvas
-  const out = createCanvas(w, bottom - top + 1)
-  out.getContext('2d').drawImage(canvas, 0, -top)
-  return out
-}
-
-// Telegram-style block for a partial quote (message.quote): the rendered
-// text canvas is wrapped into a tinted rounded rect with a solid accent bar
-// on the left and a small solid ❝ in the top-right corner. The accent color
-// follows the sender's name color, like in the official clients.
-function drawQuoteBlock (textCanvas, color, scale = 1) {
-  const barWidth = 3 * scale
-  const radius = 8 * scale
-  const iconSize = 15 * scale
-  const padLeft = barWidth + 8 * scale
-  const padRight = iconSize + 7 * scale
-  const padY = 7 * scale
-
-  // The tinted backdrop must hug the ink, not the canvas's descender slack.
-  textCanvas = trimVerticalSlack(textCanvas)
-
-  const w = Math.ceil(padLeft + textCanvas.width + padRight)
-  const h = Math.ceil(padY * 2 + textCanvas.height)
-
-  const canvas = createCanvas(w, h)
-  const ctx = canvas.getContext('2d')
-
-  // Tinted backdrop
-  ctx.save()
-  ctx.globalAlpha = 0.12
-  ctx.fillStyle = color
-  bubblePath(ctx, w, h, radius, 0)
-  ctx.fill()
-  ctx.restore()
-
-  // Solid accent bar, clipped by the same rounded outline so its corners
-  // follow the block radius.
-  ctx.save()
-  bubblePath(ctx, w, h, radius, 0)
-  ctx.clip()
-  ctx.fillStyle = color
-  ctx.fillRect(0, 0, barWidth, h)
-  ctx.restore()
-
-  // ❝ in the corner — solid accent color
-  const icon = drawQuoteIcon(iconSize, color, 1)
-  ctx.drawImage(icon, w - iconSize - 5 * scale, 4.5 * scale)
-
-  // The quoted fragment itself
-  ctx.drawImage(textCanvas, padLeft, padY)
-
-  return canvas
+  return top === -1 ? null : { top, bottom }
 }
 
 function drawForwardLabel (text, fontSize, color) {
@@ -238,4 +187,4 @@ function drawForwardLabel (text, fontSize, color) {
   return result
 }
 
-module.exports = { drawRoundRect, drawGradientRoundRect, roundImage, drawReplyLine, drawQuoteIcon, drawQuoteBlock, drawForwardLabel }
+module.exports = { drawRoundRect, drawGradientRoundRect, roundImage, drawReplyLine, drawQuoteIcon, drawForwardLabel, inkBounds }

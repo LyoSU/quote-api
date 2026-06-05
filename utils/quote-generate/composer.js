@@ -1,7 +1,30 @@
 // utils/quote-generate/composer.js
+//
+// Composes a quote bubble from pre-rendered canvases using a DOM/CSS-style
+// box model (see layout-box.js): the bubble is a column with padding and a
+// uniform vertical gap; every spacing constant lives in SP. No element is
+// positioned with ad-hoc offsets — parents size themselves from children.
 
 const { createCanvas } = require('canvas')
-const { drawRoundRect, drawGradientRoundRect, roundImage, drawReplyLine, drawQuoteBlock, drawForwardLabel } = require('./canvas-utils')
+const { drawRoundRect, drawGradientRoundRect, roundImage, drawReplyLine, drawQuoteIcon, drawForwardLabel } = require('./canvas-utils')
+const { leaf, box, measure, place, render } = require('./layout-box')
+
+// All spacing in logical px (multiplied by scale at use). The single place
+// to tune how a quote breathes.
+const SP = {
+  padX: 13, // bubble inner padding → ink, horizontal
+  padY: 12, // bubble inner padding → ink, vertical
+  gap: 8, // vertical rhythm between stacked blocks (name/forward/reply/media/text)
+  headerGap: 8, // min gap between name and sender tag
+  radius: 25, // bubble corner radius
+  tail: 14, // bubble tail size (when avatar is shown)
+  minWidth: 100, // min bubble width
+  avatar: 50, // avatar diameter
+  avatarGap: 10, // avatar → bubble
+  mediaRound: 5, // media corner radius
+  reply: { indent: 12, gap: 3, bar: 4 }, // reply block: text indent, name↔text gap, bar width
+  quote: { padY: 7, padL: 11, padR: 22, bar: 3, icon: 15, iconInset: 5, radius: 8 } // partial-quote block
+}
 
 function drawQuote (options) {
   const {
@@ -10,6 +33,7 @@ function drawQuote (options) {
     avatar,
     reply,
     name,
+    text,
     media,
     isForward,
     forwardLabel,
@@ -18,268 +42,152 @@ function drawQuote (options) {
     isQuote
   } = options
 
-  // Partial quote (message.quote): wrap the rendered text into a
-  // Telegram-style quote block. Downstream layout math just sees a
-  // slightly larger text canvas. Transparent margins keep the block from
-  // hugging the name above and the bubble edge below.
-  let text = options.text
-  if (isQuote && text) {
-    const block = drawQuoteBlock(text, nameColor || background.textColor || '#fff', scale)
-    const gapTop = 5 * scale
-    const gapBottom = 8 * scale
-    const padded = createCanvas(block.width, block.height + gapTop + gapBottom)
-    padded.getContext('2d').drawImage(block, 0, gapTop)
-    text = padded
+  const s = (v) => v * scale
+  const accent = nameColor || background.textColor || '#fff'
+
+  const mediaType = media ? media.type : null
+  const mediaCanvas = media ? media.canvas : null
+  const isSticker = mediaType === 'sticker'
+  const nameCanvas = isSticker ? null : name
+
+  // ---- Leaves -------------------------------------------------------------
+
+  let headerNode = null
+  if (nameCanvas) {
+    let tagLeaf = null
+    if (senderTag) {
+      const tagFontSize = s(14)
+      const tmpCtx = createCanvas(1, 1).getContext('2d')
+      tmpCtx.font = `${tagFontSize}px "Noto Sans", "SF Pro", sans-serif`
+      const tagW = Math.ceil(tmpCtx.measureText(senderTag).width) + 4
+      const tagCanvas = createCanvas(tagW, Math.ceil(tagFontSize * 1.4))
+      const tagCtx = tagCanvas.getContext('2d')
+      tagCtx.font = `${tagFontSize}px "Noto Sans", "SF Pro", sans-serif`
+      tagCtx.fillStyle = background.textColor || '#fff'
+      tagCtx.globalAlpha = 0.45
+      tagCtx.fillText(senderTag, 0, tagFontSize)
+      tagLeaf = leaf(tagCanvas)
+    }
+    headerNode = tagLeaf
+      ? box({ dir: 'row', justify: 'between', align: 'center', gap: s(SP.headerGap), stretch: true, children: [leaf(nameCanvas), tagLeaf] })
+      : leaf(nameCanvas)
   }
 
-  const avatarPosX = 0
-  const avatarSize = 50 * scale
-
-  const blockPosX = avatarSize + 10 * scale
-  const blockPosY = 0
-
-  const indent = 14 * scale
-
-  let mediaType = media ? media.type : null
-  let mediaCanvas = media ? media.canvas : null
-  let maxMediaSize = media ? media.maxSize : null
-
-  let nameCanvas = (mediaType === 'sticker') ? undefined : name
-
-  // --- Pre-render forward label ---
-  let forwardCanvas = null
+  let forwardNode = null
   if (isForward && forwardLabel) {
-    const fwdFontSize = 22 * scale
-    const fwdColor = nameColor || background.textColor || '#fff'
-    forwardCanvas = drawForwardLabel(forwardLabel, fwdFontSize, fwdColor)
+    forwardNode = leaf(drawForwardLabel(forwardLabel, s(22), accent))
   }
 
-  // --- Pre-render sender tag ---
-  let tagCanvas = null
-  if (senderTag && nameCanvas) {
-    const tagFontSize = 14 * scale
-    const tmpCanvas = createCanvas(1, 1)
-    const tmpCtx = tmpCanvas.getContext('2d')
-    tmpCtx.font = `${tagFontSize}px "Noto Sans", "SF Pro", sans-serif`
-    const tagW = Math.ceil(tmpCtx.measureText(senderTag).width) + 4
-    const tagH = Math.ceil(tagFontSize * 1.4)
-    tagCanvas = createCanvas(tagW, tagH)
-    const tagCtx = tagCanvas.getContext('2d')
-    tagCtx.font = `${tagFontSize}px "Noto Sans", "SF Pro", sans-serif`
-    tagCtx.fillStyle = background.textColor || '#fff'
-    tagCtx.globalAlpha = 0.45
-    tagCtx.fillText(senderTag, 0, tagFontSize)
-  }
-
-  // ============================
-  // ORIGINAL layout math — preserved exactly
-  // ============================
-  let width = 0
-  if (text && width < text.width + indent) width = text.width + indent
-  if (nameCanvas && width < nameCanvas.width + indent) width = nameCanvas.width + indent
-  if (nameCanvas && tagCanvas && width < nameCanvas.width + tagCanvas.width + indent * 2) {
-    width = nameCanvas.width + tagCanvas.width + indent * 2
-  }
-  if (forwardCanvas && width < forwardCanvas.width + indent) width = forwardCanvas.width + indent
+  let replyNode = null
   if (reply) {
-    if (width < reply.name.width) width = reply.name.width + indent * 2
-    if (reply.text && width < reply.text.width) width = reply.text.width + indent * 2
+    replyNode = box({
+      dir: 'col',
+      gap: s(SP.reply.gap),
+      pad: { l: s(SP.reply.indent) },
+      bg: (ctx, n) => ctx.drawImage(drawReplyLine(s(SP.reply.bar), n.h - s(SP.reply.bar), reply.nameColor), n.x - 3, n.y),
+      children: [leaf(reply.name), leaf(reply.text)]
+    })
   }
 
-  let height = indent
-  if (text) height += text.height
-  else height += indent
-
-  if (nameCanvas) {
-    height = nameCanvas.height
-    if (text) height = text.height + nameCanvas.height
-    else height += indent
-  }
-
-  // Forward label adds to height
-  if (forwardCanvas) {
-    height += forwardCanvas.height + indent * 0.25
-  }
-
-  width += blockPosX + indent
-  height += blockPosY
-
-  let namePosX = blockPosX + indent
-  let namePosY = indent
-
-  if (!nameCanvas) {
-    namePosX = 0
-    namePosY = -indent
-  }
-
-  // Forward label position: below name
-  let forwardPosX, forwardPosY
-  if (forwardCanvas) {
-    forwardPosX = blockPosX + indent
-    forwardPosY = nameCanvas
-      ? namePosY + nameCanvas.height * 0.75
-      : indent * 0.5
-  }
-
-  const textPosX = blockPosX + indent
-  let textPosY = indent
-  if (nameCanvas) {
-    textPosY = nameCanvas.height + indent * 0.25
-    height += indent * 0.25
-  }
-  if (forwardCanvas) {
-    textPosY += forwardCanvas.height + indent * 0.25
-  }
-
-  let replyPosX = 0
-  let replyNamePosY = 0
-  let replyTextPosY = 0
-
-  if (reply) {
-    replyPosX = textPosX + indent
-
-    const replyNameHeight = reply.name.height
-    const replyTextHeight = reply.text.height * 0.5
-
-    replyNamePosY = namePosY + replyNameHeight
-    if (forwardCanvas) replyNamePosY += forwardCanvas.height + indent * 0.25
-    replyTextPosY = replyNamePosY + replyTextHeight
-
-    textPosY += replyNameHeight + replyTextHeight + (indent / 4)
-    height += replyNameHeight + replyTextHeight + (indent / 4)
-  }
-
-  let mediaPosX = 0
-  let mediaPosY = 0
-  let mediaWidth, mediaHeight
-
+  let mediaNode = null
   if (mediaCanvas) {
-    mediaWidth = mediaCanvas.width * (maxMediaSize / mediaCanvas.height)
-    mediaHeight = maxMediaSize
-
+    const maxMediaSize = media.maxSize
+    let mediaWidth = mediaCanvas.width * (maxMediaSize / mediaCanvas.height)
+    let mediaHeight = maxMediaSize
     if (mediaWidth >= maxMediaSize) {
       mediaWidth = maxMediaSize
       mediaHeight = mediaCanvas.height * (maxMediaSize / mediaCanvas.width)
     }
-
-    if (!text || text.width <= mediaWidth || mediaWidth > (width - blockPosX)) {
-      width = mediaWidth + indent * 6
-    }
-
-    height += mediaHeight
-    if (!text) height += indent
-
-    if (nameCanvas) {
-      mediaPosX = namePosX
-      mediaPosY = nameCanvas.height + 5 * scale
-      if (forwardCanvas) mediaPosY += forwardCanvas.height + indent * 0.25
-    } else {
-      mediaPosX = blockPosX + indent
-      mediaPosY = indent
-    }
-    if (reply) mediaPosY += replyNamePosY + indent / 2
-    textPosY = mediaPosY + mediaHeight + 5 * scale
+    mediaNode = leaf(mediaCanvas, {
+      trim: false,
+      w: mediaWidth,
+      h: mediaHeight,
+      paint: (ctx, n) => ctx.drawImage(roundImage(n.canvas, s(SP.mediaRound)), n.x, n.y, n.w, n.h)
+    })
   }
 
-  let backgroundColorOne = background.colorOne
-  let backgroundColorTwo = background.colorTwo
-
-  let rectWidth = width - blockPosX
-  let rectHeight = height
-
-  if (mediaType === 'sticker' && (nameCanvas || reply)) {
-    rectHeight = reply
-      ? (reply.name.height + reply.text.height * 0.5) + indent * 2
-      : indent * 2
-    backgroundColorOne = backgroundColorTwo = 'rgba(0, 0, 0, 0.5)'
+  let textNode = null
+  if (text) {
+    textNode = isQuote ? quoteBlock(text, accent, s) : leaf(text)
   }
 
-  // Min bubble width
-  const minBubbleWidth = 100 * scale
-  if (rectWidth < minBubbleWidth) {
-    rectWidth = minBubbleWidth
-    width = rectWidth + blockPosX
+  // ---- Tree ---------------------------------------------------------------
+
+  const bubblePad = { t: s(SP.padY), r: s(SP.padX), b: s(SP.padY), l: s(SP.padX) }
+  const tailSize = avatar ? s(SP.tail) : 0
+
+  const bubbleBg = (ctx, n) => {
+    const one = background.colorOne
+    const two = background.colorTwo
+    const rect = one === two
+      ? drawRoundRect(one, n.w, n.h, s(SP.radius), tailSize)
+      : drawGradientRoundRect(one, two, n.w, n.h, s(SP.radius), tailSize)
+    ctx.drawImage(rect, n.x - (rect._tailOffset || 0), n.y)
   }
 
-  // --- Tail ---
-  const hasTail = !!avatar
-  const tailSize = hasTail ? 14 * scale : 0
+  let root
+  if (isSticker) {
+    // Sticker: no bubble; an optional dark overlay chip holds the reply.
+    const chip = replyNode
+      ? box({
+        pad: bubblePad,
+        bg: (ctx, n) => ctx.drawImage(drawRoundRect('rgba(0, 0, 0, 0.5)', n.w, n.h, s(SP.radius), 0), n.x, n.y),
+        children: [replyNode]
+      })
+      : null
+    root = box({ dir: 'col', gap: s(SP.gap), children: [chip, mediaNode] })
+  } else {
+    root = box({
+      dir: 'col',
+      gap: s(SP.gap),
+      pad: bubblePad,
+      minW: s(SP.minWidth),
+      bg: bubbleBg,
+      children: [headerNode, forwardNode, replyNode, mediaNode, textNode]
+    })
+  }
+
+  // ---- Compose ------------------------------------------------------------
+
+  measure(root)
+
+  const bubblePosX = s(SP.avatar) + s(SP.avatarGap)
+  const width = bubblePosX + root.w
+  const height = Math.max(root.h, avatar ? s(SP.avatar) + s(2) : 0)
+
+  place(root, bubblePosX, 0)
 
   const canvas = createCanvas(width, height)
-  const canvasCtx = canvas.getContext('2d')
+  const ctx = canvas.getContext('2d')
+  render(ctx, root)
 
-  const rectPosX = blockPosX
-  const rectPosY = blockPosY
-  const rectRoundRadius = 25 * scale
-
-  let rect
-  let tailOffset = 0
-  if (mediaType !== 'sticker' || nameCanvas || reply) {
-    if (backgroundColorOne === backgroundColorTwo) {
-      rect = drawRoundRect(backgroundColorOne, rectWidth, rectHeight, rectRoundRadius, tailSize)
-    } else {
-      rect = drawGradientRoundRect(backgroundColorOne, backgroundColorTwo, rectWidth, rectHeight, rectRoundRadius, tailSize)
-    }
-    tailOffset = rect._tailOffset || 0
-  }
-
-  // Bubble background (draw FIRST so tail doesn't cover avatar)
-  if (rect) canvasCtx.drawImage(rect, rectPosX - tailOffset, rectPosY)
-
-  // Avatar at BOTTOM-LEFT (draw AFTER bubble)
+  // Avatar at the bottom-left, over the bubble tail.
   if (avatar) {
-    const avatarY = height - avatarSize - 2 * scale
-    canvasCtx.drawImage(avatar, avatarPosX, Math.max(0, avatarY), avatarSize, avatarSize)
-  }
-
-  // Name + tag
-  if (nameCanvas) {
-    if (tagCanvas) {
-      const tagX = rectPosX + rectWidth - tagCanvas.width - indent * 0.5
-      const tagY = namePosY + (nameCanvas.height - tagCanvas.height) * 0.35
-      const minGap = 8 * scale
-      const availableForTag = rectWidth - indent - indent * 0.5
-
-      if (availableForTag >= tagCanvas.width + minGap) {
-        const maxNameW = tagX - namePosX - minGap
-        if (nameCanvas.width > maxNameW) {
-          canvasCtx.save()
-          canvasCtx.beginPath()
-          canvasCtx.rect(namePosX, namePosY, maxNameW, nameCanvas.height)
-          canvasCtx.clip()
-          canvasCtx.drawImage(nameCanvas, namePosX, namePosY)
-          canvasCtx.restore()
-        } else {
-          canvasCtx.drawImage(nameCanvas, namePosX, namePosY)
-        }
-        canvasCtx.drawImage(tagCanvas, tagX, tagY)
-      } else {
-        canvasCtx.drawImage(nameCanvas, namePosX, namePosY)
-      }
-    } else {
-      canvasCtx.drawImage(nameCanvas, namePosX, namePosY)
-    }
-  }
-
-  // Forward label
-  if (forwardCanvas) canvasCtx.drawImage(forwardCanvas, forwardPosX, forwardPosY)
-
-  // Text
-  if (text) canvasCtx.drawImage(text, textPosX, textPosY)
-
-  // Media
-  if (mediaCanvas) canvasCtx.drawImage(roundImage(mediaCanvas, 5 * scale), mediaPosX, mediaPosY, mediaWidth, mediaHeight)
-
-  // Reply
-  if (reply) {
-    // Line from reply name top to reply text bottom (visual area only)
-    const replyLineH = Math.max(1, (replyTextPosY - replyNamePosY) + reply.text.height * 0.55)
-    canvasCtx.drawImage(drawReplyLine(4 * scale, replyLineH, reply.nameColor), textPosX - 3, replyNamePosY)
-    canvasCtx.drawImage(reply.name, replyPosX, replyNamePosY)
-    canvasCtx.drawImage(reply.text, replyPosX, replyTextPosY)
+    const avatarY = Math.max(0, height - s(SP.avatar) - s(2))
+    ctx.drawImage(avatar, 0, avatarY, s(SP.avatar), s(SP.avatar))
   }
 
   return canvas
+}
+
+// Telegram-style block for a partial quote (message.quote): tinted rounded
+// backdrop in the sender's accent color, solid bar on the left, solid ❝ in
+// the top-right corner. A box like any other — the icon space is just
+// right-padding.
+function quoteBlock (textCanvas, accent, s) {
+  const q = SP.quote
+  return box({
+    pad: { t: s(q.padY), r: s(q.padR), b: s(q.padY), l: s(q.padL) },
+    bg: (ctx, n) => {
+      const solid = drawRoundRect(accent, n.w, n.h, s(q.radius), 0)
+      ctx.globalAlpha = 0.12
+      ctx.drawImage(solid, n.x, n.y)
+      ctx.globalAlpha = 1
+      ctx.drawImage(solid, 0, 0, s(q.bar), n.h, n.x, n.y, s(q.bar), n.h)
+      ctx.drawImage(drawQuoteIcon(s(q.icon), accent, 1), n.x + n.w - s(q.icon) - s(q.iconInset), n.y + s(q.iconInset))
+    },
+    children: [leaf(textCanvas)]
+  })
 }
 
 module.exports = { drawQuote }
