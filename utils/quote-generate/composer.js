@@ -12,9 +12,9 @@ const { leaf, box, measure, place, render } = require('./layout-box')
 // All spacing in logical px (multiplied by scale at use). The single place
 // to tune how a quote breathes.
 const SP = {
-  padX: 13, // bubble inner padding → ink, horizontal
-  padY: 12, // bubble inner padding → ink, vertical
-  gap: 8, // vertical rhythm between stacked blocks (name/forward/reply/media/text)
+  padX: 16, // bubble inner padding → ink, horizontal
+  padY: 15, // bubble inner padding → ink, vertical
+  gap: 9, // vertical rhythm between stacked blocks (name/forward/reply/media/text)
   headerGap: 8, // min gap between name and sender tag
   maxHeader: 300, // header/forward-label width cap — longer names fade out instead of inflating the bubble
   radius: 25, // bubble corner radius
