@@ -6,7 +6,7 @@
 // positioned with ad-hoc offsets — parents size themselves from children.
 
 const { createCanvas } = require('canvas')
-const { drawRoundRect, drawGradientRoundRect, roundImage, drawReplyLine, drawQuoteIcon, drawForwardLabel } = require('./canvas-utils')
+const { drawRoundRect, drawGradientRoundRect, roundImage, drawQuoteIcon, drawForwardLabel } = require('./canvas-utils')
 const { leaf, box, measure, place, render } = require('./layout-box')
 
 // All spacing in logical px (multiplied by scale at use). The single place
@@ -21,9 +21,11 @@ const SP = {
   minWidth: 100, // min bubble width
   avatar: 50, // avatar diameter
   avatarGap: 10, // avatar → bubble
-  mediaRound: 5, // media corner radius
-  reply: { indent: 12, gap: 3, bar: 4 }, // reply block: text indent, name↔text gap, bar width
-  quote: { padY: 7, padL: 11, padR: 22, bar: 3, icon: 15, iconInset: 5, radius: 8 } // partial-quote block
+  mediaRound: 12, // media corner radius (inside a bubble)
+  // Accent block — the modern-Telegram rounded tinted block used for both
+  // the reply preview and the partial-quote body: solid bar on the left,
+  // accent tint behind, optional ❝ in the corner.
+  block: { padY: 6, padL: 10, padR: 10, padRIcon: 22, bar: 3, icon: 15, iconInset: 5, radius: 8, tint: 0.12, gap: 2 }
 }
 
 function drawQuote (options) {
@@ -80,14 +82,14 @@ function drawQuote (options) {
 
   let replyNode = null
   if (reply) {
-    replyNode = box({
-      dir: 'col',
-      gap: s(SP.reply.gap),
-      pad: { l: s(SP.reply.indent) },
-      bg: (ctx, n) => ctx.drawImage(drawReplyLine(s(SP.reply.bar), n.h - s(SP.reply.bar), reply.nameColor), n.x - 3, n.y),
-      children: [leaf(reply.name), leaf(reply.text)]
-    })
+    // Modern Telegram renders the reply preview as a tinted accent block in
+    // the replied sender's color — same visual language as a quote.
+    replyNode = accentBlock(s, reply.nameColor, { children: [leaf(reply.name), leaf(reply.text)] })
   }
+
+  // Media-only bubbles (photo with no caption/name/reply) are pure media:
+  // the photo IS the bubble, rounded with the bubble radius.
+  const mediaOnly = !!mediaCanvas && !nameCanvas && !text && !reply && !forwardLabel
 
   let mediaNode = null
   if (mediaCanvas) {
@@ -98,17 +100,21 @@ function drawQuote (options) {
       mediaWidth = maxMediaSize
       mediaHeight = mediaCanvas.height * (maxMediaSize / mediaCanvas.width)
     }
+    const mediaRadius = mediaOnly || isSticker ? s(SP.radius * 0.6) : s(SP.mediaRound)
     mediaNode = leaf(mediaCanvas, {
       trim: false,
+      bleed: true, // modern Telegram: media spans the full bubble width
       w: mediaWidth,
       h: mediaHeight,
-      paint: (ctx, n) => ctx.drawImage(roundImage(n.canvas, s(SP.mediaRound)), n.x, n.y, n.w, n.h)
+      paint: (ctx, n) => ctx.drawImage(roundImage(n.canvas, mediaRadius), n.x, n.y, n.w, n.h)
     })
   }
 
   let textNode = null
   if (text) {
-    textNode = isQuote ? quoteBlock(text, accent, s) : leaf(text)
+    textNode = isQuote
+      ? accentBlock(s, accent, { icon: true, children: [leaf(text)] })
+      : leaf(text)
   }
 
   // ---- Tree ---------------------------------------------------------------
@@ -140,8 +146,8 @@ function drawQuote (options) {
     root = box({
       dir: 'col',
       gap: s(SP.gap),
-      pad: bubblePad,
-      minW: s(SP.minWidth),
+      pad: mediaOnly ? 0 : bubblePad,
+      minW: mediaOnly ? 0 : s(SP.minWidth),
       bg: bubbleBg,
       children: [headerNode, forwardNode, replyNode, mediaNode, textNode]
     })
@@ -170,23 +176,25 @@ function drawQuote (options) {
   return canvas
 }
 
-// Telegram-style block for a partial quote (message.quote): tinted rounded
-// backdrop in the sender's accent color, solid bar on the left, solid ❝ in
-// the top-right corner. A box like any other — the icon space is just
-// right-padding.
-function quoteBlock (textCanvas, accent, s) {
-  const q = SP.quote
+// The modern-Telegram accent block: rounded backdrop tinted with the accent
+// color, solid accent bar on the left, optional solid ❝ in the top-right
+// corner. Used for the reply preview (accent = replied sender's color) and
+// the partial-quote body (accent = quoted sender's color).
+function accentBlock (s, accent, { icon = false, children }) {
+  const b = SP.block
   return box({
-    pad: { t: s(q.padY), r: s(q.padR), b: s(q.padY), l: s(q.padL) },
+    gap: s(b.gap),
+    pad: { t: s(b.padY), r: s(icon ? b.padRIcon : b.padR), b: s(b.padY), l: s(b.padL) },
     bg: (ctx, n) => {
-      const solid = drawRoundRect(accent, n.w, n.h, s(q.radius), 0)
-      ctx.globalAlpha = 0.12
+      const solid = drawRoundRect(accent, n.w, n.h, s(b.radius), 0)
+      ctx.save()
+      ctx.globalAlpha = b.tint
       ctx.drawImage(solid, n.x, n.y)
-      ctx.globalAlpha = 1
-      ctx.drawImage(solid, 0, 0, s(q.bar), n.h, n.x, n.y, s(q.bar), n.h)
-      ctx.drawImage(drawQuoteIcon(s(q.icon), accent, 1), n.x + n.w - s(q.icon) - s(q.iconInset), n.y + s(q.iconInset))
+      ctx.restore()
+      ctx.drawImage(solid, 0, 0, s(b.bar), n.h, n.x, n.y, s(b.bar), n.h)
+      if (icon) ctx.drawImage(drawQuoteIcon(s(b.icon), accent, 1), n.x + n.w - s(b.icon) - s(b.iconInset), n.y + s(b.iconInset))
     },
-    children: [leaf(textCanvas)]
+    children
   })
 }
 

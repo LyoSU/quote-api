@@ -32,6 +32,10 @@ function leaf (canvas, opts = {}) {
   if (!canvas) return null
   const trim = opts.trim !== false
   const ink = trim ? inkBounds(canvas) : null
+  // A trimmed canvas with no visible pixels (drawMultilineText returns a
+  // 1×1 stub for empty text) is not an element — it must not occupy a slot
+  // in the flow and produce a phantom gap.
+  if (trim && !ink) return null
   const srcY = ink ? ink.top : 0
   const srcH = ink ? ink.bottom - ink.top + 1 : canvas.height
   return {
@@ -41,6 +45,7 @@ function leaf (canvas, opts = {}) {
     srcH,
     w: opts.w !== undefined ? opts.w : canvas.width,
     h: opts.h !== undefined ? opts.h : srcH,
+    bleed: !!opts.bleed,
     paint: opts.paint || null
   }
 }
@@ -74,36 +79,50 @@ function measure (n) {
   let h = 0
   for (const c of n.children) measure(c)
   if (n.dir === 'col') {
+    // A `bleed` child ignores the horizontal padding (full-width media).
+    let outerW = 0
     for (const c of n.children) {
-      if (c.w > w) w = c.w
+      const cw = c.bleed ? c.w : c.w + n.pad.l + n.pad.r
+      if (cw > outerW) outerW = cw
       h += c.h
     }
     h += n.gap * Math.max(0, n.children.length - 1)
+    n.w = outerW
   } else {
     for (const c of n.children) {
       if (c.h > h) h = c.h
       w += c.w
     }
     w += n.gap * Math.max(0, n.children.length - 1)
+    n.w = w + n.pad.l + n.pad.r
   }
-  n.w = w + n.pad.l + n.pad.r
-  n.h = h + n.pad.t + n.pad.b
+  // Whole-pixel sizes: fractional widths (scaled media) would otherwise be
+  // truncated by createCanvas in bg painters, clipping the backdrop by 1px.
+  n.w = Math.ceil(n.w)
+  n.h = Math.ceil(h + n.pad.t + n.pad.b)
   if (n.w < n.minW) n.w = n.minW
   return n
 }
 
-/** Top-down placement. Children flagged `stretch` fill the inner width. */
+/**
+ * Top-down placement. Children flagged `stretch` fill the inner width.
+ * Coordinates are snapped to whole pixels — drawing a text canvas at a
+ * fractional position (e.g. after centering) makes the glyphs blurry.
+ */
 function place (n, x, y, stretchW) {
   if (stretchW !== undefined && n.stretch) n.w = stretchW
-  n.x = x
-  n.y = y
+  n.x = Math.round(x)
+  n.y = Math.round(y)
+  x = n.x
+  y = n.y
   if (n.kind === 'leaf') return
   const innerW = n.w - n.pad.l - n.pad.r
   if (n.dir === 'col') {
     let cy = y + n.pad.t
     for (const c of n.children) {
       let cx = x + n.pad.l
-      if (n.align === 'center' && c.w < innerW) cx += (innerW - c.w) / 2
+      if (c.bleed) cx = x + Math.max(0, (n.w - c.w) / 2) // full-width child, centered
+      else if (n.align === 'center' && c.w < innerW) cx += (innerW - c.w) / 2
       place(c, cx, cy, innerW)
       cy += c.h + n.gap
     }

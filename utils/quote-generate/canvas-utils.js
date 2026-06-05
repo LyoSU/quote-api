@@ -155,20 +155,22 @@ function addQuoteMarkPath (ctx, x, y, r, s) {
 function inkBounds (canvas) {
   const w = canvas.width
   const h = canvas.height
-  if (w < 1 || h < 1) return null
+  // Plain Images (loadImage results) have no getContext — callers must not
+  // trim those; treat them as fully opaque.
+  if (w < 1 || h < 1 || typeof canvas.getContext !== 'function') return null
   const data = canvas.getContext('2d').getImageData(0, 0, w, h).data
-  let top = -1
-  let bottom = -1
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if (data[(y * w + x) * 4 + 3] > 8) {
-        if (top === -1) top = y
-        bottom = y
-        break
-      }
-    }
+  const rowHasInk = (y) => {
+    const off = y * w * 4 + 3
+    for (let x = 0; x < w; x++) if (data[off + x * 4] > 8) return true
+    return false
   }
-  return top === -1 ? null : { top, bottom }
+  // Scan from both ends — skips the (usually large) solid middle.
+  let top = -1
+  for (let y = 0; y < h; y++) if (rowHasInk(y)) { top = y; break }
+  if (top === -1) return null
+  let bottom = top
+  for (let y = h - 1; y > top; y--) if (rowHasInk(y)) { bottom = y; break }
+  return { top, bottom }
 }
 
 function drawForwardLabel (text, fontSize, color) {
