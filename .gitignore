@@ -39,3 +39,6 @@ Thumbs.db
 assets/fonts/*
 assets/emojis/*
 !.gitkeep
+.superpowers/
+test-output/
+assets/fonts/*.ttf

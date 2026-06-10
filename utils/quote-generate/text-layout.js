@@ -28,6 +28,11 @@ function getLineDirection (segments, startIndex) {
  */
 function layoutText (prepared, maxWidth, maxHeight) {
   const { segments, fontSize, lineHeight, emojiSize } = prepared
+  // Font em-box metrics: line geometry must be a constant of the font, not
+  // of the glyphs drawn (no ink-dependent heights). Fallback to the legacy
+  // fontSize bounds when a caller passes a hand-built `prepared`.
+  const ascent = Number.isFinite(prepared.ascent) ? prepared.ascent : fontSize
+  const descent = Number.isFinite(prepared.descent) ? prepared.descent : fontSize
   if (segments.length === 0) {
     return { lines: [], width: 0, height: 0, lineCount: 0, truncated: false }
   }
@@ -38,7 +43,7 @@ function layoutText (prepared, maxWidth, maxHeight) {
 
   const lines = []
   let currentLine = { segments: [], width: 0, direction: 'ltr' }
-  let lineY = fontSize // Start at fontSize for canvas baseline offset
+  let lineY = ascent // First baseline sits at the font ascent
   let maxLineWidth = 0
   let truncated = false
 
@@ -271,7 +276,7 @@ function layoutText (prepared, maxWidth, maxHeight) {
     line.contentWidth = contentWidth || line.width
   }
 
-  const totalHeight = lines.length > 0 ? lines[lines.length - 1].y + fontSize : 0
+  const totalHeight = lines.length > 0 ? lines[lines.length - 1].y + descent : 0
 
   return {
     lines,

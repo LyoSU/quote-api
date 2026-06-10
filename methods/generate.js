@@ -95,11 +95,14 @@ module.exports = async (parm) => {
   }
 
   // Same-sender runs render with grouped corners (small radii between
-  // neighbours), like consecutive messages in Telegram.
+  // neighbours), like consecutive messages in Telegram. The avatar (and with
+  // it the bubble tail) belongs to the LAST message of a group only — the
+  // reserved left column keeps the other bubbles aligned.
   for (let i = 0; i < validMessages.length; i++) {
     const prevSame = i > 0 && validMessages[i - 1].chatId === validMessages[i].chatId
     const nextSame = i < validMessages.length - 1 && validMessages[i + 1].chatId === validMessages[i].chatId
     validMessages[i].groupPos = prevSame && nextSame ? 'middle' : prevSame ? 'last' : nextSame ? 'first' : 'single'
+    if (nextSame) validMessages[i].avatar = false
   }
 
   // Generate quotes with concurrency limit to avoid Telegram API rate limits
