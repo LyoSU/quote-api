@@ -78,10 +78,16 @@ async function main () {
     }
     // Wallpaper near the corner; bubble interior right of the avatar column
     // ((50+10+16)·s + margin, vertical center).
-    const wall = brightness(get(8, 8))
+    const wallPx = get(8, 8)
+    const wall = brightness(wallPx)
     const bubble = brightness(get(95 * scale / 2 + (50 + 10 + 20) * scale, Math.round(pic.height / 2)))
     assert.ok(Math.abs(bubble - wall) >= 18,
       `${label}: bubble (${bubble.toFixed(0)}) blends into wallpaper (${wall.toFixed(0)})`)
+    // Light wallpapers must be pastel, not gray: require visible chroma.
+    if (label === 'light') {
+      const chroma = Math.max(wallPx.r, wallPx.g, wallPx.b) - Math.min(wallPx.r, wallPx.g, wallPx.b)
+      assert.ok(chroma >= 15, `light wallpaper is gray (chroma ${chroma}) — expected a pastel tint`)
+    }
     console.log(`  image/${label}: bubble ${bubble.toFixed(0)} vs wallpaper ${wall.toFixed(0)} (Δ${Math.abs(bubble - wall).toFixed(0)})`)
   }
 

@@ -2,7 +2,7 @@ const path = require('path')
 const { QuoteGenerate } = require('../utils')
 const { createCanvas, loadImage } = require('canvas')
 const sharp = require('sharp')
-const { parseBackgroundColor, colorLuminance, lightOrDark } = require('../utils/quote-generate/color')
+const { parseBackgroundColor, colorLuminance, lightOrDark, hexToHsl, hslToHex } = require('../utils/quote-generate/color')
 const { brands: emojiBrands } = require('../utils/emoji-image')
 
 const ALLOWED_EMOJI_BRANDS = new Set(Object.keys(emojiBrands))
@@ -53,36 +53,50 @@ function normalizeMessage (message) {
   }
 }
 
-async function drawPatternBackground (canvas, colorOne, colorTwo, patternImage, lumOne, lumTwo) {
+async function drawPatternBackground (canvas, centerColor, edgeColor, patternImage, patternAlpha) {
   const ctx = canvas.getContext('2d')
 
   const gradient = ctx.createRadialGradient(
     canvas.width / 2, canvas.height / 2, 0,
     canvas.width / 2, canvas.height / 2, canvas.width / 2
   )
-
-  const patternColorOne = colorLuminance(colorOne, lumOne)
-  const patternColorTwo = colorLuminance(colorTwo, lumTwo)
-
-  gradient.addColorStop(0, patternColorOne)
-  gradient.addColorStop(1, patternColorTwo)
+  gradient.addColorStop(0, centerColor)
+  gradient.addColorStop(1, edgeColor)
 
   ctx.fillStyle = gradient
   ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-  const pattern = ctx.createPattern(imageAlpha(patternImage, 0.22), 'repeat')
+  const pattern = ctx.createPattern(imageAlpha(patternImage, patternAlpha), 'repeat')
   ctx.fillStyle = pattern
   ctx.fillRect(0, 0, canvas.width, canvas.height)
 }
 
-// Wallpaper luminance offsets relative to the bubble colors. The bubble must
-// sit ON the wallpaper, not dissolve into it: dark bubbles get a much darker
-// backdrop, light bubbles a moderately darker one (they can't go lighter
-// than near-white). Center is brighter than the edge → soft vignette.
-function wallpaperLums (colorOne) {
-  return lightOrDark(colorOne) === 'dark'
-    ? { center: -0.35, edge: -0.6 }
-    : { center: -0.18, edge: -0.38 }
+// Wallpaper colors derived from the bubble color. The bubble must sit ON the
+// wallpaper, not dissolve into it:
+//  • dark bubbles → a much darker backdrop (luminance drop + vignette);
+//  • light bubbles → a PASTEL backdrop, like Telegram's light wallpapers:
+//    saturate the hue and keep lightness high — darkening a near-white just
+//    makes mud. Near-gray inputs fall back to a soft Telegram-ish blue.
+function wallpaperColors (colorOne) {
+  if (lightOrDark(colorOne) === 'dark') {
+    return {
+      center: colorLuminance(colorOne, -0.35),
+      edge: colorLuminance(colorOne, -0.6),
+      patternAlpha: 0.22
+    }
+  }
+  let [h, s] = hexToHsl(colorOne)
+  if (s < 0.08) {
+    h = 207 // washed-out gray/white → soft blue
+    s = 0.45
+  } else {
+    s = Math.min(1, Math.max(s * 1.8, 0.35))
+  }
+  return {
+    center: hslToHex(h, s, 0.8),
+    edge: hslToHex(h, s, 0.62),
+    patternAlpha: 0.18
+  }
 }
 
 module.exports = async (parm) => {
@@ -235,8 +249,8 @@ module.exports = async (parm) => {
     const canvasPicCtx = canvasPic.getContext('2d')
 
     const patternImage = await getPatternImage()
-    const lums = wallpaperLums(background.colorOne)
-    await drawPatternBackground(canvasPic, background.colorTwo, background.colorOne, patternImage, lums.center, lums.edge)
+    const wp = wallpaperColors(background.colorOne)
+    await drawPatternBackground(canvasPic, wp.center, wp.edge, patternImage, wp.patternAlpha)
 
     canvasPicCtx.shadowOffsetX = 8
     canvasPicCtx.shadowOffsetY = 8
@@ -261,8 +275,8 @@ module.exports = async (parm) => {
     const canvasPicCtx = canvasPic.getContext('2d')
 
     const patternImage = await getPatternImage()
-    const storyLums = wallpaperLums(background.colorOne)
-    await drawPatternBackground(canvasPic, background.colorTwo, background.colorOne, patternImage, storyLums.center, storyLums.edge)
+    const storyWp = wallpaperColors(background.colorOne)
+    await drawPatternBackground(canvasPic, storyWp.center, storyWp.edge, patternImage, storyWp.patternAlpha)
 
     canvasPicCtx.shadowOffsetX = 8
     canvasPicCtx.shadowOffsetY = 8
