@@ -5,6 +5,46 @@ const sharp = require('sharp')
 const { Jimp, JimpMime } = require('jimp')
 const smartcrop = require('smartcrop-sharp')
 const loadImageFromUrl = require('../image-load-url')
+const { execFile } = require('child_process')
+const crypto = require('crypto')
+const fs = require('fs')
+const os = require('os')
+const path = require('path')
+
+// Telegram animations (GIFs) are mp4 files; thumbnail-less ones reach us as
+// raw video buffers that neither canvas nor sharp can decode. Detect a video
+// container by magic bytes and extract the first frame via ffmpeg
+// (best-effort: no ffmpeg installed → behave like before, media is skipped).
+function isVideoBuffer (buffer) {
+  if (!buffer || buffer.length < 12) return false
+  // mp4/mov/m4v: "ftyp" box at offset 4
+  if (buffer.slice(4, 8).toString('latin1') === 'ftyp') return true
+  // webm/mkv: EBML header
+  if (buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3) return true
+  return false
+}
+
+function extractVideoFrame (buffer) {
+  return new Promise((resolve) => {
+    // ffmpeg needs a seekable input for mp4 (moov atom may sit at the end),
+    // so go through a temp file; the PNG frame comes back on stdout.
+    const tmp = path.join(os.tmpdir(), `quote-media-${crypto.randomBytes(8).toString('hex')}`)
+    fs.writeFile(tmp, buffer, (writeErr) => {
+      if (writeErr) return resolve(null)
+      execFile('ffmpeg', [
+        '-y', '-i', tmp,
+        '-frames:v', '1', '-f', 'image2pipe', '-c:v', 'png', 'pipe:1'
+      ], { encoding: 'buffer', maxBuffer: 64 * 1024 * 1024, timeout: 15000 }, (err, stdout) => {
+        fs.unlink(tmp, () => {})
+        if (err || !stdout || stdout.length === 0) {
+          if (err) console.warn('ffmpeg frame extraction failed:', err.message)
+          return resolve(null)
+        }
+        resolve(stdout)
+      })
+    })
+  })
+}
 
 async function downloadMediaImage (media, mediaSize, type, crop, telegram) {
   type = type || 'id'
@@ -20,7 +60,7 @@ async function downloadMediaImage (media, mediaSize, type, crop, telegram) {
       return null
     }
 
-    const load = await loadImageFromUrl(mediaUrl).catch((error) => {
+    let load = await loadImageFromUrl(mediaUrl).catch((error) => {
       console.warn('Failed to load image from URL:', error.message)
       return null
     })
@@ -28,6 +68,17 @@ async function downloadMediaImage (media, mediaSize, type, crop, telegram) {
     if (!load) {
       console.warn('Failed to load media, skipping')
       return null
+    }
+
+    // Raw video (thumbnail-less GIF/animation) → first frame, then the
+    // normal image pipeline below applies unchanged.
+    if (isVideoBuffer(load)) {
+      const frame = await extractVideoFrame(load)
+      if (!frame) {
+        console.warn('Media is a video and no frame could be extracted, skipping')
+        return null
+      }
+      load = frame
     }
 
     if (crop || (mediaUrl && mediaUrl.match(/.webp/))) {
