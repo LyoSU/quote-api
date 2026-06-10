@@ -67,6 +67,14 @@ function box (opts = {}) {
   }
 }
 
+// Vertical flow gap before a column child: the box gap by default, or the
+// child's own `mt` (margin-top) when set — text nodes carry metric slack
+// above their cap line, so they ask for mt 0 and supply the air themselves.
+function gapBefore (box, child, index) {
+  if (index === 0) return 0
+  return child.mt !== undefined ? child.mt : box.gap
+}
+
 /** Bottom-up natural sizing: parent = children + gaps + padding. */
 function measure (n) {
   if (n.kind === 'leaf') return n
@@ -76,12 +84,12 @@ function measure (n) {
   if (n.dir === 'col') {
     // A `bleed` child ignores the horizontal padding (full-width media).
     let outerW = 0
-    for (const c of n.children) {
+    for (let i = 0; i < n.children.length; i++) {
+      const c = n.children[i]
       const cw = c.bleed ? c.w : c.w + n.pad.l + n.pad.r
       if (cw > outerW) outerW = cw
-      h += c.h
+      h += gapBefore(n, c, i) + c.h
     }
-    h += n.gap * Math.max(0, n.children.length - 1)
     n.w = outerW
   } else {
     for (const c of n.children) {
@@ -117,12 +125,14 @@ function place (n, x, y, stretchW) {
   const innerW = n.w - n.pad.l - n.pad.r
   if (n.dir === 'col') {
     let cy = y + n.pad.t
-    for (const c of n.children) {
+    for (let i = 0; i < n.children.length; i++) {
+      const c = n.children[i]
       let cx = x + n.pad.l
       if (c.bleed) cx = x + Math.max(0, (n.w - c.w) / 2) // full-width child, centered
       else if (n.align === 'center' && c.w < innerW) cx += (innerW - c.w) / 2
+      cy += gapBefore(n, c, i)
       place(c, cx, cy, innerW)
-      cy += c.h + n.gap
+      cy += c.h
     }
   } else {
     const crossY = (c) => n.align === 'center'
