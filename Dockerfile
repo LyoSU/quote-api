@@ -43,6 +43,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     librsvg2-2 \
     libpixman-1-0 \
     libvips42 \
+    ffmpeg \
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && fc-cache -f -v

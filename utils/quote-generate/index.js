@@ -5,6 +5,7 @@ const path = require('path')
 const { registerFont, loadImage } = require('canvas')
 const { Telegram } = require('telegraf')
 const loadImageFromUrl = require('../image-load-url')
+const emojiDb = require('../emoji-db')
 
 const { drawMultilineText } = require('./text-renderer')
 const { drawAvatar } = require('./avatar')
@@ -106,9 +107,11 @@ class QuoteGenerate {
           name, nameEntities, nameSize, nameColor,
           0, nameSize, width, nameSize, emojiBrand, this.telegram
         )
-        // Gradient accent on the name (base → lightened). Skipped when an
-        // emoji-status image is in the canvas — source-in would tint it too.
-        if (!message.from.emoji_status) {
+        // Gradient accent on the name (base → lightened). Skipped when any
+        // emoji image is in the canvas — source-in would tint it into a
+        // flat silhouette (emoji status or regular emoji in the name).
+        const nameHasEmoji = emojiDb.searchFromText({ input: name, fixCodePoints: true }).length > 0
+        if (!message.from.emoji_status && !nameHasEmoji) {
           nameCanvas = gradientTint(nameCanvas, nameColor, colorLuminance(nameColor, 0.25))
         }
       } catch (error) {
