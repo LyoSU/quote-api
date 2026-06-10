@@ -2,7 +2,7 @@
 
 const fs = require('fs')
 const path = require('path')
-const { registerFont, createCanvas, loadImage } = require('canvas')
+const { registerFont, loadImage } = require('canvas')
 const { Telegram } = require('telegraf')
 const loadImageFromUrl = require('../image-load-url')
 
@@ -10,7 +10,8 @@ const { drawMultilineText } = require('./text-renderer')
 const { drawAvatar } = require('./avatar')
 const { downloadMediaImage } = require('./media')
 const { drawQuote } = require('./composer')
-const { drawWaveform } = require('./waveform')
+const { drawLabel } = require('./canvas-utils')
+const { loadIcons, drawVoiceRow, drawDocumentRow, drawAudioRow, formatDuration } = require('./attachments')
 const { ColorContrast, lightOrDark, colorLuminance } = require('./color')
 const { NAME_COLORS_LIGHT, NAME_COLORS_DARK } = require('./constants')
 
@@ -28,7 +29,17 @@ async function loadFonts () {
   for (const file of files) {
     if (file.startsWith('.')) continue
     try {
-      registerFont(path.join(fontsDir, file), { family: file.replace(/\.[^/.]+$/, '') })
+      // "NotoSans-BoldItalic.ttf" → family NotoSans, weight bold, style italic.
+      // Files without a recognized suffix register as plain family names.
+      let family = file.replace(/\.[^/.]+$/, '')
+      const desc = { }
+      const m = family.match(/^(.*?)-(Regular|Bold|Italic|BoldItalic)$/)
+      if (m) {
+        family = m[1]
+        if (m[2].includes('Bold')) desc.weight = 'bold'
+        if (m[2].includes('Italic')) desc.style = 'italic'
+      }
+      registerFont(path.join(fontsDir, file), { family, ...desc })
     } catch (error) {
       console.warn(`${file} is not a font file`)
     }
@@ -44,6 +55,7 @@ class QuoteGenerate {
   }
 
   async generate (backgroundColorOne, backgroundColorTwo, message, width, height, scale, emojiBrand) {
+    await loadIcons() // warm white icon sprites (no-op after first call)
     scale = scale || 2
     if (!Number.isFinite(scale) || scale < 1) scale = 1
     if (scale > 20) scale = 20
@@ -64,7 +76,9 @@ class QuoteGenerate {
       nameColor = colorContrast.adjustContrast(colorLuminance(backgroundColorTwo, 0.55), nameColor)
     }
 
-    const nameSize = 22 * scale
+    // Name is noticeably smaller than the message text (like Telegram), so
+    // the eye lands on the content first.
+    const nameSize = 18 * scale
 
     let nameCanvas
     if (message.from && message.from.name !== false && (message.from.name || message.from.first_name || message.from.last_name)) {
@@ -92,6 +106,11 @@ class QuoteGenerate {
           name, nameEntities, nameSize, nameColor,
           0, nameSize, width, nameSize, emojiBrand, this.telegram
         )
+        // Gradient accent on the name (base → lightened). Skipped when an
+        // emoji-status image is in the canvas — source-in would tint it too.
+        if (!message.from.emoji_status) {
+          nameCanvas = gradientTint(nameCanvas, nameColor, colorLuminance(nameColor, 0.25))
+        }
       } catch (error) {
         console.error('Failed to render name:', error.message, error.stack)
         // Retry without entities (drop emoji status etc)
@@ -169,13 +188,13 @@ class QuoteGenerate {
         const replyName = typeof message.replyMessage.name === 'string' ? message.replyMessage.name : String(message.replyMessage.name)
         const replyText = typeof message.replyMessage.text === 'string' ? message.replyMessage.text : String(message.replyMessage.text)
 
-        const replyNameFontSize = 16 * scale
+        const replyNameFontSize = 14 * scale
         const replyNameCanvas = await drawMultilineText(
           replyName, 'bold', replyNameFontSize, replyNameColor,
           0, replyNameFontSize, width * 0.9, replyNameFontSize, emojiBrand, this.telegram
         )
 
-        const replyTextFontSize = 21 * scale
+        const replyTextFontSize = 15 * scale
         const replyTextCanvas = await drawMultilineText(
           replyText, message.replyMessage.entities || [],
           replyTextFontSize, textColor,
@@ -225,7 +244,10 @@ class QuoteGenerate {
         }
       }
 
-      maxMediaSize = width / 3 * scale
+      // Media caps at ⅔ of the target width (like Telegram photos). `width`
+      // already carries the scale factor; the old `width / 3 * scale` only
+      // matched this at scale 2 and ballooned at higher scales.
+      maxMediaSize = width * 2 / 3
       if (message.text && textCanvas && maxMediaSize < textCanvas.width) maxMediaSize = textCanvas.width
 
       if (media && media.is_animated) {
@@ -249,9 +271,40 @@ class QuoteGenerate {
       }
     }
 
+    // Row-style attachments (rendered inside the bubble, like Telegram).
+    let attachment = null
+    const attachMaxW = width * 2 / 3
     if (message.voice && Array.isArray(message.voice.waveform)) {
-      mediaCanvas = drawWaveform(message.voice.waveform)
-      maxMediaSize = width / 3 * scale
+      attachment = drawVoiceRow(
+        message.voice.waveform, message.voice.duration,
+        nameColor, textColor, scale, attachMaxW
+      )
+    } else if (message.document) {
+      attachment = drawDocumentRow(message.document, nameColor, textColor, scale, attachMaxW)
+    } else if (message.audio) {
+      let audioThumb = null
+      const thumbId = message.audio.thumb && (message.audio.thumb.file_id || message.audio.thumb)
+      if (thumbId) {
+        try {
+          const fileUrl = typeof thumbId === 'string' && thumbId.startsWith('http')
+            ? thumbId
+            : await this.telegram.getFileLink(thumbId)
+          audioThumb = await loadImage(await loadImageFromUrl(fileUrl))
+        } catch (error) {
+          console.warn('Failed to load audio thumb:', error.message)
+        }
+      }
+      attachment = drawAudioRow(message.audio, nameColor, textColor, scale, attachMaxW, audioThumb)
+    }
+
+    // Video/GIF media badges, painted over the media by the composer.
+    let mediaBadge = null
+    if (mediaCanvas) {
+      if (message.mediaType === 'video') {
+        mediaBadge = { play: true, label: message.mediaDuration != null ? formatDuration(message.mediaDuration) : null }
+      } else if (message.mediaType === 'gif' || message.mediaType === 'animation') {
+        mediaBadge = { label: 'GIF' }
+      }
     }
 
     // Forward label
@@ -264,20 +317,12 @@ class QuoteGenerate {
     // "via @bot" chip (inline-bot messages)
     let viaBotCanvas = null
     if (message.viaBot) {
-      const viaFontSize = 14 * scale
       const viaText = `via @${String(message.viaBot).replace(/^@/, '')}`
-      const tmpCtx = createCanvas(1, 1).getContext('2d')
-      tmpCtx.font = `${viaFontSize}px "Noto Sans", "SF Pro", sans-serif`
-      viaBotCanvas = createCanvas(Math.ceil(tmpCtx.measureText(viaText).width) + 4, Math.ceil(viaFontSize * 1.4))
-      const viaCtx = viaBotCanvas.getContext('2d')
-      viaCtx.font = `${viaFontSize}px "Noto Sans", "SF Pro", sans-serif`
-      viaCtx.fillStyle = nameColor
-      viaCtx.globalAlpha = 0.8
-      viaCtx.fillText(viaText, 0, viaFontSize)
+      viaBotCanvas = drawLabel(viaText, 13 * scale, nameColor, { alpha: 0.8 })
     }
 
     // Nothing to render — skip this message
-    if (!textCanvas && !nameCanvas && !mediaCanvas && !replyData) {
+    if (!textCanvas && !nameCanvas && !mediaCanvas && !replyData && !attachment) {
       return null
     }
 
@@ -289,7 +334,8 @@ class QuoteGenerate {
       name: nameCanvas,
       text: textCanvas,
       textBlocks,
-      media: mediaCanvas ? { canvas: mediaCanvas, type: mediaType, maxSize: maxMediaSize } : null,
+      media: mediaCanvas ? { canvas: mediaCanvas, type: mediaType, maxSize: maxMediaSize, badge: mediaBadge } : null,
+      attachment: attachment ? { canvas: attachment } : null,
       isForward,
       forwardLabel,
       nameColor,
@@ -299,6 +345,24 @@ class QuoteGenerate {
       isQuote: !!message.isQuote
     })
   }
+}
+
+/**
+ * Recolors every opaque pixel of a text canvas with a horizontal gradient
+ * (source-in compositing keeps the glyph alpha, replaces the color).
+ */
+function gradientTint (canvas, colorFrom, colorTo) {
+  if (!canvas || canvas.width < 2) return canvas
+  const ctx = canvas.getContext('2d')
+  const grad = ctx.createLinearGradient(0, 0, canvas.width, 0)
+  grad.addColorStop(0, colorFrom)
+  grad.addColorStop(1, colorTo)
+  ctx.save()
+  ctx.globalCompositeOperation = 'source-in'
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.restore()
+  return canvas
 }
 
 /**
@@ -342,3 +406,4 @@ function splitByBlockquotes (text, entities) {
 
 module.exports = QuoteGenerate
 module.exports.loadFonts = loadFonts
+module.exports.gradientTint = gradientTint

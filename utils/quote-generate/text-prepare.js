@@ -36,6 +36,36 @@ function getMeasureCtx () {
 // Module-level emoji image cache — persists across calls
 const emojiImageCache = new Map()
 
+// Vertical metrics of the base font at a given size — a constant of the
+// font, so glyph shapes never affect line geometry (no "breathing" bubbles).
+// The box is the union of three deterministic extents:
+//   • the font em box (emHeightAscent/Descent),
+//   • the ink of fixed probe strings with extreme diacritics/descenders
+//     (some fonts draw stacked accents outside their em box),
+//   • the emoji draw box: images sit at [baseline − 0.85·fs, baseline + 0.30·fs]
+//     (see text-render.js: y = baseline − fs + 0.15·fs, size = 1.15·fs).
+const PROBE_TALL = 'ẤÅЇĎ'
+const PROBE_DEEP = 'jqyḑộ'
+const fontMetricsCache = new Map()
+
+function fontMetrics (fontSize) {
+  let m = fontMetricsCache.get(fontSize)
+  if (m) return m
+  const ctx = getMeasureCtx()
+  ctx.font = `${fontSize}px NotoSans`
+  const em = ctx.measureText('Mg')
+  const tall = ctx.measureText(PROBE_TALL)
+  const deep = ctx.measureText(PROBE_DEEP)
+  const emAscent = Number.isFinite(em.emHeightAscent) ? em.emHeightAscent : fontSize * 1.05
+  const emDescent = Number.isFinite(em.emHeightDescent) ? em.emHeightDescent : fontSize * 0.3
+  m = {
+    ascent: Math.ceil(Math.max(emAscent, tall.actualBoundingBoxAscent || 0, fontSize * 0.85)),
+    descent: Math.ceil(Math.max(emDescent, deep.actualBoundingBoxDescent || 0, fontSize * 0.3))
+  }
+  fontMetricsCache.set(fontSize, m)
+  return m
+}
+
 // Resolve the font string for a set of styles
 function resolveFont (styles, fontSize) {
   let fontType = ''
@@ -455,7 +485,8 @@ async function prepareText (text, entities, fontSize, emojiBrand, telegram) {
       segments: [],
       fontSize,
       lineHeight: fontSize * 1.2,
-      emojiSize: fontSize * EMOJI_SCALE
+      emojiSize: fontSize * EMOJI_SCALE,
+      ...fontMetrics(fontSize)
     }
   }
 
@@ -498,8 +529,9 @@ async function prepareText (text, entities, fontSize, emojiBrand, telegram) {
     fontSize,
     lineHeight: fontSize * 1.2,
     emojiSize: fontSize * EMOJI_SCALE,
+    ...fontMetrics(fontSize),
     computeGraphemeWidths
   }
 }
 
-module.exports = { prepareText, graphemeSegmenter, getMeasureCtx }
+module.exports = { prepareText, graphemeSegmenter, getMeasureCtx, fontMetrics }
