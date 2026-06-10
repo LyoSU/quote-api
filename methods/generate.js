@@ -2,7 +2,7 @@ const path = require('path')
 const { QuoteGenerate } = require('../utils')
 const { createCanvas, loadImage } = require('canvas')
 const sharp = require('sharp')
-const { parseBackgroundColor, colorLuminance } = require('../utils/quote-generate/color')
+const { parseBackgroundColor, colorLuminance, lightOrDark } = require('../utils/quote-generate/color')
 const { brands: emojiBrands } = require('../utils/emoji-image')
 
 const ALLOWED_EMOJI_BRANDS = new Set(Object.keys(emojiBrands))
@@ -70,9 +70,19 @@ async function drawPatternBackground (canvas, colorOne, colorTwo, patternImage, 
   ctx.fillStyle = gradient
   ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-  const pattern = ctx.createPattern(imageAlpha(patternImage, 0.3), 'repeat')
+  const pattern = ctx.createPattern(imageAlpha(patternImage, 0.22), 'repeat')
   ctx.fillStyle = pattern
   ctx.fillRect(0, 0, canvas.width, canvas.height)
+}
+
+// Wallpaper luminance offsets relative to the bubble colors. The bubble must
+// sit ON the wallpaper, not dissolve into it: dark bubbles get a much darker
+// backdrop, light bubbles a moderately darker one (they can't go lighter
+// than near-white). Center is brighter than the edge → soft vignette.
+function wallpaperLums (colorOne) {
+  return lightOrDark(colorOne) === 'dark'
+    ? { center: -0.35, edge: -0.6 }
+    : { center: -0.18, edge: -0.38 }
 }
 
 module.exports = async (parm) => {
@@ -225,7 +235,8 @@ module.exports = async (parm) => {
     const canvasPicCtx = canvasPic.getContext('2d')
 
     const patternImage = await getPatternImage()
-    await drawPatternBackground(canvasPic, background.colorTwo, background.colorOne, patternImage, 0.15, 0.15)
+    const lums = wallpaperLums(background.colorOne)
+    await drawPatternBackground(canvasPic, background.colorTwo, background.colorOne, patternImage, lums.center, lums.edge)
 
     canvasPicCtx.shadowOffsetX = 8
     canvasPicCtx.shadowOffsetY = 8
@@ -250,7 +261,8 @@ module.exports = async (parm) => {
     const canvasPicCtx = canvasPic.getContext('2d')
 
     const patternImage = await getPatternImage()
-    await drawPatternBackground(canvasPic, background.colorTwo, background.colorOne, patternImage, 0.25, 0.15)
+    const storyLums = wallpaperLums(background.colorOne)
+    await drawPatternBackground(canvasPic, background.colorTwo, background.colorOne, patternImage, storyLums.center, storyLums.edge)
 
     canvasPicCtx.shadowOffsetX = 8
     canvasPicCtx.shadowOffsetY = 8

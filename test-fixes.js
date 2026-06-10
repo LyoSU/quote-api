@@ -61,6 +61,30 @@ async function main () {
   assert.ok(Math.abs(voice.width - expectedW) <= 2,
     `voice bubble width ${voice.width} != expected ${expectedW}`)
 
+  // 3. Image mode: the wallpaper must contrast with the bubble, not blend.
+  //    Sample the wallpaper corner vs the bubble interior; perceived
+  //    brightness (BT.601) must differ noticeably for dark AND light themes.
+  const brightness = (p) => (p.r * 299 + p.g * 587 + p.b * 114) / 1000
+  for (const [bgColor, label] of [['#252e44', 'dark'], ['#e8ecf3', 'light']]) {
+    const img = await generateMethod({ messages: [msg(7, 'контраст фону')], scale, type: 'image', backgroundColor: bgColor })
+    assert.ok(!img.error, 'image generate failed')
+    const pic = await loadImage(Buffer.from(img.image, 'base64'))
+    const c = createCanvas(pic.width, pic.height)
+    const cx = c.getContext('2d')
+    cx.drawImage(pic, 0, 0)
+    const get = (x, y) => {
+      const d = cx.getImageData(x, y, 1, 1).data
+      return { r: d[0], g: d[1], b: d[2] }
+    }
+    // Wallpaper near the corner; bubble interior right of the avatar column
+    // ((50+10+16)·s + margin, vertical center).
+    const wall = brightness(get(8, 8))
+    const bubble = brightness(get(95 * scale / 2 + (50 + 10 + 20) * scale, Math.round(pic.height / 2)))
+    assert.ok(Math.abs(bubble - wall) >= 18,
+      `${label}: bubble (${bubble.toFixed(0)}) blends into wallpaper (${wall.toFixed(0)})`)
+    console.log(`  image/${label}: bubble ${bubble.toFixed(0)} vs wallpaper ${wall.toFixed(0)} (Δ${Math.abs(bubble - wall).toFixed(0)})`)
+  }
+
   console.log('OK: fixes assertions passed')
   console.log(`  avatar ink ratio grouped/ungrouped = ${ratio.toFixed(3)} (≈0.5)`)
   console.log(`  voice bubble width = ${voice.width} (expected ${expectedW}, row ${row.width})`)
