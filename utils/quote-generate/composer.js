@@ -14,8 +14,12 @@ const { leaf, box, measure, place, render } = require('./layout-box')
 // to tune how a quote breathes.
 const SP = {
   padX: 16, // bubble inner padding → ink, horizontal
-  padY: 15, // bubble inner padding → ink, vertical
-  gap: 9, // vertical rhythm between stacked blocks (name/forward/reply/media/text)
+  padY: 12, // bubble inner padding → first metric box (which adds its own slack)
+  // Vertical rhythm between solid blocks (reply chip, media, attachment).
+  // Text nodes override it with mt 0: their metric line box already carries
+  // the air above the cap line, so stacking at 0 lands on the same
+  // baseline-to-baseline rhythm as the text's own line height.
+  gap: 5,
   headerGap: 8, // min gap between name and sender tag
   maxHeader: 300, // header/forward-label width cap — longer names fade out instead of inflating the bubble
   radius: 25, // bubble corner radius
@@ -197,15 +201,21 @@ function drawQuote (options) {
   if (Array.isArray(textBlocks) && textBlocks.length > 0 && !isQuote) {
     // Text with blockquote entities: plain runs and quote runs stack in one
     // column; each quote run gets the accent block treatment.
-    const parts = textBlocks.map((b) => b.quote
-      ? accentBlock(s, accent, { icon: true, children: [leaf(b.canvas)] })
-      : leaf(b.canvas))
-    textNode = box({ dir: 'col', gap: s(6), children: parts })
+    const parts = textBlocks.map((b) => {
+      if (b.quote) return accentBlock(s, accent, { icon: true, children: [leaf(b.canvas)] })
+      const l = leaf(b.canvas)
+      if (l) l.mt = s(2) // plain runs carry their own metric air
+      return l
+    })
+    textNode = box({ dir: 'col', gap: s(5), children: parts })
   } else if (text) {
     textNode = isQuote
       ? accentBlock(s, accent, { icon: true, children: [leaf(text)] })
       : leaf(text)
   }
+  // Text supplies its own air above the cap line (metric ascent slack) —
+  // no extra flow gap, the name reads like the previous text line.
+  if (textNode && !isQuote) textNode.mt = 0
 
   // ---- Tree ---------------------------------------------------------------
 
