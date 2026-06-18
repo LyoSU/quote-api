@@ -1,0 +1,13 @@
+# Coolify deployment compose for quote-api (hetzner-auction).
+# Internal API consumed by quote-bot via host ports (no public domain).
+services:
+  quote-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.coolify
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "4888:4888"   # main API (quote-bot QUOTE_API_URI)
+      - "3000:3000"   # secondary listener
