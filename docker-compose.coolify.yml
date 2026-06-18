@@ -1,5 +1,7 @@
 # Coolify deployment compose for quote-api (hetzner-auction).
-# Internal API consumed by quote-bot via host port 4888 (no public domain).
+# Internal API consumed by quote-bot over the shared `quote-shared` docker
+# network (DNS name `quote-api`). Host port 4888 is still published for
+# host-side debugging; the bot no longer relies on it.
 services:
   quote-api:
     build:
@@ -10,3 +12,16 @@ services:
       - .env
     ports:
       - "4888:4888"
+    networks:
+      quote-shared:
+        aliases:
+          - quote-api
+
+# Shared bridge so quote-bot reaches this service by name instead of bouncing
+# through the host (host-gateway is blocked by ufw on hz). Pre-created on the
+# host (`docker network create quote-shared`); external so each Coolify compose
+# project attaches without label conflicts.
+networks:
+  quote-shared:
+    name: quote-shared
+    external: true
