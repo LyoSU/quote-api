@@ -4,6 +4,9 @@
 # host-side debugging; the bot no longer relies on it.
 services:
   quote-api:
+    # Resource caps from 7-day peaks in Coroot (memory = peak x1.5), 2026-09-24:
+    # hetzner-auction had none, so one leak or CPU hog hit every bot on the host.
+    mem_limit: 12g  # peak 8.4 GB
     build:
       context: .
       dockerfile: Dockerfile.coolify
