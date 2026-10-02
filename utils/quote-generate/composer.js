@@ -103,7 +103,7 @@ function drawQuote (options) {
         ]
       })
       : replyTexts
-    replyNode = accentBlock(P, s, reply.nameColor, { children: [inner] })
+    replyNode = accentBlock(P, s, reply.nameColor, { children: [inner], stripe: reply.stripe, patternEmoji: reply.patternEmoji })
   }
 
   // Media-only bubbles (photo with no caption/name/reply) are pure media:
@@ -381,7 +381,7 @@ function coverSquare (img) {
 // color, solid accent bar on the left, optional solid ❝ in the top-right
 // corner. Used for the reply preview (accent = replied sender's color) and
 // the partial-quote body (accent = quoted sender's color).
-function accentBlock (P, s, accent, { icon = false, children }) {
+function accentBlock (P, s, accent, { icon = false, children, stripe = null, patternEmoji = null }) {
   const b = P.block
   return box({
     gap: s(b.gap),
@@ -389,7 +389,10 @@ function accentBlock (P, s, accent, { icon = false, children }) {
     bg: (ctx, n) => {
       if (P.replyStyle === 'line') {
         // Thin rounded accent bar, no tinted backdrop.
-        ctx.drawImage(drawRoundRect(accent, Math.ceil(s(b.bar)), n.h, s(b.bar) / 2), n.x, n.y)
+        const bar = Math.ceil(s(b.bar))
+        const line = drawRoundRect(accent, bar, n.h, s(b.bar) / 2)
+        if (stripe) paintStripe(line, bar, n.h, stripe, P, s)
+        ctx.drawImage(line, n.x, n.y)
         if (icon) ctx.drawImage(drawQuoteIcon(s(b.icon), accent, 1), n.x + n.w - s(b.icon) - s(b.iconInset), n.y + s(b.iconInset))
         return
       }
@@ -398,11 +401,70 @@ function accentBlock (P, s, accent, { icon = false, children }) {
       ctx.globalAlpha = b.tint
       ctx.drawImage(solid, n.x, n.y)
       ctx.restore()
-      ctx.drawImage(solid, 0, 0, s(b.bar), n.h, n.x, n.y, s(b.bar), n.h)
+      // The line is the block's own left edge, so it follows the rounded corners.
+      const line = createCanvas(Math.ceil(s(b.bar)), Math.ceil(n.h))
+      line.getContext('2d').drawImage(solid, 0, 0, line.width, line.height, 0, 0, line.width, line.height)
+      if (stripe) paintStripe(line, line.width, line.height, stripe, P, s)
+      ctx.drawImage(line, n.x, n.y)
+      if (patternEmoji && b.emojiPattern) paintEmojiPattern(ctx, n, patternEmoji, accent, solid, P, s)
       if (icon) ctx.drawImage(drawQuoteIcon(s(b.icon), accent, 1), n.x + n.w - s(b.icon) - s(b.iconInset), n.y + s(b.iconInset))
     },
     children
   })
+}
+
+// Telegram's striped reply line: alternating slanted segments of the accent
+// colors. `canvas` already holds the line's shape (rounded corners); colors
+// are painted inside its alpha only ('source-atop'), so the stripe always
+// follows the chip's corner.
+function paintStripe (canvas, w, h, colors, P, s) {
+  const ctx = canvas.getContext('2d')
+  const dash = s(P.block.stripe.dash) * (colors.length > 2 ? 0.85 : 1)
+  const slant = s(P.block.stripe.slant)
+  ctx.save()
+  ctx.globalCompositeOperation = 'source-atop'
+  let i = 0
+  for (let y = -slant; y < h + slant; y += dash, i++) {
+    ctx.fillStyle = colors[i % colors.length]
+    ctx.beginPath()
+    ctx.moveTo(0, y + slant)
+    ctx.lineTo(w, y)
+    ctx.lineTo(w, y + dash)
+    ctx.lineTo(0, y + dash + slant)
+    ctx.closePath()
+    ctx.fill()
+  }
+  ctx.restore()
+}
+
+// Background emoji pattern: faint accent-tinted silhouettes of the emoji in
+// the right part of the chip, clipped to the chip's rounded shape.
+function paintEmojiPattern (ctx, n, emoji, accent, shape, P, s) {
+  const b = P.block
+  const cells = b.emojiCells
+  const clip = createCanvas(Math.ceil(n.w), Math.ceil(n.h))
+  const cctx = clip.getContext('2d')
+  cctx.imageSmoothingEnabled = true
+  cctx.imageSmoothingQuality = 'high'
+  for (const c of cells) {
+    const size = Math.round(s(c.size))
+    if (c.dx * (s(1)) + size > n.w - s(b.bar) * 2) continue // never reach the line
+    const t = createCanvas(size, size)
+    const tctx = t.getContext('2d')
+    tctx.imageSmoothingQuality = 'high'
+    tctx.drawImage(emoji, 0, 0, size, size)
+    tctx.globalCompositeOperation = 'source-in'
+    tctx.fillStyle = accent
+    tctx.fillRect(0, 0, size, size)
+    cctx.drawImage(t, Math.round(n.w - s(c.dx) - size / 2), Math.round(n.h * c.dy - size / 2))
+  }
+  // keep inside the rounded chip
+  cctx.globalCompositeOperation = 'destination-in'
+  cctx.drawImage(shape, 0, 0, clip.width, clip.height, 0, 0, clip.width, clip.height)
+  ctx.save()
+  ctx.globalAlpha = b.emojiAlpha
+  ctx.drawImage(clip, n.x, n.y)
+  ctx.restore()
 }
 
 module.exports = { drawQuote, SP }

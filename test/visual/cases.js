@@ -140,4 +140,21 @@ add('st-light-dialog', messages.dialog, { type: 'stories', backgroundColor: bgs.
 add('st-dark-short', messages['emoji-only'], { type: 'stories', backgroundColor: bgs.dark })
 add('raw-dark-dialog', messages.dialog, { type: undefined, format: undefined, ext: undefined, backgroundColor: bgs.dark })
 
+// Telegram accent colors: single (0, 3), two-color (8), three-color (15); the
+// reply chip carries the replied sender's accent, 'bgemoji1' resolves to the
+// sticker asset through the stubbed getCustomEmojiStickers (test-visual.js).
+for (const id of [0, 3, 8, 15]) {
+  const m = [base({
+    from: { id: 1, first_name: 'Юрій', last_name: 'Ly', photo: { url: `${B}/ava1` }, accentColorId: id },
+    text: 'Колір імені й смуги з профілю',
+    replyMessage: { name: 'Олена Коваленко', text: 'А ти бачив новий реліз? Там стільки всього цікавого, аж не віриться', chatId: 5, accentColorId: id, backgroundEmojiId: 'bgemoji1' }
+  })]
+  for (const [theme, c] of [['dark', bgs.dark], ['light', bgs.light]]) {
+    add(`acc-glass-${theme}-${id}`, m, { backgroundColor: c })
+    add(`acc-classic-${theme}-${id}`, m, { backgroundColor: c, style: 'classic' })
+  }
+}
+add('acc-glass-dark-8-thumb', [base({ from: { id: 1, name: 'Юрій', photo: { url: `${B}/ava1` }, accentColorId: 8 }, text: 'Гарне фото!', replyMessage: { name: 'Олена', text: 'Фото', chatId: 5, accentColorId: 8, media: { fileId: 'photoL' } } })], { backgroundColor: bgs.dark })
+add('acc-glass-grad-15', [base({ from: { id: 1, name: 'Юрій', photo: { url: `${B}/ava1` }, accentColorId: 15 }, text: 'Градієнтний фон', replyMessage: { name: 'Олена', text: 'Коротко', chatId: 5, accentColorId: 15 } })], { backgroundColor: bgs.grad })
+
 module.exports = { cases, assets }

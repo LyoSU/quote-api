@@ -72,6 +72,19 @@ const glass = {
     radius: BLOCK_RADIUS,
     thumbRadius: concentric(BLOCK_RADIUS, BLOCK.padY), // thumb sits one block pad inside
     tint: 0.1,
+    // Reply line for 2–3 color accents: alternating slanted segments
+    // (logical px; a segment is `dash` long, `slant` is the diagonal shift).
+    stripe: { dash: 6, slant: 4 },
+    // Profile background emoji: faint tinted copies in the right part of the
+    // chip (flag token). Positions: dx from the chip's right edge, dy as a
+    // fraction of its height, size in logical px.
+    emojiPattern: true,
+    emojiAlpha: 0.14,
+    emojiCells: [
+      { dx: 14, dy: 0.28, size: 14 }, { dx: 36, dy: 0.72, size: 12 }, { dx: 40, dy: 0.18, size: 10 },
+      { dx: 62, dy: 0.5, size: 13 }, { dx: 88, dy: 0.2, size: 9 }, { dx: 92, dy: 0.8, size: 10 },
+      { dx: 120, dy: 0.5, size: 8 }
+    ],
     gap: 8, // reply name → reply text
     thumbGap: 8
   },
@@ -117,7 +130,7 @@ const classic = {
   minWidth: 0,
   avatarTop: 4,
   fonts: { name: 22, replyName: 20, replyText: 20, micro: 15 },
-  block: { ...glass.block, padY: 4, padR: 4, radius: 0, tint: 0, gap: 8 },
+  block: { ...glass.block, padY: 4, padR: 4, radius: 0, tint: 0, gap: 8, emojiPattern: false },
   glass: 0,
   tail: false,
   groupCorners: false,

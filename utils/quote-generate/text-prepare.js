@@ -536,4 +536,19 @@ async function prepareText (text, entities, fontSize, emojiBrand, telegram) {
   }
 }
 
-module.exports = { prepareText, graphemeSegmenter, getMeasureCtx, fontMetrics }
+// One custom-emoji thumbnail by id (reply-chip background pattern). Bounded
+// cache + shared in-flight lookup; failures are not cached.
+const customEmojiCache = new Map()
+const CUSTOM_EMOJI_CACHE_MAX = 200
+function loadCustomEmojiImage (id, telegram) {
+  if (!id || typeof id !== 'string' || !telegram) return Promise.resolve(null)
+  const hit = customEmojiCache.get(id)
+  if (hit) return hit
+  const p = loadCustomEmojis([id], telegram).then((m) => m[id] || null, () => null)
+  customEmojiCache.set(id, p)
+  if (customEmojiCache.size > CUSTOM_EMOJI_CACHE_MAX) customEmojiCache.delete(customEmojiCache.keys().next().value)
+  p.then((img) => { if (!img) customEmojiCache.delete(id) })
+  return p
+}
+
+module.exports = { prepareText, graphemeSegmenter, getMeasureCtx, fontMetrics, loadCustomEmojiImage }

@@ -14,7 +14,8 @@ const { drawAlbum, MAX_ITEMS } = require('./album')
 const { drawQuote } = require('./composer')
 const { applySpoiler } = require('./spoiler')
 const { drawLabel } = require('./canvas-utils')
-const { fontMetrics } = require('./text-prepare')
+const { fontMetrics, loadCustomEmojiImage } = require('./text-prepare')
+const { resolveAccent } = require('./accent-colors')
 const { loadIcons, drawVoiceRow, drawDocumentRow, drawAudioRow, formatDuration } = require('./attachments')
 const { ColorContrast, lightOrDark, colorLuminance } = require('./color')
 const { NAME_COLORS_LIGHT, NAME_COLORS_DARK } = require('./constants')
@@ -74,7 +75,10 @@ class QuoteGenerate {
     let nameIndex = 1
     if (message.from && message.from.id) nameIndex = Math.abs(message.from.id) % 7
 
-    let nameColor = nameColorArray[nameIndex]
+    // Telegram accent color (from.accentColorId) wins over the id-derived one.
+    const lightBubble = backStyle === 'light'
+    const senderAccent = resolveAccent(message.from && message.from.accentColorId, lightBubble)
+    let nameColor = senderAccent ? senderAccent[0] : nameColorArray[nameIndex]
 
     const colorContrast = new ColorContrast()
     const contrast = colorContrast.getContrastRatio(colorLuminance(backgroundColorOne, 0.55), nameColor)
@@ -215,7 +219,8 @@ class QuoteGenerate {
       try {
         const chatId = message.replyMessage.chatId || 0
         const replyNameIndex = Math.abs(chatId) % 7
-        const replyNameColor = nameColorArray[replyNameIndex]
+        const replyAccent = resolveAccent(message.replyMessage.accentColorId, lightBubble)
+        const replyNameColor = replyAccent ? replyAccent[0] : nameColorArray[replyNameIndex]
 
         const replyName = typeof message.replyMessage.name === 'string' ? message.replyMessage.name : String(message.replyMessage.name)
         const replyText = message.replyMessage.text
@@ -240,7 +245,19 @@ class QuoteGenerate {
           : null
 
         if (replyNameCanvas && (replyTextCanvas || replyHasMedia)) {
-          replyData = { name: replyNameCanvas, nameColor: replyNameColor, text: replyTextCanvas }
+          replyData = {
+            name: replyNameCanvas,
+            nameColor: replyNameColor,
+            // 2–3 color accents draw the striped line; single colors stay solid
+            stripe: replyAccent && replyAccent.length > 1 ? replyAccent : null,
+            text: replyTextCanvas
+          }
+
+          // Profile background emoji → faint pattern in the chip (glass only).
+          const bgEmojiId = message.replyMessage.backgroundEmojiId
+          if (style.block.emojiPattern && style.replyStyle === 'block' && bgEmojiId) {
+            replyData.patternEmoji = await loadCustomEmojiImage(String(bgEmojiId), this.telegram).catch(() => null)
+          }
 
           // Thumbnail of the replied media (photo/video/sticker…), like the
           // modern Telegram reply preview. Best-effort — silently skipped.

@@ -47,6 +47,14 @@ Math.random = () => {
 async function loadGenerate (origin) {
   Telegram.prototype.getFileLink = async (id) => `${origin}/${typeof id === 'object' ? id.file_id : id}`
   Telegram.prototype.getCustomEmojiStickers = async () => []
+  // Reply-chip background emoji ("bgemoji*") resolves to the sticker asset; everything else misses.
+  const callApi = Telegram.prototype.callApi
+  Telegram.prototype.callApi = function (method, payload, ...rest) {
+    if (method === 'getCustomEmojiStickers') {
+      return Promise.resolve((payload.custom_emoji_ids || []).filter(i => /^bgemoji/.test(i)).map(i => ({ custom_emoji_id: i, thumbnail: { file_id: 'sticker' } })))
+    }
+    return callApi.call(this, method, payload, ...rest)
+  }
   Telegram.prototype.getUserProfilePhotos = async () => ({ photos: [] })
   Telegram.prototype.getChat = async () => ({})
   return require('./methods/generate')
