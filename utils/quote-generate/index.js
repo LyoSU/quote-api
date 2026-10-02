@@ -20,6 +20,7 @@ const { loadIcons, drawVoiceRow, drawDocumentRow, drawAudioRow, formatDuration }
 const { ColorContrast, lightOrDark, colorLuminance } = require('./color')
 const { NAME_COLORS_LIGHT, NAME_COLORS_DARK } = require('./constants')
 const { getStyle } = require('./styles')
+const { drawRich } = require('./rich')
 
 async function loadFonts () {
   const fontsDir = path.resolve(__dirname, '../../assets/fonts/')
@@ -143,7 +144,7 @@ class QuoteGenerate {
     // 1–3 emoji and nothing else: Telegram shows them big, without a bubble
     // (like a sticker) — rendered as sticker-like media.
     let bigEmoji = null
-    if (message.text && !message.media && !hasAlbum && !message.voice && !message.document && !message.audio && !message.forward) {
+    if (message.text && !message.rich && !message.media && !hasAlbum && !message.voice && !message.document && !message.audio && !message.forward) {
       const raw = String(message.text).trim()
       const found = raw ? emojiDb.searchFromText({ input: raw, fixCodePoints: true }) : []
       if (found.length >= 1 && found.length <= 3 && found.map((e) => e.emoji).join('') === raw.replace(/\s+/g, '')) {
@@ -160,7 +161,13 @@ class QuoteGenerate {
 
     let textCanvas
     let textBlocks = null
-    if (message.text && !bigEmoji) {
+    // Rich Message blocks (rich.js) replace the plain text; on failure the
+    // flattened fallback in message.text renders as usual.
+    if (message.rich && !bigEmoji) {
+      textCanvas = await drawRich(message.rich, { style, scale, textColor, accent: nameColor, light: backStyle === 'light', maxWidth: width, emojiBrand, telegram: this.telegram })
+        .catch((error) => { console.error('Failed to render rich message:', error.message); return null })
+    }
+    if (message.text && !bigEmoji && !textCanvas) {
       const text = typeof message.text === 'string' ? message.text : String(message.text)
       try {
         // Blockquote entities split the text into plain/quote runs, each

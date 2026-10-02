@@ -26,6 +26,27 @@ const BLOCK = { padX: 12, padY: 8 } // accent block: edge → text
 const CHIP = 8 // sticker reply chip padding
 const BLOCK_RADIUS = concentric(RADIUS, INSET.x) // block sits one inset inside the bubble
 
+// Rich Message blocks (rich.js). Hierarchy comes from weight, color and
+// spacing, not size: three text sizes only — body 24, small 19, micro 15.
+// Alphas are relative to the theme text color. Gaps are between visible
+// bounds, like `space`.
+const RICH = {
+  // Line measure: a rich message never runs wider than a long plain paragraph
+  // does. Wider content (code, tables) would make the sticker downscale as a
+  // whole and shrink every glyph in it.
+  measure: 460,
+  heading: [26, 24], // h1, h2+ (bold, text color)
+  small: 19, // table cells, code, thinking
+  gap: { para: 8, before: 16, after: 6, block: 12, item: 4, divider: 12 },
+  hairline: { dark: 0.14, light: 0.12 }, // divider
+  list: { indent: 20, maxDepth: 2, bullet: 0.85 },
+  table: { pad: { x: 8, y: 6 }, compact: { x: 6, y: 3 }, fill: 0.05, head: 0.08, rule: 0.1, minCol: 44, maxCols: 4, maxRows: 6 },
+  radius: BLOCK_RADIUS, // table / code / pill containers, concentric with the bubble
+  code: { fill: 0.06, maxLines: 8 },
+  pill: { fill: 0.06, padX: 12, padY: 8 }, // collapsed details / thinking
+  pull: { mark: 48, alpha: 0.35 } // pull-quote “ size and alpha
+}
+
 const glass = {
   name: 'glass',
   // Spacing tokens, logical px on a 4px grid. Every one is measured between
@@ -118,7 +139,8 @@ const glass = {
   avatarAlign: 'bottom',
   shadow: { color: 'rgba(0, 0, 0, 0.24)', blur: 6, y: 2 },
   nameGradient: true,
-  replyStyle: 'block'
+  replyStyle: 'block',
+  rich: RICH
 }
 
 // The pre-redesign look: avatar at the top, flat solid bubble with uniform
@@ -137,7 +159,8 @@ const classic = {
   avatarAlign: 'top',
   shadow: null,
   nameGradient: false,
-  replyStyle: 'line'
+  replyStyle: 'line',
+  rich: { ...RICH, radius: 4 } // flat look: containers stay near-square, like the line reply
 }
 
 const STYLES = { glass, classic }

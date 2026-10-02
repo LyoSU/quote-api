@@ -157,4 +157,7 @@ for (const id of [0, 3, 8, 15]) {
 add('acc-glass-dark-8-thumb', [base({ from: { id: 1, name: 'Юрій', photo: { url: `${B}/ava1` }, accentColorId: 8 }, text: 'Гарне фото!', replyMessage: { name: 'Олена', text: 'Фото', chatId: 5, accentColorId: 8, media: { fileId: 'photoL' } } })], { backgroundColor: bgs.dark })
 add('acc-glass-grad-15', [base({ from: { id: 1, name: 'Юрій', photo: { url: `${B}/ava1` }, accentColorId: 15 }, text: 'Градієнтний фон', replyMessage: { name: 'Олена', text: 'Коротко', chatId: 5, accentColorId: 15 } })], { backgroundColor: bgs.grad })
 
+// Rich Messages (rich.js): rich-* cases.
+require('./rich-cases')(add, { base, B, bgs })
+
 module.exports = { cases, assets }
