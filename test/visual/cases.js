@@ -75,6 +75,12 @@ const messages = {
   cjk: [base({ text: '你好世界，这是一个中文测试。日本語のテストです。한국어 테스트' })],
   'long-word': [base({ text: 'https://example.com/very/long/url/that/does/not/have/spaces/and/must/wrap/somehow/at/the/edge?query=123456789' })],
   'very-long': [base({ text: Array.from({ length: 40 }, (_, i) => `Рядок ${i + 1}: трохи тексту для висоти.`).join('\n') })],
+  'voice-nowave': [base({ text: '', voice: { waveform: [], duration: 42 } })],
+  'voice-nowave-short': [base({ text: '', voice: { duration: 7 } })],
+  'reply-photo-notext': [base({ text: 'Гарне фото!', replyMessage: { name: 'Олена', text: '', chatId: 5, media: { kind: 'photo', fileId: 'photoL' } } })],
+  'spoiler-photo': [base({ text: 'Спойлер', media: { url: `${B}/photoL` }, mediaType: 'photo', hasMediaSpoiler: true })],
+  'spoiler-photo-only': [base({ text: '', media: { url: `${B}/photoP` }, mediaType: 'photo', hasMediaSpoiler: true })],
+  'quote-blockquote': [base({ text: 'Цитата з книги:\nСлова, що лишаються в серці надовго і не відпускають.\nА це вже мій коментар.', entities: [{ type: 'blockquote', offset: 16, length: 54 }], isQuote: true, replyMessage: { name: 'Олена', text: 'Оригінал', chatId: 5 } })],
   'partial-quote': [base({ text: 'Лише виділена частина повідомлення', isQuote: true, replyMessage: { name: 'Олена', text: 'Оригінал', chatId: 5 } })]
 }
 
@@ -101,6 +107,7 @@ for (const [k, ids] of Object.entries(albumSets)) {
 }
 albumMessages['album-4-reply'] = [base({ text: 'Ось всі', album: albumItems(albumSets[4], 0), replyMessage: { name: 'Олена', text: 'Скинь фото', chatId: 5 } })]
 albumMessages['album-3-forward'] = [base({ text: '', forward: { label: 'Переслано від Олена Коваленко' }, album: albumItems(albumSets[3]) })]
+albumMessages['album-4-spoiler'] = [base({ text: 'Спойлер-альбом', hasMediaSpoiler: true, album: albumItems(albumSets[4], 0) })]
 albumMessages['album-1'] = [base({ text: 'Один у альбомі', album: albumItems(['photoL']) })]
 albumMessages['album-missing'] = [base({ text: 'Один не завантажився', album: [...albumItems(['photoL', 'photoP']), { url: `${B}/nope`, type: 'photo' }] })]
 

@@ -180,15 +180,53 @@ function drawNoteDisc (d, accent) {
 }
 
 // Resamples a Telegram waveform (values 0..31) to `n` buckets by averaging.
+// Non-finite samples count as 0 so a malformed waveform can never yield NaN heights.
 function resampleWaveform (data, n) {
-  if (data.length <= n) return data.map((v) => v / 31)
+  const clean = (Array.isArray(data) ? data : []).map((v) => (Number.isFinite(Number(v)) ? Math.min(31, Math.max(0, Number(v))) : 0))
+  if (clean.length === 0) return Array(n).fill(0)
+  if (clean.length <= n) return clean.map((v) => v / 31)
   const out = []
   for (let i = 0; i < n; i++) {
-    const from = Math.floor(i * data.length / n)
-    const to = Math.max(from + 1, Math.floor((i + 1) * data.length / n))
+    const from = Math.floor(i * clean.length / n)
+    const to = Math.max(from + 1, Math.floor((i + 1) * clean.length / n))
     let sum = 0
-    for (let j = from; j < to; j++) sum += data[j]
+    for (let j = from; j < to; j++) sum += clean[j]
     out.push(sum / (to - from) / 31)
+  }
+  return out
+}
+
+// Does the waveform carry usable data? (The official Bot API Voice has none.)
+function hasWaveform (waveform) {
+  return Array.isArray(waveform) && waveform.length > 0 &&
+    waveform.some((v) => Number.isFinite(Number(v)) && Number(v) > 0)
+}
+
+// Deterministic, natural-looking stand-in waveform (values 0..31) of `n` bars,
+// seeded from the duration: the same voice message always looks the same.
+// Speech-like: a slow loudness envelope with syllable-rate ripple and jitter.
+function syntheticWaveform (duration, n) {
+  let a = (Math.round(Number(duration) || 0) * 2654435761 + 0x9e3779b9) >>> 0
+  const rnd = () => { // mulberry32
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+  const p1 = rnd() * Math.PI * 2
+  const p2 = rnd() * Math.PI * 2
+  const f1 = 2 + rnd() * 2
+  const f2 = 9 + rnd() * 5
+  const out = []
+  for (let i = 0; i < n; i++) {
+    const x = n > 1 ? i / (n - 1) : 0
+    const envelope = 0.55 + 0.35 * Math.sin(x * Math.PI * f1 + p1)
+    const ripple = 0.5 + 0.5 * Math.sin(i * f2 / 4 + p2)
+    let v = envelope * (0.3 + 0.7 * ripple) * 1.15 + (rnd() - 0.5) * 0.4
+    // brief pauses between phrases
+    if (Math.sin(x * Math.PI * (f1 * 2.3) + p2) > 0.93) v *= 0.25
+    out.push(Math.round(Math.min(1, Math.max(0.08, v)) * 31))
   }
   return out
 }
@@ -204,8 +242,18 @@ function drawVoiceRow (waveform, duration, accent, textColor, scale, maxWidth) {
 
   const pitch = s(ROW.bar) + s(ROW.barGap)
   const barsAvail = Math.max(pitch * 8, (maxWidth || s(220)) - d - s(ROW.gap) * 2 - durLabel.width)
-  const barCount = Math.min(Math.max(8, waveform.length), Math.floor(barsAvail / pitch))
-  const heights = resampleWaveform(waveform, barCount)
+  const fit = Math.floor(barsAvail / pitch)
+  let barCount
+  let heights
+  if (hasWaveform(waveform)) {
+    barCount = Math.min(Math.max(8, waveform.length), fit)
+    heights = resampleWaveform(waveform, barCount)
+  } else {
+    // No waveform (official Bot API voices carry none): short messages get
+    // fewer bars, long ones fill the row.
+    barCount = Math.min(fit, Math.max(16, Math.round((Number(duration) || 0) * 2)))
+    heights = resampleWaveform(syntheticWaveform(duration, barCount), barCount)
+  }
   const barsW = barCount * pitch - s(ROW.barGap)
 
   const w = Math.ceil(d + s(ROW.gap) + barsW + s(ROW.gap) + durLabel.width)
@@ -446,5 +494,7 @@ module.exports = {
   formatDuration,
   formatFileSize,
   resampleWaveform,
+  syntheticWaveform,
+  hasWaveform,
   ROW
 }

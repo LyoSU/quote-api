@@ -50,6 +50,17 @@ async function main () {
   const barX = d + ROW.gap * scale + (ROW.bar * scale) / 2
   assert.ok(isAccent(px(voice, barX, d / 2)), 'first waveform bar must be accent')
 
+  // 3b. Voice without a waveform (official Bot API): synthetic, deterministic bars.
+  const { syntheticWaveform, hasWaveform } = require('./utils/quote-generate/attachments')
+  assert.ok(!hasWaveform([]) && !hasWaveform(undefined) && !hasWaveform([0, 0]) && hasWaveform([3, 9]))
+  assert.deepStrictEqual(syntheticWaveform(42, 40), syntheticWaveform(42, 40), 'synthetic waveform must be deterministic')
+  assert.notDeepStrictEqual(syntheticWaveform(42, 40), syntheticWaveform(43, 40), 'seeded from duration')
+  assert.ok(syntheticWaveform(42, 40).every((v) => v >= 0 && v <= 31 && Number.isInteger(v)))
+  assert.ok(resampleWaveform([], 5).every((v) => v === 0), 'empty waveform never yields NaN')
+  const noWave = drawVoiceRow([], 42, ACCENT, '#fff', scale, maxW)
+  assert.ok(noWave.width > d * 3, 'voice row without waveform still draws bars')
+  assert.ok(isAccent(px(noWave, d + ROW.gap * scale + (ROW.bar * scale) / 2, d / 2)), 'first synthetic bar must be accent')
+
   // 4. Document row: optical (visible) height = max(disc, cap-line→baseline
   //    text block); the canvas carries the hidden label slack as `optical`.
   const doc = drawDocumentRow({ file_name: 'звіт.pdf', file_size: 2.4 * 1024 * 1024 }, ACCENT, '#fff', scale, maxW)

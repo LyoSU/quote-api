@@ -86,7 +86,7 @@ function drawQuote (options) {
     // Modern Telegram renders the reply preview as a tinted accent block in
     // the replied sender's color — same visual language as a quote. A media
     // thumbnail (when the replied message has one) sits left of the texts.
-    const replyTexts = box({ dir: 'col', gap: s(P.block.gap), children: [leaf(reply.name, { role: 'text' }), leaf(reply.text, { role: 'text' })] })
+    const replyTexts = box({ dir: 'col', gap: s(P.block.gap), children: [leaf(reply.name, { role: 'text' }), reply.text ? leaf(reply.text, { role: 'text' }) : null] })
     const inner = reply.thumb
       ? box({
         dir: 'row',
@@ -185,7 +185,12 @@ function drawQuote (options) {
   const attachmentNode = attachment ? leaf(attachment.canvas) : null
 
   let textNode = null
-  if (Array.isArray(textBlocks) && textBlocks.length > 0 && !isQuote) {
+  if (Array.isArray(textBlocks) && textBlocks.length > 0 && isQuote) {
+    // Partial quote whose text also has blockquote entities: every run goes
+    // inside the one quote frame (no nested frames), nothing is dropped.
+    const runs = textBlocks.map((b) => leaf(b.canvas, { role: 'text' }))
+    textNode = accentBlock(P, s, accent, { icon: true, children: [box({ dir: 'col', role: 'text', gap: stackGap, children: runs })] })
+  } else if (Array.isArray(textBlocks) && textBlocks.length > 0) {
     // Text with blockquote entities: plain runs and quote runs stack in one
     // column; each quote run gets the accent block treatment.
     const parts = textBlocks.map((b) => {

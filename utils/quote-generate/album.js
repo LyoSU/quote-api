@@ -8,6 +8,7 @@
 
 const { createCanvas } = require('canvas')
 const { paintMediaBadges, formatDuration } = require('./attachments')
+const { applySpoiler } = require('./spoiler')
 
 const MAX_ITEMS = 10
 
@@ -163,15 +164,17 @@ function drawTile (ctx, img, t, radii) {
  * `items`: [{ file_id | url, type: 'photo'|'video'|'animation', duration? }]
  * Items that fail to load are dropped; returns null when none loaded.
  */
-async function drawAlbum (items, { maxWidth, scale, style, telegram, download }) {
+async function drawAlbum (items, { maxWidth, scale, style, telegram, download, spoiler = false }) {
   const list = items.slice(0, MAX_ITEMS).filter((it) => it && (it.url || it.file_id))
   const loaded = await Promise.all(list.map(async (it) => {
     const isUrl = !!it.url
     const img = await download(isUrl ? it.url : it.file_id, maxWidth, isUrl ? 'url' : 'id', false, telegram)
       .catch(() => null)
-    return img ? { img, it } : null
+    if (!img) return null
+    // Hidden media: every tile is veiled before layout (ratios stay intact).
+    return { img: spoiler ? await applySpoiler(img, scale).catch(() => null) : img, it }
   }))
-  const ok = loaded.filter(Boolean)
+  const ok = loaded.filter((o) => o && o.img)
   if (!ok.length) return null
 
   const gap = Math.max(1, Math.round(style.album.gap * scale))

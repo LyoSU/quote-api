@@ -54,7 +54,7 @@ async function downloadAvatarImage (user, telegram) {
     else nameLetters = runes(nameWord[0])[0]
   }
 
-  const cacheKey = user.id != null ? user.id : `noId:${user.username || nameLetters}`
+  const cacheKey = user.synthetic ? `syn:${user.id}:${nameLetters}` : user.id != null ? user.id : `noId:${user.username || nameLetters}`
   const avatarImageCached = avatarCache.get(cacheKey)
   const nameIndex = user.id != null ? Math.abs(user.id) % 7 : 0
   const avatarColor = AVATAR_COLORS[nameIndex]
@@ -81,7 +81,8 @@ async function downloadAvatarImage (user, telegram) {
       }
 
       if (!userPhotoUrl) {
-        const getChat = user.id != null
+        // Synthetic ids (hidden senders) are made up — never ask Telegram about them.
+        const getChat = user.id != null && !user.synthetic
           ? await telegram.getChat(user.id).catch(() => {})
           : null
 
@@ -104,7 +105,7 @@ async function downloadAvatarImage (user, telegram) {
 
         if (userPhoto) {
           userPhotoUrl = await telegram.getFileLink(userPhoto).catch(() => {})
-        } else if (user.username) {
+        } else if (user.username && !user.synthetic) {
           userPhotoUrl = `https://telega.one/i/userpic/320/${user.username}.jpg`
         }
       }

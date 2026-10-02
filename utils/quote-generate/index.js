@@ -12,6 +12,7 @@ const { drawAvatar } = require('./avatar')
 const { downloadMediaImage } = require('./media')
 const { drawAlbum, MAX_ITEMS } = require('./album')
 const { drawQuote } = require('./composer')
+const { applySpoiler } = require('./spoiler')
 const { drawLabel } = require('./canvas-utils')
 const { fontMetrics } = require('./text-prepare')
 const { loadIcons, drawVoiceRow, drawDocumentRow, drawAudioRow, formatDuration } = require('./attachments')
@@ -208,14 +209,18 @@ class QuoteGenerate {
     }
 
     let replyData = null
-    if (message.replyMessage && message.replyMessage.name && message.replyMessage.text) {
+    const replyHasMedia = !!(message.replyMessage && message.replyMessage.media &&
+      (message.replyMessage.media.fileId || message.replyMessage.media.kind))
+    if (message.replyMessage && message.replyMessage.name && (message.replyMessage.text || replyHasMedia)) {
       try {
         const chatId = message.replyMessage.chatId || 0
         const replyNameIndex = Math.abs(chatId) % 7
         const replyNameColor = nameColorArray[replyNameIndex]
 
         const replyName = typeof message.replyMessage.name === 'string' ? message.replyMessage.name : String(message.replyMessage.name)
-        const replyText = typeof message.replyMessage.text === 'string' ? message.replyMessage.text : String(message.replyMessage.text)
+        const replyText = message.replyMessage.text
+          ? (typeof message.replyMessage.text === 'string' ? message.replyMessage.text : String(message.replyMessage.text))
+          : ''
 
         const replyNameFontSize = style.fonts.replyName * scale
         const replyNameCanvas = await drawMultilineText(
@@ -224,13 +229,17 @@ class QuoteGenerate {
         )
 
         const replyTextFontSize = style.fonts.replyText * scale
-        const replyTextCanvas = await drawMultilineText(
-          replyText, message.replyMessage.entities || [],
-          replyTextFontSize, textColor,
-          0, replyTextFontSize, width * 0.9, replyTextFontSize, emojiBrand, this.telegram
-        )
+        // A reply to a text-less message (photo/sticker/…) has no text line:
+        // the block is the name plus the media thumbnail.
+        const replyTextCanvas = replyText
+          ? await drawMultilineText(
+            replyText, message.replyMessage.entities || [],
+            replyTextFontSize, textColor,
+            0, replyTextFontSize, width * 0.9, replyTextFontSize, emojiBrand, this.telegram
+          )
+          : null
 
-        if (replyNameCanvas && replyTextCanvas) {
+        if (replyNameCanvas && (replyTextCanvas || replyHasMedia)) {
           replyData = { name: replyNameCanvas, nameColor: replyNameColor, text: replyTextCanvas }
 
           // Thumbnail of the replied media (photo/video/sticker…), like the
@@ -266,7 +275,7 @@ class QuoteGenerate {
       if (message.text && textCanvas && maxMediaSize < textCanvas.width) maxMediaSize = textCanvas.width
       try {
         mediaCanvas = await drawAlbum(message.album.slice(0, MAX_ITEMS), {
-          maxWidth: maxMediaSize, scale, style, telegram: this.telegram, download: downloadMediaImage
+          maxWidth: maxMediaSize, scale, style, telegram: this.telegram, download: downloadMediaImage, spoiler: !!message.hasMediaSpoiler
         })
         if (mediaCanvas) mediaType = 'album'
         else console.warn('Failed to download album, skipping')
@@ -307,6 +316,10 @@ class QuoteGenerate {
 
       try {
         mediaCanvas = await downloadMediaImage(media, maxMediaSize, type, crop, this.telegram)
+        if (mediaCanvas && message.hasMediaSpoiler) {
+          // "Tap to reveal" media: veil it so nothing is recognizable.
+          mediaCanvas = await applySpoiler(mediaCanvas, scale)
+        }
         if (mediaCanvas) {
           mediaType = message.mediaType
         } else {
@@ -320,7 +333,7 @@ class QuoteGenerate {
     // Row-style attachments (rendered inside the bubble, like Telegram).
     let attachment = null
     const attachMaxW = width * 2 / 3
-    if (message.voice && Array.isArray(message.voice.waveform)) {
+    if (message.voice && typeof message.voice === 'object') {
       attachment = drawVoiceRow(
         message.voice.waveform, message.voice.duration,
         nameColor, textColor, scale, attachMaxW
