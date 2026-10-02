@@ -10,6 +10,7 @@ const emojiDb = require('../emoji-db')
 const { drawMultilineText } = require('./text-renderer')
 const { drawAvatar } = require('./avatar')
 const { downloadMediaImage } = require('./media')
+const { drawAlbum, MAX_ITEMS } = require('./album')
 const { drawQuote } = require('./composer')
 const { drawLabel } = require('./canvas-utils')
 const { fontMetrics } = require('./text-prepare')
@@ -131,12 +132,13 @@ class QuoteGenerate {
     }
 
     const fontSize = 24 * scale
+    const hasAlbum = Array.isArray(message.album) && message.album.length > 0
     let textColor = backStyle === 'light' ? '#000' : '#fff'
 
     // 1–3 emoji and nothing else: Telegram shows them big, without a bubble
     // (like a sticker) — rendered as sticker-like media.
     let bigEmoji = null
-    if (message.text && !message.media && !message.voice && !message.document && !message.audio && !message.forward) {
+    if (message.text && !message.media && !hasAlbum && !message.voice && !message.document && !message.audio && !message.forward) {
       const raw = String(message.text).trim()
       const found = raw ? emojiDb.searchFromText({ input: raw, fixCodePoints: true }) : []
       if (found.length >= 1 && found.length <= 3 && found.map((e) => e.emoji).join('') === raw.replace(/\s+/g, '')) {
@@ -258,6 +260,19 @@ class QuoteGenerate {
       mediaCanvas = bigEmoji
       mediaType = 'sticker'
       maxMediaSize = Math.max(bigEmoji.width, bigEmoji.height)
+    } else if (hasAlbum) {
+      // Several photos/videos sent together: one mosaic canvas (see album.js).
+      maxMediaSize = width * 2 / 3
+      if (message.text && textCanvas && maxMediaSize < textCanvas.width) maxMediaSize = textCanvas.width
+      try {
+        mediaCanvas = await drawAlbum(message.album.slice(0, MAX_ITEMS), {
+          maxWidth: maxMediaSize, scale, style, telegram: this.telegram, download: downloadMediaImage
+        })
+        if (mediaCanvas) mediaType = 'album'
+        else console.warn('Failed to download album, skipping')
+      } catch (error) {
+        console.warn('Error building album:', error.message)
+      }
     } else if (message.media) {
       let media, type
       let crop = !!message.mediaCrop
@@ -330,7 +345,7 @@ class QuoteGenerate {
 
     // Video/GIF media badges, painted over the media by the composer.
     let mediaBadge = null
-    if (mediaCanvas) {
+    if (mediaCanvas && mediaType !== 'album') {
       if (message.mediaType === 'video') {
         mediaBadge = { play: true, label: message.mediaDuration != null ? formatDuration(message.mediaDuration) : null }
       } else if (message.mediaType === 'gif' || message.mediaType === 'animation') {

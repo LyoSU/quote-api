@@ -8,6 +8,9 @@ const assets = {
   ava2: [320, 320, '<rect width="320" height="320" fill="#2a9d8f"/><circle cx="160" cy="130" r="60" fill="#e9c46a"/><ellipse cx="160" cy="300" rx="110" ry="90" fill="#e9c46a"/>'],
   photoL: [1280, 800, '<defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b8bd0"/><stop offset="1" stop-color="#f3c58b"/></linearGradient></defs><rect width="1280" height="800" fill="url(#s)"/><polygon points="0,800 350,280 620,800" fill="#3d4f6b"/><polygon points="400,800 800,200 1280,800" fill="#2c3a52"/><polygon points="700,380 800,200 900,380" fill="#fff"/><circle cx="1050" cy="160" r="70" fill="#fff6d0"/>'],
   photoP: [720, 1280, '<rect width="720" height="1280" fill="#264653"/><circle cx="360" cy="500" r="220" fill="#e76f51"/><rect x="100" y="900" width="520" height="200" rx="30" fill="#e9c46a"/>'],
+  photoS: [900, 900, '<defs><linearGradient id="q" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#7b2cbf"/><stop offset="1" stop-color="#ff9e00"/></linearGradient></defs><rect width="900" height="900" fill="url(#q)"/><circle cx="450" cy="450" r="260" fill="none" stroke="#fff" stroke-width="40"/><rect x="380" y="380" width="140" height="140" fill="#fff"/>'],
+  photoW: [1600, 700, '<rect width="1600" height="700" fill="#0b6e4f"/><polygon points="0,700 500,200 900,700" fill="#08a045"/><polygon points="600,700 1100,120 1600,700" fill="#6bbf59"/><circle cx="1350" cy="150" r="80" fill="#f4e285"/>'],
+  photoT: [600, 1000, '<defs><linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ef476f"/><stop offset="1" stop-color="#118ab2"/></linearGradient></defs><rect width="600" height="1000" fill="url(#t)"/><circle cx="300" cy="360" r="140" fill="#ffd166"/><rect x="120" y="700" width="360" height="120" rx="20" fill="#fff"/>'],
   sticker: [512, 512, '<circle cx="256" cy="256" r="230" fill="#ffcc4d"/><circle cx="180" cy="200" r="30" fill="#664500"/><circle cx="332" cy="200" r="30" fill="#664500"/><path d="M140 310 Q256 420 372 310" stroke="#664500" stroke-width="24" fill="none" stroke-linecap="round"/>']
 }
 
@@ -75,6 +78,32 @@ const messages = {
   'partial-quote': [base({ text: 'Лише виділена частина повідомлення', isQuote: true, replyMessage: { name: 'Олена', text: 'Оригінал', chatId: 5 } })]
 }
 
+// Albums: mixed portrait/landscape/square tiles (name → items, 'v' marks a video).
+const albumSets = {
+  2: ['photoL', 'photoP'],
+  '2wide': ['photoL', 'photoW'],
+  3: ['photoP', 'photoL', 'photoS'],
+  '3wide': ['photoL', 'photoP', 'photoS'],
+  4: ['photoL', 'photoP', 'photoS', 'photoT'],
+  5: ['photoL', 'photoW', 'photoP', 'photoS', 'photoT'],
+  7: ['photoL', 'photoP', 'photoS', 'photoW', 'photoT', 'photoL', 'photoS'],
+  10: ['photoL', 'photoP', 'photoS', 'photoW', 'photoT', 'photoL', 'photoS', 'photoP', 'photoW', 'photoT']
+}
+const albumItems = (ids, video) => ids.map((id, i) => ({
+  url: `${B}/${id}`,
+  type: video === i ? 'video' : 'photo',
+  ...(video === i ? { duration: 83 } : {})
+}))
+const albumMessages = {}
+for (const [k, ids] of Object.entries(albumSets)) {
+  albumMessages[`album-${k}`] = [base({ text: '', album: albumItems(ids) })]
+  albumMessages[`album-${k}-caption`] = [base({ text: 'Фото з поїздки 🏔 вийшли чудово', album: albumItems(ids, 1) })]
+}
+albumMessages['album-4-reply'] = [base({ text: 'Ось всі', album: albumItems(albumSets[4], 0), replyMessage: { name: 'Олена', text: 'Скинь фото', chatId: 5 } })]
+albumMessages['album-3-forward'] = [base({ text: '', forward: { label: 'Переслано від Олена Коваленко' }, album: albumItems(albumSets[3]) })]
+albumMessages['album-1'] = [base({ text: 'Один у альбомі', album: albumItems(['photoL']) })]
+albumMessages['album-missing'] = [base({ text: 'Один не завантажився', album: [...albumItems(['photoL', 'photoP']), { url: `${B}/nope`, type: 'photo' }] })]
+
 const bgs = { dark: '#1b1429', light: '#ffffff', grad: '#1e3c72/#2a5298', trans: '//#292232', warm: '#f6e7c1' }
 
 const cases = []
@@ -84,6 +113,13 @@ for (const [name, m] of Object.entries(messages)) {
   add(`q-dark-${name}`, m, { backgroundColor: bgs.dark })
   add(`q-light-${name}`, m, { backgroundColor: bgs.light })
 }
+for (const name of Object.keys(albumMessages)) {
+  add(`alb-glass-dark-${name}`, albumMessages[name], { backgroundColor: bgs.dark })
+  add(`alb-classic-light-${name}`, albumMessages[name], { backgroundColor: bgs.light, style: 'classic' })
+}
+add('alb-glass-light-album-5-caption', albumMessages['album-5-caption'], { backgroundColor: bgs.light })
+add('alb-classic-dark-album-7-caption', albumMessages['album-7-caption'], { backgroundColor: bgs.dark, style: 'classic' })
+
 for (const b of ['grad', 'trans', 'warm']) add(`q-${b}-reply`, messages.reply, { backgroundColor: bgs[b] })
 for (const [b, c] of Object.entries(bgs)) {
   add(`img-${b}-reply`, messages.reply, { type: 'image', backgroundColor: c })

@@ -98,6 +98,7 @@ const glass = {
     barMax: 28, // tallest bar
     cover: BLOCK_RADIUS // audio cover corner radius
   },
+  album: { gap: 2, radius: 4 }, // mosaic: tile gap, inner (tile-to-tile) corner radius
   badge: { padX: 8, padY: 4, bg: 0.62, inset: 8, play: 48 }, // media overlay chips on a solid dark pill
   tail: true,
   groupCorners: true,
