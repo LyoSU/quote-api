@@ -188,8 +188,10 @@ async function loadCustomEmojis (customEmojiIds, telegram) {
   if (!stickers) return result
 
   const promises = stickers.map(async sticker => {
-    if (!sticker.thumb || !sticker.thumb.file_id) return
-    const fileLink = await telegram.getFileLink(sticker.thumb.file_id).catch(() => null)
+    // Bot API 6.6 renamed `thumb` → `thumbnail`; accept both.
+    const thumb = sticker.thumbnail || sticker.thumb
+    if (!thumb || !thumb.file_id) return
+    const fileLink = await telegram.getFileLink(thumb.file_id).catch(() => null)
     if (!fileLink) return
     const data = await loadImageFromUrl(fileLink).catch(() => null)
     if (!data) return

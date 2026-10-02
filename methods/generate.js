@@ -246,9 +246,19 @@ module.exports = async (parm) => {
     const prevSame = i > 0 && validMessages[i - 1].chatId === validMessages[i].chatId
     const nextSame = i < validMessages.length - 1 && validMessages[i + 1].chatId === validMessages[i].chatId
     validMessages[i].groupPos = prevSame && nextSame ? 'middle' : prevSame ? 'last' : nextSame ? 'first' : 'single'
-    // Bottom-aligned avatars (glass) sit on the LAST bubble of a run, top-
-    // aligned ones (classic) on the FIRST.
-    if (avatarTop ? prevSame : nextSame) validMessages[i].avatar = false
+  }
+  // One avatar per run: bottom-aligned (glass) on the LAST bubble, top-aligned
+  // (classic) on the FIRST. Callers (the bot) may already have de-duplicated
+  // it onto the last message, so recompute per run instead of only clearing —
+  // otherwise classic cleared the one survivor and the run had no avatar.
+  for (let start = 0; start < validMessages.length;) {
+    let end = start
+    while (end + 1 < validMessages.length && validMessages[end + 1].chatId === validMessages[start].chatId) end++
+    const run = validMessages.slice(start, end + 1)
+    const wanted = run.some((m) => m.avatar)
+    run.forEach((m) => { m.avatar = false })
+    validMessages[avatarTop ? start : end].avatar = wanted
+    start = end + 1
   }
 
   // Generate quotes with concurrency limit to avoid Telegram API rate limits
