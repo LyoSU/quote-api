@@ -5,12 +5,9 @@
 //   7–13   two-color (striped) variants of the same 7 hues
 //   14–20  three-color variants
 //
-// Telegram ships ids 0–6 as built-in defaults and 7–20 through
-// `help.peerColors` (the server owns the exact values and may revise them).
-// Single colors follow the tdesktop/iOS defaults; the dark single colors are
-// the ones this renderer already used. The 7–20 sets are close approximations
-// of the published palettes — not byte-verified against a live
-// `help.peerColors` response.
+// Ids 7–20 are the official table from the Bot API docs ("Accent colors",
+// core.telegram.org/bots/api#accent-colors). Ids 0–6 are theme-customizable
+// in Telegram; these follow the tdesktop/iOS defaults.
 //
 // Each entry: [main, 2nd, 3rd] — `main` is the name color, the rest are the
 // reply-line stripe colors. Unknown ids resolve to null → legacy id % 7 colors.
@@ -26,11 +23,11 @@ const LIGHT = {
 
 const DARK = {
   0: ['#ff8e86'], 1: ['#ffa357'], 2: ['#b18fff'], 3: ['#4dd6bf'], 4: ['#45e8d1'], 5: ['#7ac9ff'], 6: ['#ff7fd5'],
-  7: ['#ff9380', '#992f37'], 8: ['#ecb04e', '#c66a2c'], 9: ['#d0a2f7', '#6d3fc6'],
-  10: ['#a7eb6e', '#167c2f'], 11: ['#40d8d0', '#045c7f'], 12: ['#52bfff', '#0b5494'], 13: ['#ff86a6', '#8e366e'],
+  7: ['#ff9380', '#992f37'], 8: ['#ecb04e', '#c35714'], 9: ['#c697ff', '#5e31c8'],
+  10: ['#a7eb6e', '#167e2d'], 11: ['#40d8d0', '#045c7f'], 12: ['#52bfff', '#0b5494'], 13: ['#ff86a6', '#8e366e'],
   14: ['#3fa2fe', '#e5424f', '#ffffff'], 15: ['#ff905e', '#32a527', '#ffffff'], 16: ['#66d364', '#d5444f', '#ffffff'],
-  17: ['#22bce2', '#3da240', '#ffffff'], 18: ['#22bce2', '#ff6b9d', '#ffe6b5'], 19: ['#9791ff', '#f2731d', '#ffdb59'],
-  20: ['#3d9bee', '#dba51d', '#ffffff']
+  17: ['#22bce2', '#3da240', '#ffffff'], 18: ['#22bce2', '#ff9778', '#ffda6b'], 19: ['#9791ff', '#f2731d', '#ffdb59'],
+  20: ['#3da6eb', '#eea51d', '#ffffff']
 }
 
 // → ['#main', '#2nd'?, '#3rd'?] for the bubble theme, or null when the id is
