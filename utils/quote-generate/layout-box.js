@@ -8,9 +8,12 @@
 //
 // Text canvases from drawMultilineText are metric-exact: their height is
 // (lines-1)*lineHeight + ascent + descent — a constant of the font, never
-// of the glyphs drawn. So a leaf takes every canvas at face value; the only
-// special case is the 1×1 stub returned for empty text, which is dropped so
-// it doesn't occupy a slot in the flow.
+// of the glyphs drawn. A leaf lays out the OPTICAL box though: canvases may
+// carry `optical = { t, b }` (slack above the cap line / below the last
+// baseline) and the leaf trims it from its flow height — like CSS
+// text-box-trim — and draws offset by it. So a gap or a padding is always
+// measured between what the eye sees. The 1×1 stub returned for empty text
+// is dropped so it doesn't occupy a slot in the flow.
 
 const { createCanvas } = require('canvas')
 
@@ -32,13 +35,19 @@ function leaf (canvas, opts = {}) {
   if (canvas.width <= 1 && canvas.height <= 1) return null
   let w = opts.w !== undefined ? opts.w : canvas.width
   if (opts.maxW && w > opts.maxW) w = opts.maxW // overflow renders as a fade
+  const opt = opts.optical !== false && opts.h === undefined && canvas.optical ? canvas.optical : null
+  // Whole pixels: a text canvas drawn at a fractional y goes blurry.
+  const trimT = opt ? Math.round(opt.t) : 0
+  const trimB = opt ? Math.round(opt.b) : 0
   return {
     kind: 'leaf',
     canvas,
     srcY: 0,
     srcH: canvas.height,
+    trimT,
+    role: opts.role || 'block',
     w,
-    h: opts.h !== undefined ? opts.h : canvas.height,
+    h: (opts.h !== undefined ? opts.h : canvas.height) - trimT - trimB,
     bleed: !!opts.bleed,
     paint: opts.paint || null
   }
@@ -46,7 +55,7 @@ function leaf (canvas, opts = {}) {
 
 /**
  * A container. dir: 'col' | 'row'; gap between children; pad inside;
- * align: 'start' | 'center' (cross axis); justify: 'start' | 'between'
+ * align: 'start' | 'center' | 'end' (cross axis); justify: 'start' | 'between'
  * (row main axis); bg/fg: painters called with (ctx, node) before/after
  * children; minW: minimum outer width.
  */
@@ -54,7 +63,8 @@ function box (opts = {}) {
   return {
     kind: 'box',
     dir: opts.dir || 'col',
-    gap: opts.gap || 0,
+    gap: opts.gap || 0, // number, or (prev, next) => number between column children
+    role: opts.role || 'block',
     pad: normPad(opts.pad),
     align: opts.align || 'start',
     justify: opts.justify || 'start',
@@ -67,12 +77,13 @@ function box (opts = {}) {
   }
 }
 
-// Vertical flow gap before a column child: the box gap by default, or the
-// child's own `mt` (margin-top) when set — text nodes carry metric slack
-// above their cap line, so they ask for mt 0 and supply the air themselves.
+// Vertical flow gap before a column child: the box gap (a number, or a
+// function of the neighbouring pair — "text → text" is tighter than
+// "block → text"), or the child's own `mt` (margin-top) when set.
 function gapBefore (box, child, index) {
   if (index === 0) return 0
-  return child.mt !== undefined ? child.mt : box.gap
+  if (child.mt !== undefined) return child.mt
+  return typeof box.gap === 'function' ? box.gap(box.children[index - 1], child) : box.gap
 }
 
 /** Bottom-up natural sizing: parent = children + gaps + padding. */
@@ -96,7 +107,7 @@ function measure (n) {
       if (c.h > h) h = c.h
       w += c.w
     }
-    w += n.gap * Math.max(0, n.children.length - 1)
+    w += (n.gap || 0) * Math.max(0, n.children.length - 1)
     n.w = w + n.pad.l + n.pad.r
   }
   // Whole-pixel sizes: fractional widths (scaled media) would otherwise be
@@ -137,11 +148,11 @@ function place (n, x, y, stretchW) {
   } else {
     const crossY = (c) => n.align === 'center'
       ? y + n.pad.t + (n.h - n.pad.t - n.pad.b - c.h) / 2
-      : y + n.pad.t
+      : n.align === 'end' ? y + n.h - n.pad.b - c.h : y + n.pad.t // end = baseline for text
     if (n.justify === 'between' && n.children.length === 2) {
       const [a, b] = n.children
       // Never let the leading child run into the trailing one (gap = min gap).
-      const availA = innerW - b.w - n.gap
+      const availA = innerW - b.w - (n.gap || 0)
       if (a.w > availA) a.w = Math.max(0, availA)
       place(a, x + n.pad.l, crossY(a))
       place(b, x + n.w - n.pad.r - b.w, crossY(b))
@@ -150,7 +161,7 @@ function place (n, x, y, stretchW) {
     let cx = x + n.pad.l
     for (const c of n.children) {
       place(c, cx, crossY(c))
-      cx += c.w + n.gap
+      cx += c.w + (n.gap || 0)
     }
   }
 }
@@ -164,9 +175,9 @@ function render (ctx, n) {
     } else if (n.canvas.width > n.w + 1) {
       // Overflowing leaf (e.g. a long name sharing a row with a tag):
       // trim the trailing edge on a whole glyph instead of a mid-glyph cut.
-      ctx.drawImage(fadeOverflow(n), n.x, n.y)
+      ctx.drawImage(fadeOverflow(n), n.x, n.y - n.trimT)
     } else {
-      ctx.drawImage(n.canvas, 0, n.srcY, n.canvas.width, n.srcH, n.x, n.y, n.canvas.width, n.srcH)
+      ctx.drawImage(n.canvas, 0, n.srcY, n.canvas.width, n.srcH, n.x, n.y - n.trimT, n.canvas.width, n.srcH)
     }
   } else {
     for (const c of n.children) render(ctx, c)

@@ -42,3 +42,8 @@ assets/emojis/*
 .superpowers/
 test-output/
 assets/fonts/*.ttf
+
+# Visual-test baselines are environment-specific (fonts/libvips differ
+# between macOS and Docker): regenerate locally with `node test-visual.js --update`.
+test/visual/baseline/
+test-output/visual/

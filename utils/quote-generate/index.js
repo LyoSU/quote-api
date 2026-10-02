@@ -12,9 +12,11 @@ const { drawAvatar } = require('./avatar')
 const { downloadMediaImage } = require('./media')
 const { drawQuote } = require('./composer')
 const { drawLabel } = require('./canvas-utils')
+const { fontMetrics } = require('./text-prepare')
 const { loadIcons, drawVoiceRow, drawDocumentRow, drawAudioRow, formatDuration } = require('./attachments')
 const { ColorContrast, lightOrDark, colorLuminance } = require('./color')
 const { NAME_COLORS_LIGHT, NAME_COLORS_DARK } = require('./constants')
+const { getStyle } = require('./styles')
 
 async function loadFonts () {
   const fontsDir = path.resolve(__dirname, '../../assets/fonts/')
@@ -57,6 +59,7 @@ class QuoteGenerate {
 
   async generate (backgroundColorOne, backgroundColorTwo, message, width, height, scale, emojiBrand) {
     await loadIcons() // warm white icon sprites (no-op after first call)
+    const style = getStyle(message.style) // unknown / missing → glass
     scale = scale || 2
     if (!Number.isFinite(scale) || scale < 1) scale = 1
     if (scale > 20) scale = 20
@@ -79,7 +82,7 @@ class QuoteGenerate {
 
     // Name is noticeably smaller than the message text (like Telegram), so
     // the eye lands on the content first.
-    const nameSize = 18 * scale
+    const nameSize = style.fonts.name * scale
 
     let nameCanvas
     if (message.from && message.from.name !== false && (message.from.name || message.from.first_name || message.from.last_name)) {
@@ -111,7 +114,7 @@ class QuoteGenerate {
         // emoji image is in the canvas — source-in would tint it into a
         // flat silhouette (emoji status or regular emoji in the name).
         const nameHasEmoji = emojiDb.searchFromText({ input: name, fixCodePoints: true }).length > 0
-        if (!message.from.emoji_status && !nameHasEmoji) {
+        if (style.nameGradient && !message.from.emoji_status && !nameHasEmoji) {
           nameCanvas = gradientTint(nameCanvas, nameColor, colorLuminance(nameColor, 0.25))
         }
       } catch (error) {
@@ -159,18 +162,21 @@ class QuoteGenerate {
         const parts = splitByBlockquotes(text, message.entities)
         if (parts) {
           textBlocks = []
+          let linesLeft = style.maxLines // the cap spans all runs of the message
           for (const part of parts) {
+            if (linesLeft <= 0) break
             const canvas = await drawMultilineText(
               part.text, part.entities, fontSize, textColor,
-              0, fontSize, width, height - fontSize, emojiBrand, this.telegram
+              0, fontSize, width, Math.min(height - fontSize, maxTextHeight(fontSize, linesLeft)), emojiBrand, this.telegram
             )
             textBlocks.push({ canvas, quote: part.quote })
+            linesLeft -= countLines(canvas, fontSize)
           }
           textCanvas = textBlocks[0] && textBlocks[0].canvas // width hints below
         } else {
           textCanvas = await drawMultilineText(
             text, message.entities, fontSize, textColor,
-            0, fontSize, width, height - fontSize, emojiBrand, this.telegram
+            0, fontSize, width, Math.min(height - fontSize, maxTextHeight(fontSize, style.maxLines)), emojiBrand, this.telegram
           )
         }
       } catch (error) {
@@ -180,7 +186,7 @@ class QuoteGenerate {
           textBlocks = null
           textCanvas = await drawMultilineText(
             text, [], fontSize, textColor,
-            0, fontSize, width, height - fontSize, emojiBrand, this.telegram
+            0, fontSize, width, Math.min(height - fontSize, maxTextHeight(fontSize, style.maxLines)), emojiBrand, this.telegram
           )
         } catch (retryError) {
           console.error('Failed to render plain text fallback:', retryError.message)
@@ -209,13 +215,13 @@ class QuoteGenerate {
         const replyName = typeof message.replyMessage.name === 'string' ? message.replyMessage.name : String(message.replyMessage.name)
         const replyText = typeof message.replyMessage.text === 'string' ? message.replyMessage.text : String(message.replyMessage.text)
 
-        const replyNameFontSize = 14 * scale
+        const replyNameFontSize = style.fonts.replyName * scale
         const replyNameCanvas = await drawMultilineText(
           replyName, 'bold', replyNameFontSize, replyNameColor,
           0, replyNameFontSize, width * 0.9, replyNameFontSize, emojiBrand, this.telegram
         )
 
-        const replyTextFontSize = 15 * scale
+        const replyTextFontSize = style.fonts.replyText * scale
         const replyTextCanvas = await drawMultilineText(
           replyText, message.replyMessage.entities || [],
           replyTextFontSize, textColor,
@@ -338,12 +344,13 @@ class QuoteGenerate {
 
     // Sender tag (user role in group)
     const senderTag = message.senderTag || null
+    const senderTagRole = message.senderTagRole || 'member'
 
     // "via @bot" chip (inline-bot messages)
     let viaBotCanvas = null
     if (message.viaBot) {
       const viaText = `via @${String(message.viaBot).replace(/^@/, '')}`
-      viaBotCanvas = drawLabel(viaText, 13 * scale, nameColor, { alpha: 0.8 })
+      viaBotCanvas = drawLabel(viaText, style.fonts.micro * scale, nameColor, { alpha: 0.8 })
     }
 
     // Nothing to render — skip this message
@@ -365,9 +372,11 @@ class QuoteGenerate {
       forwardLabel,
       nameColor,
       senderTag,
+      senderTagRole,
       viaBot: viaBotCanvas,
       groupPos: message.groupPos || 'single',
-      isQuote: !!message.isQuote
+      isQuote: !!message.isQuote,
+      style
     })
   }
 }
@@ -376,6 +385,19 @@ class QuoteGenerate {
  * Recolors every opaque pixel of a text canvas with a horizontal gradient
  * (source-in compositing keeps the glyph alpha, replaces the color).
  */
+// Height budget for `lines` lines of text: the layout cuts (with "…") when the
+// next line's baseline would pass it, so aim between line N and N+1.
+function maxTextHeight (fontSize, lines) {
+  return fontMetrics(fontSize).ascent + (lines - 0.5) * fontSize * 1.2
+}
+
+// Line count of a rendered text canvas (metric height → lines).
+function countLines (canvas, fontSize) {
+  if (canvas.width <= 1 && canvas.height <= 1) return 0
+  const { ascent, descent } = fontMetrics(fontSize)
+  return Math.round((canvas.height - ascent - descent) / (fontSize * 1.2)) + 1
+}
+
 function gradientTint (canvas, colorFrom, colorTo) {
   if (!canvas || canvas.width < 2) return canvas
   const ctx = canvas.getContext('2d')

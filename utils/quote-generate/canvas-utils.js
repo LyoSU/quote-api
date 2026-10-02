@@ -54,12 +54,12 @@ function paintGlass (ctx, w, h, r, tailSize, lw) {
   // active only the inner half remains, so double the width.
   bubblePath(ctx, w, h, r, tailSize)
   ctx.lineWidth = lw * 2
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)'
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.09)'
   ctx.stroke()
 
   // Light top edge fading out by ~40% of the height.
   const grad = ctx.createLinearGradient(0, 0, 0, h * 0.4)
-  grad.addColorStop(0, 'rgba(255, 255, 255, 0.16)')
+  grad.addColorStop(0, 'rgba(255, 255, 255, 0.22)')
   grad.addColorStop(1, 'rgba(255, 255, 255, 0)')
   ctx.lineWidth = lw * 2.6
   ctx.strokeStyle = grad
@@ -215,6 +215,30 @@ function inkBounds (canvas) {
   return { top, bottom }
 }
 
+// Optical bounds. A text canvas is a metric box (ascent above the baseline,
+// descent below); what the eye reads as its edges is the cap line on top and
+// the baseline at the bottom (descenders hang, like CSS text-box-trim:
+// cap alphabetic). `canvas.optical = { t, b }` is the hidden slack above the
+// cap line / below the baseline — layout-box lays out the trimmed box.
+const capCache = new Map()
+function capHeight (fontSize, bold) {
+  const key = `${bold ? 'b' : 'r'}${fontSize}`
+  let cap = capCache.get(key)
+  if (cap === undefined) {
+    const ctx = createCanvas(1, 1).getContext('2d')
+    ctx.font = `${bold ? 'bold ' : ''}${fontSize}px NotoSans`
+    cap = ctx.measureText('H').actualBoundingBoxAscent || fontSize * 0.714
+    capCache.set(key, cap)
+  }
+  return cap
+}
+
+function setOptical (canvas, t, b) {
+  // Whole pixels — a canvas drawn at a fractional y goes blurry.
+  canvas.optical = { t: Math.max(0, Math.round(t)), b: Math.max(0, Math.round(b)) }
+  return canvas
+}
+
 // One-line label drawn at metric size: canvas height = ascent + descent of
 // the font em box, baseline at ascent. Same geometry rules as multiline
 // text — glyph shapes never change the box.
@@ -233,11 +257,11 @@ function drawLabel (text, fontSize, color, opts = {}) {
   ctx.fillStyle = color
   if (opts.alpha !== undefined) ctx.globalAlpha = opts.alpha
   ctx.fillText(text, 0, ascent)
-  return canvas
+  return setOptical(canvas, ascent - capHeight(fontSize, opts.bold), canvas.height - ascent)
 }
 
 function drawForwardLabel (text, fontSize, color) {
   return drawLabel(text, fontSize, color, { bold: true })
 }
 
-module.exports = { drawRoundRect, drawGradientRoundRect, roundImage, drawReplyLine, drawQuoteIcon, drawLabel, drawForwardLabel, inkBounds }
+module.exports = { drawRoundRect, drawGradientRoundRect, roundImage, drawReplyLine, drawQuoteIcon, drawLabel, drawForwardLabel, inkBounds, capHeight, setOptical }

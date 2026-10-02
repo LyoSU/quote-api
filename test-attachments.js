@@ -8,7 +8,6 @@ const {
   formatDuration, formatFileSize, resampleWaveform, ROW
 } = require('./utils/quote-generate/attachments')
 const { drawQuote } = require('./utils/quote-generate/composer')
-const { fontMetrics } = require('./utils/quote-generate/text-prepare')
 
 const ACCENT = '#ffa357' // r=255 g=163 b=87
 
@@ -51,20 +50,23 @@ async function main () {
   const barX = d + ROW.gap * scale + (ROW.bar * scale) / 2
   assert.ok(isAccent(px(voice, barX, d / 2)), 'first waveform bar must be accent')
 
-  // 4. Document row height: max(disc, two metric text lines) — exact math.
-  const titleH = Math.max(1, Math.ceil(fontMetrics(ROW.title * scale).ascent + fontMetrics(ROW.title * scale).descent))
-  const metaH = Math.max(1, Math.ceil(fontMetrics(ROW.meta * scale).ascent + fontMetrics(ROW.meta * scale).descent))
-  const expRowH = Math.max(d, titleH + ROW.lineGap * scale + metaH)
+  // 4. Document row: optical (visible) height = max(disc, cap-line→baseline
+  //    text block); the canvas carries the hidden label slack as `optical`.
   const doc = drawDocumentRow({ file_name: 'звіт.pdf', file_size: 2.4 * 1024 * 1024 }, ACCENT, '#fff', scale, maxW)
-  assert.strictEqual(doc.height, expRowH, `doc row ${doc.height} != max(disc, texts) ${expRowH}`)
-  const docDisc = px(doc, d / 2, doc.height / 2)
+  const vis = (c) => c.height - c.optical.t - c.optical.b
+  const { capHeight } = require('./utils/quote-generate/canvas-utils')
+  const textsVis = capHeight(ROW.title * scale, true) + ROW.lineGap * scale + capHeight(ROW.meta * scale)
+  const expRowH = Math.round(Math.max(d, textsVis))
+  assert.ok(Math.abs(vis(doc) - expRowH) <= 2, `doc row visible height ${vis(doc)} != max(disc, texts) ${expRowH}`)
+  assert.strictEqual(vis(voice), d, 'voice row has no hidden slack')
+  const docDisc = px(doc, d / 2, doc.optical.t + vis(doc) / 2)
   assert.ok(docDisc.r > 240 && docDisc.g > 240 && docDisc.b > 240, 'page glyph must be white at disc center')
-  assert.ok(isAccent(px(doc, d / 2, (doc.height - d) / 2 + d * 0.08)), 'disc rim must be accent')
+  assert.ok(isAccent(px(doc, d / 2, doc.optical.t + (vis(doc) - d) / 2 + d * 0.08)), 'disc rim must be accent')
 
   // 5. Audio row without thumb: accent note disc; with thumb: thumb pixels.
   const audio = drawAudioRow({ title: 'Пісня', performer: 'Гурт', duration: 215 }, ACCENT, '#fff', scale, maxW)
-  assert.strictEqual(audio.height, expRowH, `audio row ${audio.height} != ${expRowH}`)
-  assert.ok(isAccent(px(audio, d * 0.15, audio.height / 2)), 'note disc must be accent')
+  assert.ok(Math.abs(vis(audio) - expRowH) <= 2, `audio row visible height ${vis(audio)} != ${expRowH}`)
+  assert.ok(isAccent(px(audio, d * 0.15, audio.optical.t + vis(audio) / 2)), 'note disc must be accent')
 
   const thumb = createCanvas(100, 100)
   thumb.getContext('2d').fillStyle = '#00ff00'
@@ -91,14 +93,14 @@ async function main () {
   // Center: white play triangle.
   const center = px(q, cx, cy)
   assert.ok(center.g > 180 && center.b > 180, `center must be white triangle, got ${JSON.stringify(center)}`)
-  // Inside the dark disc, left of the triangle: red dimmed by ~50% black.
+  // Inside the dark disc, left of the triangle: red dimmed by the badge's solid dark fill (62% black → r≈97).
   const ring = px(q, cx - 14, cy)
-  assert.ok(ring.r > 100 && ring.r < 170 && ring.g < 60, `ring must be dimmed red, got ${JSON.stringify(ring)}`)
+  assert.ok(ring.r > 70 && ring.r < 130 && ring.g < 60, `ring must be dimmed red, got ${JSON.stringify(ring)}`)
   // Outside the disc: pure media.
   const raw = px(q, mx + 30, cy)
   assert.ok(raw.r > 240 && raw.g < 15, `media must stay untouched, got ${JSON.stringify(raw)}`)
-  // Duration chip bottom-left: dark backdrop over red.
-  const chip = px(q, mx + 6 + 4, my + 100 - 6 - 6)
+  // Duration chip bottom-left (8px in from the corner): solid dark pill over red.
+  const chip = px(q, mx + 8 + 4, my + 100 - 8 - 9)
   assert.ok(chip.r < 200 && chip.g < 80, `chip backdrop missing, got ${JSON.stringify(chip)}`)
 
   console.log('OK: attachment assertions passed')

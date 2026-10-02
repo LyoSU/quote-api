@@ -8,6 +8,18 @@ const { loadFonts } = require('./utils')
 
 const app = new Koa()
 
+// Prod path is Cloudflare → host nginx → docker port, so ctx.ip is the docker
+// gateway and every public client shared ONE rate-limit bucket. TRUST_PROXY=1
+// reads the client IP from a proxy header: PROXY_IP_HEADER=CF-Connecting-IP
+// behind Cloudflare (X-Forwarded-For's last hop there is a Cloudflare edge,
+// not the client). Only the last value is used, so a client-sent header can't
+// override what the proxy set — as long as the port isn't reachable directly.
+if (process.env.TRUST_PROXY) {
+  app.proxy = true
+  app.maxIpsCount = 1
+  if (process.env.PROXY_IP_HEADER) app.proxyIpHeader = process.env.PROXY_IP_HEADER
+}
+
 app.use(logger())
 app.use(responseTime())
 app.use(bodyParser())
@@ -37,7 +49,9 @@ app.use(ratelimit({
     // The bot sends its token in the request body (kept out of the URL/access
     // logs); accept either location so its own requests stay un-throttled.
     const token = ctx.query.botToken || (ctx.request.body && ctx.request.body.botToken)
-    return token === process.env.BOT_TOKEN
+    // Without BOT_TOKEN set, `undefined === undefined` whitelisted every
+    // token-less request — i.e. disabled rate limiting entirely.
+    return Boolean(process.env.BOT_TOKEN) && token === process.env.BOT_TOKEN
   },
   blacklist: (ctx) => {
   }

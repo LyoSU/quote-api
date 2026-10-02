@@ -8,7 +8,8 @@ const fs = require('fs')
 const path = require('path')
 const { createCanvas, loadImage } = require('canvas')
 const sharp = require('sharp')
-const { drawLabel } = require('./canvas-utils')
+const { drawLabel, setOptical } = require('./canvas-utils')
+const { glass } = require('./styles')
 
 // Official Material Design icons (Apache-2.0), vendored as-is from
 // @material-design-icons/svg into assets/icons/. Rasterized once at 256px
@@ -61,19 +62,8 @@ function paintIcon (ctx, name, x, y, size, fallback) {
   }
 }
 
-const ROW = {
-  disc: 40, // play/file/cover disc side
-  gap: 11, // disc → texts/waveform
-  title: 16, // first line (file name, track title)
-  meta: 13, // second line (size, performer, duration)
-  metaAlpha: 0.55,
-  lineGap: 4, // between the two text lines
-  bar: 3, // waveform bar width
-  barGap: 2.5, // waveform bar pitch gap
-  barMin: 4, // shortest bar
-  barMax: 26, // tallest bar
-  cover: 8 // audio cover corner radius
-}
+// Row tokens live in styles.js (glass.row, fonts.micro); same geometry for every style.
+const ROW = { ...glass.row, meta: glass.fonts.micro, metaAlpha: glass.microAlpha }
 
 // m:ss (Telegram never shows hours on voice/audio chips)
 function formatDuration (seconds) {
@@ -233,8 +223,8 @@ function drawVoiceRow (waveform, duration, accent, textColor, scale, maxWidth) {
     roundedVBar(ctx, x, cy - bh / 2, s(ROW.bar), bh)
   }
 
-  ctx.drawImage(durLabel, d + s(ROW.gap) + barsW + s(ROW.gap), Math.round((h - durLabel.height) / 2))
-  return canvas
+  ctx.drawImage(durLabel, d + s(ROW.gap) + barsW + s(ROW.gap), centerY(h, durLabel))
+  return setOptical(canvas, 0, 0) // the disc fills the row — no hidden slack
 }
 
 /**
@@ -327,26 +317,39 @@ function fitLabel (text, fontSize, bold, maxW, mode) {
   return best || fitLabel(text, fontSize, bold, maxW, 'end')
 }
 
-// [disc] + up to two text lines, vertically centered against the disc.
+// Top y that centers a label's visible band (cap line → baseline) on h/2.
+function centerY (h, label) {
+  const o = label.optical || { t: 0, b: 0 }
+  return Math.round(h / 2 - (o.t + label.height - o.b) / 2)
+}
+
+// [disc] + up to two text lines. Everything is laid out by visible bounds:
+// the text block (title cap line → meta baseline) is centered on the disc,
+// and the canvas carries the hidden slack of the first/last label as its
+// `optical` insets so the row's visible height is exactly max(disc, texts).
 function assembleRow (disc, title, meta, scale, maxWidth) {
   const s = (v) => v * scale
   const gap = s(ROW.gap)
   const textW = Math.max(title.width, meta ? meta.width : 0)
   let w = Math.ceil(disc.width + gap + textW)
   if (maxWidth && w > maxWidth) w = Math.ceil(maxWidth)
-  const textsH = title.height + (meta ? s(ROW.lineGap) + meta.height : 0)
-  const h = Math.max(disc.height, textsH)
+  const vis = (c) => c.height - c.optical.t - c.optical.b
+  const lineGap = s(ROW.lineGap)
+  const textsH = vis(title) + (meta ? lineGap + vis(meta) : 0)
+  const h = Math.ceil(Math.max(disc.height, textsH))
+  const padT = title.optical.t
+  const padB = (meta || title).optical.b
+  const hAll = Math.ceil(padT + h + padB)
 
-  const canvas = createCanvas(w, h)
+  const canvas = createCanvas(w, hAll)
   const ctx = canvas.getContext('2d')
-  ctx.drawImage(disc, 0, Math.round((h - disc.height) / 2))
+  ctx.drawImage(disc, 0, Math.round(padT + (h - disc.height) / 2))
 
   const maxTextW = w - disc.width - gap
-  let ty = Math.round((h - textsH) / 2)
-  ctx.drawImage(clampWidth(title, maxTextW), disc.width + gap, ty)
-  ty += title.height + s(ROW.lineGap)
-  if (meta) ctx.drawImage(clampWidth(meta, maxTextW), disc.width + gap, ty)
-  return canvas
+  const ty = Math.round(padT + (h - textsH) / 2) // cap line of the title
+  ctx.drawImage(clampWidth(title, maxTextW), disc.width + gap, ty - title.optical.t)
+  if (meta) ctx.drawImage(clampWidth(meta, maxTextW), disc.width + gap, ty + vis(title) + lineGap - meta.optical.t)
+  return setOptical(canvas, padT, hAll - padT - h)
 }
 
 // Hard-crops a label canvas with a trailing fade (same look as layout-box).
@@ -384,15 +387,16 @@ function roundedVBar (ctx, x, y, w, h) {
  * is scaled into the bubble): centered play button and/or a bottom-left chip
  * ("GIF", "0:42"). `ctx` is the final canvas, (x, y, w, h) the media rect.
  */
-function paintMediaBadges (ctx, x, y, w, h, badge, scale) {
+function paintMediaBadges (ctx, x, y, w, h, badge, scale, style) {
   const s = (v) => v * scale
   if (!badge) return
+  const P = style || glass
   ctx.save()
   if (badge.play) {
-    const d = Math.min(s(44), w * 0.45, h * 0.45)
+    const d = Math.min(s(P.badge.play), w * 0.45, h * 0.45)
     const cx = x + w / 2
     const cy = y + h / 2
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+    ctx.fillStyle = `rgba(0, 0, 0, ${P.badge.bg})`
     ctx.beginPath()
     ctx.arc(cx, cy, d / 2, 0, Math.PI * 2)
     ctx.fill()
@@ -409,15 +413,17 @@ function paintMediaBadges (ctx, x, y, w, h, badge, scale) {
     })
   }
   if (badge.label) {
-    const label = drawLabel(badge.label, s(13), '#fff')
-    const padX = s(7)
-    const padY = s(2)
+    // Solid dark pill hugging the label's visible band (cap line → baseline).
+    const label = drawLabel(badge.label, s(P.fonts.micro), '#fff')
+    const o = label.optical
+    const padX = s(P.badge.padX)
+    const padY = s(P.badge.padY)
     const bw = label.width + padX * 2
-    const bh = label.height + padY * 2
-    const bx = x + s(6)
-    const by = y + h - bh - s(6)
+    const bh = label.height - o.t - o.b + padY * 2
+    const bx = x + s(P.badge.inset)
+    const by = y + h - bh - s(P.badge.inset)
     const r = bh / 2
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
+    ctx.fillStyle = `rgba(0, 0, 0, ${P.badge.bg})`
     ctx.beginPath()
     ctx.moveTo(bx + r, by)
     ctx.arcTo(bx + bw, by, bx + bw, by + bh, r)
@@ -426,7 +432,7 @@ function paintMediaBadges (ctx, x, y, w, h, badge, scale) {
     ctx.arcTo(bx, by, bx + bw, by, r)
     ctx.closePath()
     ctx.fill()
-    ctx.drawImage(label, bx + padX, by + padY)
+    ctx.drawImage(label, bx + padX, by + padY - o.t)
   }
   ctx.restore()
 }

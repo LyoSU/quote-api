@@ -7,7 +7,11 @@ const loadImageFromUrl = require('../image-load-url')
 const { AVATAR_COLORS } = require('./constants')
 
 const avatarCache = new LRU({
-  max: 20,
+  // Bounded by decoded bytes, not entries: Telegram photos range 160–640px
+  // (100KB–1.6MB decoded). 64MB per worker keeps hundreds of the avatars
+  // that repeat in a chat without risking the container memory cap.
+  max: 64 * 1024 * 1024,
+  length: (img) => (img.width || 1) * (img.height || 1) * 4,
   maxAge: 1000 * 60 * 5
 })
 
@@ -60,7 +64,11 @@ async function downloadAvatarImage (user, telegram) {
   }
 
   if (user.photo && user.photo.url) {
-    avatarImage = await loadImage(user.photo.url).catch(() => null)
+    // Through our loader (SSRF guard, size/time limits) — canvas's own
+    // loadImage(url) would fetch any address unchecked.
+    avatarImage = await loadImageFromUrl(user.photo.url)
+      .then((buffer) => loadImage(buffer))
+      .catch(() => null)
     if (avatarImage) avatarCache.set(cacheKey, avatarImage)
   }
 

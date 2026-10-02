@@ -4,6 +4,7 @@
 
 const { createCanvas } = require('canvas')
 const { hexToRgb, normalizeColor } = require('./color')
+const { capHeight, setOptical } = require('./canvas-utils')
 
 /**
  * Render laid-out text to a canvas.
@@ -122,7 +123,43 @@ function renderText (layout, prepared, fontColor) {
     }
   }
 
-  return canvas
+  return setOptical(canvas, ...opticalInsets(ctx, layout, prepared))
+}
+
+// Scripts whose glyphs rise well above the Latin cap line (Arabic, Indic,
+// Thai, CJK…): their first-line top is the measured ink, not the cap height.
+const TALL_SCRIPT = /[\u0590-\u1dff\u2e80-\uffef]/
+
+/**
+ * Hidden slack [above the first line's optical top, below the last line's
+ * baseline]. Top = cap height of the first line (or the measured ink for
+ * tall scripts, or the emoji image when the line is emoji only); bottom =
+ * the last baseline — descenders hang into the padding.
+ */
+function opticalInsets (ctx, layout, prepared) {
+  const { lines, height } = layout
+  const { segments, fontSize, emojiSize } = prepared
+  const first = lines[0]
+  const last = lines[lines.length - 1]
+  const bold = segments.some((sg) => sg.kind === 'text' && sg.styles.includes('bold'))
+
+  const topOf = (line) => {
+    const items = line.segments.map((ls) => segments[ls.index]).filter((sg) => sg && sg.kind !== 'space' && sg.kind !== 'break')
+    if (items.length > 0 && items.every((sg) => sg.kind === 'emoji')) return fontSize * 0.85
+    let top = capHeight(fontSize, bold)
+    for (const sg of items) {
+      if (sg.kind === 'text' && TALL_SCRIPT.test(sg.text)) {
+        ctx.font = sg.font
+        top = Math.max(top, ctx.measureText(sg.text).actualBoundingBoxAscent || 0)
+      }
+    }
+    return top
+  }
+  const emojiOnlyBottom = last.segments.length > 0 &&
+    last.segments.every((ls) => segments[ls.index] && segments[ls.index].kind === 'emoji')
+    ? emojiSize - fontSize * 0.85
+    : 0
+  return [first.y - topOf(first), Math.ceil(height) - last.y - emojiOnlyBottom]
 }
 
 module.exports = { renderText }

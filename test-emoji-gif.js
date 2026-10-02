@@ -5,6 +5,9 @@
 //     still produce a media canvas — first frame extracted via ffmpeg.
 // Run: node test-emoji-gif.js  → exits non-zero on any failed assertion.
 
+// Fixtures are served from localhost, which the SSRF guard refuses by default.
+process.env.ALLOW_PRIVATE_IMAGE_URLS = '1'
+
 const assert = require('assert')
 const http = require('http')
 const { execFileSync } = require('child_process')
