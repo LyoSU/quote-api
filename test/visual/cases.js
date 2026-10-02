@@ -160,4 +160,9 @@ add('acc-glass-grad-15', [base({ from: { id: 1, name: 'Юрій', photo: { url: 
 // Rich Messages (rich.js): rich-* cases.
 require('./rich-cases')(add, { base, B, bgs })
 
+// Checklists, gifts, giveaways, stories, forum topics (cards.js): `typ-*`.
+const types = require('./cases-types')({ B, base, bgs })
+cases.push(...types.cases)
+Object.assign(assets, types.assets)
+
 module.exports = { cases, assets }

@@ -33,6 +33,7 @@ function drawQuote (options) {
     senderTag,
     senderTagRole, // 'owner' | 'admin' | 'member' (default)
     viaBot, // pre-rendered "via @bot" canvas (or null)
+    topic, // pre-rendered forum topic line (cards.js drawTopicLine) or null
     groupPos = 'single', // single | first | middle | last — corners facing a same-sender neighbour flatten
     isQuote,
     style
@@ -74,6 +75,8 @@ function drawQuote (options) {
     headerNode = tagLeaf
       ? box({ dir: 'row', justify: 'between', align: tagLeaf && tagLeaf.canvas.pill ? 'center' : 'end', role: 'text', gap: s(sp.inline), stretch: true, children: [nameSide, tagLeaf] })
       : nameSide
+    // Forum topic: one muted line above the name, same header column.
+    if (topic) headerNode = box({ dir: 'col', role: 'text', stretch: true, gap: s(sp.inline), children: [leaf(topic, { role: 'text', maxW: s(P.maxHeader) }), headerNode] })
   }
 
   let forwardNode = null

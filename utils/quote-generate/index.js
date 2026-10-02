@@ -20,6 +20,7 @@ const { loadIcons, drawVoiceRow, drawDocumentRow, drawAudioRow, formatDuration }
 const { ColorContrast, lightOrDark, colorLuminance } = require('./color')
 const { NAME_COLORS_LIGHT, NAME_COLORS_DARK } = require('./constants')
 const { getStyle } = require('./styles')
+const { drawCard, drawTopicLine, drawStoryRing } = require('./cards')
 const { drawRich } = require('./rich')
 
 async function loadFonts () {
@@ -141,10 +142,15 @@ class QuoteGenerate {
     const hasAlbum = Array.isArray(message.album) && message.album.length > 0
     let textColor = backStyle === 'light' ? '#000' : '#fff'
 
+    // Checklist / gift / giveaway / story → an in-bubble card (cards.js). It
+    // replaces the bot's plain-text fallback; only a gift's own message stays.
+    const card = await drawCard(message, { scale, style, accent: nameColor, textColor, width, telegram: this.telegram, emojiBrand })
+    if (card) message = { ...message, text: card.text, entities: card.entities }
+
     // 1–3 emoji and nothing else: Telegram shows them big, without a bubble
     // (like a sticker) — rendered as sticker-like media.
     let bigEmoji = null
-    if (message.text && !message.rich && !message.media && !hasAlbum && !message.voice && !message.document && !message.audio && !message.forward) {
+    if (message.text && !card && !message.rich && !message.media && !hasAlbum && !message.voice && !message.document && !message.audio && !message.forward) {
       const raw = String(message.text).trim()
       const found = raw ? emojiDb.searchFromText({ input: raw, fixCodePoints: true }) : []
       if (found.length >= 1 && found.length <= 3 && found.map((e) => e.emoji).join('') === raw.replace(/\s+/g, '')) {
@@ -278,6 +284,8 @@ class QuoteGenerate {
               console.warn('Failed to load reply thumb:', error.message)
             }
           }
+          // Story reply: no preview in the Bot API — a story ring stands in.
+          if (replyMedia && replyMedia.kind === 'story' && !replyData.thumb) replyData.thumb = drawStoryRing(style.replyThumb * scale, replyNameColor, scale)
         }
       } catch (error) {
         console.error('Failed to render reply:', error.message, error.stack)
@@ -379,6 +387,7 @@ class QuoteGenerate {
       }
       attachment = drawAudioRow(message.audio, nameColor, textColor, scale, attachMaxW, audioThumb)
     }
+    if (!attachment && card) attachment = card.canvas
 
     // Video/GIF media badges, painted over the media by the composer.
     let mediaBadge = null
@@ -426,6 +435,7 @@ class QuoteGenerate {
       senderTag,
       senderTagRole,
       viaBot: viaBotCanvas,
+      topic: nameCanvas ? await drawTopicLine(message.topic, { scale, style, textColor, accent: nameColor, telegram: this.telegram, emojiBrand }) : null,
       groupPos: message.groupPos || 'single',
       isQuote: !!message.isQuote,
       style
