@@ -352,7 +352,10 @@ module.exports = async (parm) => {
   let { type, format, ext } = parm
 
   if (!type && ext) type = 'png'
-  if (type !== 'image' && type !== 'stories' && canvasQuote.height > 1024 * 2) type = 'png'
+  // Too tall to stay legible once squeezed into a 512px sticker → plain png.
+  // Measured in logical px: a sticker is downscaled to 512 whatever the scale,
+  // so a higher `scale` must not tip a short quote over the limit.
+  if (type !== 'image' && type !== 'stories' && canvasQuote.height / scale > 1024) type = 'png'
 
   if (type === 'quote') {
     const downPadding = 75
