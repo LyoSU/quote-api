@@ -130,9 +130,27 @@ class QuoteGenerate {
     const fontSize = 24 * scale
     let textColor = backStyle === 'light' ? '#000' : '#fff'
 
+    // 1–3 emoji and nothing else: Telegram shows them big, without a bubble
+    // (like a sticker) — rendered as sticker-like media.
+    let bigEmoji = null
+    if (message.text && !message.media && !message.voice && !message.document && !message.audio && !message.forward) {
+      const raw = String(message.text).trim()
+      const found = raw ? emojiDb.searchFromText({ input: raw, fixCodePoints: true }) : []
+      if (found.length >= 1 && found.length <= 3 && found.map((e) => e.emoji).join('') === raw.replace(/\s+/g, '')) {
+        try {
+          bigEmoji = await drawMultilineText(
+            raw, [], fontSize * 4, textColor,
+            0, fontSize * 4, width, fontSize * 5, emojiBrand, this.telegram
+          )
+        } catch (error) {
+          console.warn('Failed to render big emoji:', error.message)
+        }
+      }
+    }
+
     let textCanvas
     let textBlocks = null
-    if (message.text) {
+    if (message.text && !bigEmoji) {
       const text = typeof message.text === 'string' ? message.text : String(message.text)
       try {
         // Blockquote entities split the text into plain/quote runs, each
@@ -230,7 +248,11 @@ class QuoteGenerate {
     let mediaType = null
     let maxMediaSize = null
 
-    if (message.media) {
+    if (bigEmoji) {
+      mediaCanvas = bigEmoji
+      mediaType = 'sticker'
+      maxMediaSize = Math.max(bigEmoji.width, bigEmoji.height)
+    } else if (message.media) {
       let media, type
       let crop = !!message.mediaCrop
 

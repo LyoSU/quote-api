@@ -248,7 +248,8 @@ function drawDocumentRow (doc, accent, textColor, scale, maxWidth) {
   const metaText = [doc.file_size != null ? formatFileSize(doc.file_size) : null, ext || null]
     .filter(Boolean).join(' · ')
 
-  const title = drawLabel(name, s(ROW.title), textColor, { bold: true })
+  const textMax = maxWidth ? maxWidth - d - s(ROW.gap) : 0
+  const title = drawLabel(fitLabel(name, s(ROW.title), true, textMax, 'middle'), s(ROW.title), textColor, { bold: true })
   const meta = metaText ? drawLabel(metaText, s(ROW.meta), textColor, { alpha: ROW.metaAlpha }) : null
   return assembleRow(drawFileDisc(d, accent), title, meta, scale, maxWidth)
 }
@@ -284,9 +285,46 @@ function drawAudioRow (audio, accent, textColor, scale, maxWidth, thumb) {
 
   const metaText = [audio.performer || null, audio.duration != null ? formatDuration(audio.duration) : null]
     .filter(Boolean).join(' · ')
-  const title = drawLabel(String(audio.title || 'Audio'), s(ROW.title), textColor, { bold: true })
+  const textMax = maxWidth ? maxWidth - d - s(ROW.gap) : 0
+  const audioTitle = fitLabel(String(audio.title || 'Audio'), s(ROW.title), true, textMax, 'end')
+  const title = drawLabel(audioTitle, s(ROW.title), textColor, { bold: true })
   const meta = metaText ? drawLabel(metaText, s(ROW.meta), textColor, { alpha: ROW.metaAlpha }) : null
   return assembleRow(lead, title, meta, scale, maxWidth)
+}
+
+// Shortens a label to fit maxW. 'middle' keeps the extension visible
+// ("Звіт_за_вере…версія.pdf"), 'end' just trims the tail.
+function fitLabel (text, fontSize, bold, maxW, mode) {
+  if (!maxW || maxW <= 0) return text
+  const ctx = createCanvas(1, 1).getContext('2d')
+  ctx.font = `${bold ? 'bold ' : ''}${fontSize}px NotoSans`
+  const width = (t) => ctx.measureText(t).width
+  if (width(text) <= maxW) return text
+
+  const chars = Array.from(text)
+  const ell = '\u2026'
+  if (mode === 'end') {
+    let n = chars.length
+    while (n > 1 && width(chars.slice(0, n).join('').trimEnd() + ell) > maxW) n--
+    return chars.slice(0, n).join('').trimEnd() + ell
+  }
+
+  // Tail = last ".ext" (if sane) plus a few chars of the stem, head takes the rest
+  const dot = text.lastIndexOf('.')
+  const extLen = dot > 0 && text.length - dot <= 8 ? Array.from(text.slice(dot)).length : 0
+  const stem = chars.length - extLen
+  let best = null
+  // Prefer balanced head/tail; tail grows from the extension plus up to 4 stem chars
+  for (let tail = Math.min(extLen + 4, chars.length - 2); tail >= extLen; tail--) {
+    const tailStr = chars.slice(chars.length - tail).join('')
+    let head = Math.min(chars.length - tail, stem) - 1
+    while (head > 0 && width(chars.slice(0, head).join('') + ell + tailStr) > maxW) head--
+    if (head >= 3) {
+      best = chars.slice(0, head).join('') + ell + tailStr
+      break
+    }
+  }
+  return best || fitLabel(text, fontSize, bold, maxW, 'end')
 }
 
 // [disc] + up to two text lines, vertically centered against the disc.

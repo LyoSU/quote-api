@@ -4,6 +4,7 @@ const { createCanvas, loadImage } = require('canvas')
 const sharp = require('sharp')
 const { parseBackgroundColor, colorLuminance, lightOrDark, hexToHsl, hslToHex } = require('../utils/quote-generate/color')
 const { brands: emojiBrands } = require('../utils/emoji-image')
+const { SP } = require('../utils/quote-generate/composer')
 
 const ALLOWED_EMOJI_BRANDS = new Set(Object.keys(emojiBrands))
 
@@ -187,12 +188,17 @@ module.exports = async (parm) => {
       height += filteredImages[index].height
     }
 
-    // Tighter spacing inside a same-sender group, roomier between groups.
+    // Every bubble canvas carries transparent shadow margins (shadowPadTop
+    // above, shadowPad below). Stacking them as-is turned a 2px gap into
+    // ~18px, so neighbours overlap by those margins: the visible gap is
+    // exactly the margin below, and the next bubble covers the previous
+    // shadow's spill. Tighter inside a same-sender group, roomier between.
+    const shadowOverlap = (SP.shadowPad + SP.shadowPadTop) * scale
     const margins = []
     let totalMargin = 0
     for (let index = 0; index < pairs.length - 1; index++) {
       const grouped = pairs[index].message.chatId === pairs[index + 1].message.chatId
-      const m = (grouped ? 2 : 6) * scale
+      const m = (grouped ? 2 : 8) * scale - shadowOverlap
       margins.push(m)
       totalMargin += m
     }

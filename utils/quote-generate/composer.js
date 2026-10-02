@@ -36,7 +36,7 @@ const SP = {
   // Accent block — the modern-Telegram rounded tinted block used for both
   // the reply preview and the partial-quote body: solid bar on the left,
   // accent tint behind, optional ❝ in the corner.
-  block: { padY: 6, padL: 10, padR: 10, padRIcon: 22, bar: 3.5, icon: 15, iconInset: 5, radius: 7, tint: 0.14, gap: 3 }
+  block: { padY: 6, padL: 10, padR: 10, padRIcon: 32, bar: 3.5, icon: 15, iconInset: 5, radius: 7, tint: 0.14, gap: 3 }
 }
 
 function drawQuote (options) {
@@ -64,7 +64,8 @@ function drawQuote (options) {
 
   const mediaType = media ? media.type : null
   const mediaCanvas = media ? media.canvas : null
-  const isSticker = mediaType === 'sticker'
+  // Bare media (sticker, big emoji, round video) has no bubble and no name.
+  const isSticker = mediaType === 'sticker' || mediaType === 'video_note'
   const nameCanvas = isSticker ? null : name
 
   // ---- Leaves -------------------------------------------------------------
@@ -245,11 +246,26 @@ function drawQuote (options) {
 
   let root
   if (isSticker) {
-    // Sticker: no bubble; an optional dark overlay chip holds the reply.
+    // Sticker: no bubble; an optional chip holds the reply. It is a small
+    // glass bubble in the theme color (not a fixed dark overlay), so the
+    // reply text — drawn in the theme's text color — stays readable.
     const chip = replyNode
       ? box({
-        pad: bubblePad,
-        bg: (ctx, n) => ctx.drawImage(drawRoundRect('rgba(0, 0, 0, 0.5)', n.w, n.h, s(SP.radius), 0), n.x, n.y),
+        pad: { t: s(SP.padY) / 2, r: s(SP.padY) / 2, b: s(SP.padY) / 2, l: s(SP.padY) / 2 },
+        bg: (ctx, n) => {
+          const one = background.colorOne
+          const two = background.colorTwo
+          const r = s(SP.radiusGrouped * 2)
+          const rect = one === two
+            ? drawRoundRect(one, n.w, n.h, r, 0, s(SP.glass))
+            : drawGradientRoundRect(one, two, n.w, n.h, r, 0, s(SP.glass))
+          ctx.save()
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.24)'
+          ctx.shadowBlur = s(6)
+          ctx.shadowOffsetY = s(2)
+          ctx.drawImage(rect, n.x, n.y)
+          ctx.restore()
+        },
         children: [replyNode]
       })
       : null

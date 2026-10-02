@@ -163,7 +163,7 @@ function render (ctx, n) {
       n.paint(ctx, n)
     } else if (n.canvas.width > n.w + 1) {
       // Overflowing leaf (e.g. a long name sharing a row with a tag):
-      // fade the trailing edge out instead of a hard mid-glyph cut.
+      // trim the trailing edge on a whole glyph instead of a mid-glyph cut.
       ctx.drawImage(fadeOverflow(n), n.x, n.y)
     } else {
       ctx.drawImage(n.canvas, 0, n.srcY, n.canvas.width, n.srcH, n.x, n.y, n.canvas.width, n.srcH)
@@ -175,24 +175,24 @@ function render (ctx, n) {
 }
 
 /**
- * Crops a leaf's canvas to its assigned width and dissolves the trailing
- * ~one-glyph stretch to transparent, so truncation reads as a graceful
- * fade rather than a sliced character.
+ * Crops a leaf's canvas to its assigned width, ending on a whole glyph
+ * (never a sliced or half-faded character).
  */
 function fadeOverflow (n) {
   const w = Math.max(1, Math.round(n.w))
-  const out = createCanvas(w, n.srcH)
+  const h = n.srcH
+  // Cut on a whole-glyph boundary: the last ink-free column inside the box,
+  // so no half-visible letter is left hanging before the neighbour.
+  const src = n.canvas.getContext('2d').getImageData(0, n.srcY, w, h).data
+  let cut = w
+  for (let x = w - 1; x > w * 0.4; x--) {
+    let ink = false
+    for (let y = 0; y < h && !ink; y++) ink = src[(y * w + x) * 4 + 3] > 8
+    if (!ink) { cut = x; break }
+  }
+  const out = createCanvas(Math.max(1, cut), h)
   const ctx = out.getContext('2d')
-  ctx.drawImage(n.canvas, 0, n.srcY, w, n.srcH, 0, 0, w, n.srcH)
-
-  // Fade width ≈ the line height (about one character), capped to the box.
-  const fadeW = Math.min(w, Math.round(n.srcH * 0.9))
-  const grad = ctx.createLinearGradient(w - fadeW, 0, w, 0)
-  grad.addColorStop(0, 'rgba(0, 0, 0, 0)')
-  grad.addColorStop(1, 'rgba(0, 0, 0, 1)')
-  ctx.globalCompositeOperation = 'destination-out'
-  ctx.fillStyle = grad
-  ctx.fillRect(w - fadeW, 0, fadeW, n.srcH)
+  ctx.drawImage(n.canvas, 0, n.srcY, cut, h, 0, 0, cut, h)
   return out
 }
 

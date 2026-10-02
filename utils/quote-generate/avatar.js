@@ -61,6 +61,7 @@ async function downloadAvatarImage (user, telegram) {
 
   if (user.photo && user.photo.url) {
     avatarImage = await loadImage(user.photo.url).catch(() => null)
+    if (avatarImage) avatarCache.set(cacheKey, avatarImage)
   }
 
   if (!avatarImage) {
@@ -126,8 +127,8 @@ async function downloadAvatarImage (user, telegram) {
   // Final fallback — initials avatar
   if (!avatarImage) {
     try {
+      // Not cached: a transient failure must not pin letters for 5 minutes
       avatarImage = avatarImageLetters(nameLetters, avatarColor)
-      avatarCache.set(cacheKey, avatarImage)
     } catch (error) {
       console.warn('Failed to create letters avatar:', error.message)
       avatarImage = null

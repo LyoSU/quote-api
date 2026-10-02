@@ -321,10 +321,16 @@ function applyTruncation (line, prepared, maxWidth) {
   }
 
   line.segments.length = Math.max(1, trimIndex)
-  if (totalWidth === 0) {
+  // No dangling space before the ellipsis
+  while (line.segments.length > 1 && prepared.segments[line.segments[line.segments.length - 1].index].kind === 'space') {
+    totalWidth -= line.segments[line.segments.length - 1].width
+    line.segments.length--
+  }
+  if (totalWidth <= 0) {
     totalWidth = line.segments[0].width
   }
-  line.width = totalWidth
+  // The ellipsis is part of the line: the canvas must be wide enough for it
+  line.width = totalWidth + ellipsisWidth
   line.truncated = true
 }
 
