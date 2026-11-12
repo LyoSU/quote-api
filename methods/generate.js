@@ -221,7 +221,6 @@ function watermarkColor (pal) {
 const STICKER = {
   side: 512,
   downPadding: 75, // transparent strip under the quote: Telegram's time badge lands there
-  maxUpscale: 1.2, // a one-word quote is padded on the right instead of blown up
   minScale: 0.75, // text never goes below 24 × 0.75 = 18px …
   lineHeight: 28.8, // … which bounds how many text lines a sticker can hold
   charsPerLine: 30, // rough average for a full-width line of 24px text
@@ -435,24 +434,20 @@ module.exports = async (parm) => {
   if (type !== 'image' && type !== 'stories' && canvasQuote.height / scale > 1024) type = 'png'
 
   if (type === 'quote') {
-    const { side, downPadding, maxUpscale } = STICKER
+    const { side, downPadding } = STICKER
     const srcW = canvasQuote.width
     const srcH = canvasQuote.height
 
-    // One resample, straight from the canvas pixels. The quote fits 512 wide
-    // and (512 − padding) tall; a short quote would be blown up to fill the
-    // width and look gigantic next to a long one, so its box is padded with
-    // transparent space on the right instead (content stays left-aligned,
-    // like a chat) and the upscale never exceeds maxUpscale.
-    const boxW = Math.max(srcW, Math.round(side / maxUpscale * scale))
-    const k = Math.min(side / boxW, (side - downPadding) / srcH)
+    // One resample, straight from the canvas pixels. The quote always fills
+    // the sticker: 512 wide, or (512 − padding) tall when it is the taller
+    // side — a one-word quote is scaled up to the full width too.
+    const k = Math.min(side / srcW, (side - downPadding) / srcH)
     const outW = Math.max(1, Math.min(side, Math.round(srcW * k)))
     const outH = Math.max(1, Math.min(side - downPadding, Math.round(srcH * k)))
-    const padRight = Math.max(0, Math.min(side, Math.round(boxW * k)) - outW)
 
     const imageSharp = canvasToSharp(canvasQuote)
       .resize({ width: outW, height: outH, fit: 'fill', kernel: 'lanczos3' })
-      .extend({ bottom: downPadding, right: padRight, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .extend({ bottom: downPadding, background: { r: 0, g: 0, b: 0, alpha: 0 } })
 
     if (format === 'png') quoteImage = await imageSharp.png().toBuffer()
     else quoteImage = await imageSharp.webp({ lossless: true, force: true }).toBuffer()
