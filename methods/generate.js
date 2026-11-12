@@ -224,7 +224,9 @@ const STICKER = {
   minScale: 0.75, // text never goes below 24 × 0.75 = 18px …
   lineHeight: 28.8, // … which bounds how many text lines a sticker can hold
   charsPerLine: 30, // rough average for a full-width line of 24px text
-  minLines: 3
+  minLines: 3,
+  rerenderAbove: 1.05, // upscale factor past which a short quote is re-rendered sharper
+  maxRenderScale: 6 // … at no more than this canvas scale
 }
 
 // Height (logical px) a message takes besides its text lines — a rough model,
@@ -286,9 +288,13 @@ function canvasToSharp (canvas) {
   return sharp(out, { raw: { width: canvas.width, height: canvas.height, channels: 4 } })
 }
 
-module.exports = async (parm) => {
+module.exports = async function generate (parm) {
   if (!parm) return { error: 'query_empty' }
   if (!Array.isArray(parm.messages) || parm.messages.length < 1) return { error: 'messages_empty' }
+
+  // Rendering mutates the messages; a sticker that comes out narrower than
+  // 512px is rendered again from this pristine copy (see the sticker branch).
+  const sourceMessages = !parm.rerendered && (!parm.type || parm.type === 'quote') ? structuredClone(parm.messages) : null
 
   const botToken = parm.botToken || process.env.BOT_TOKEN
   const quoteGenerate = new QuoteGenerate(botToken)
@@ -442,6 +448,14 @@ module.exports = async (parm) => {
     // the sticker: 512 wide, or (512 − padding) tall when it is the taller
     // side — a one-word quote is scaled up to the full width too.
     const k = Math.min(side / srcW, (side - downPadding) / srcH)
+
+    // A short quote is narrower than the sticker even at `scale`: resampling
+    // it up would blur text and emoji, so render it once more at the scale
+    // that lands on 512 directly. Avatars and custom emoji come from cache.
+    if (sourceMessages && k > STICKER.rerenderAbove && scale < STICKER.maxRenderScale) {
+      const exact = Math.min(STICKER.maxRenderScale, Math.ceil(scale * k * 100) / 100)
+      return generate({ ...parm, messages: sourceMessages, scale: exact, rerendered: true })
+    }
     const outW = Math.max(1, Math.min(side, Math.round(srcW * k)))
     const outH = Math.max(1, Math.min(side - downPadding, Math.round(srcH * k)))
 
