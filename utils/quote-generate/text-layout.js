@@ -2,20 +2,96 @@
 // Layout phase: line breaking, positioning, shrink-wrap.
 // Pure arithmetic — no canvas calls, no async. Can be called many times cheaply.
 
-const { RTL_REGEX, NEUTRAL_REGEX } = require('./constants')
+const { RTL_REGEX, LTR_STRONG_REGEX, NUMBER_REGEX, SEA_REGEX } = require('./constants')
 
 /**
- * Determine text direction for a line starting at segmentIndex.
- * Scans ahead until a strong directional character is found.
+ * Paragraph direction: the first strong character of the paragraph that
+ * starts at startIndex (the scan stops at the next hard break). Wrapped lines
+ * inherit it — a line never picks its own direction.
  */
 function getLineDirection (segments, startIndex) {
   for (let i = startIndex; i < segments.length; i++) {
     const seg = segments[i]
-    if (seg.kind === 'space' || seg.kind === 'break') continue
-    if (seg.text.match(RTL_REGEX)) return 'rtl'
-    if (!seg.text.match(NEUTRAL_REGEX)) return 'ltr'
+    if (seg.kind === 'break') break
+    if (seg.kind !== 'text' || NUMBER_REGEX.test(seg.text)) continue
+    const rtl = seg.text.search(RTL_REGEX)
+    const ltr = seg.text.search(LTR_STRONG_REGEX)
+    if (rtl === -1 && ltr === -1) continue
+    if (rtl !== -1) return 'rtl' // \p{L} also matches RTL letters, so RTL wins
+    return 'ltr'
   }
   return 'ltr'
+}
+
+const isInline = (seg) => seg && (seg.kind === 'text' || seg.kind === 'emoji')
+
+// A line may break between two adjacent segments without a space when one of
+// them is a CJK character (kinsoku-prohibited marks are already glued to
+// their neighbour) or both are words of a spaceless script (Thai, Khmer…).
+function canBreakBetween (a, b) {
+  if (!isInline(a) || !isInline(b)) return false
+  if (a.cjk || b.cjk) return true
+  return a.kind === 'text' && b.kind === 'text' && SEA_REGEX.test(a.text) && SEA_REGEX.test(b.text)
+}
+
+// Simplified Unicode bidi (UAX #9) on whole segments: embedding levels for one
+// line. base 0 = LTR paragraph, 1 = RTL. Numbers after a Latin word join it
+// (so "iPhone 15 Pro" stays one left-to-right run inside Persian text);
+// neutrals between two runs of the same direction join them, else they take
+// the paragraph direction.
+function resolveLevels (items, base) {
+  const baseDir = base ? 'R' : 'L'
+  const cls = items.map((sg) => {
+    if (!sg || sg.kind !== 'text') return 'N'
+    if (NUMBER_REGEX.test(sg.text)) return 'EN'
+    if (RTL_REGEX.test(sg.text)) return 'R'
+    if (LTR_STRONG_REGEX.test(sg.text)) return 'L'
+    return 'N'
+  })
+  let lastStrong = baseDir
+  for (let i = 0; i < cls.length; i++) {
+    if (cls[i] === 'L' || cls[i] === 'R') lastStrong = cls[i]
+    else if (cls[i] === 'EN' && lastStrong === 'L') cls[i] = 'L'
+  }
+  const dirOf = (c) => (c === 'EN' ? 'R' : c)
+  for (let i = 0; i < cls.length; i++) {
+    if (cls[i] !== 'N') continue
+    let j = i
+    while (j < cls.length && cls[j] === 'N') j++
+    const prev = i > 0 ? dirOf(cls[i - 1]) : baseDir
+    const next = j < cls.length ? dirOf(cls[j]) : baseDir
+    const resolved = prev === next ? prev : baseDir
+    for (let k = i; k < j; k++) cls[k] = resolved === 'L' ? 'NL' : 'NR'
+    i = j - 1
+  }
+  return cls.map((c) => (c === 'L' || c === 'NL' ? (base ? 2 : 0) : c === 'EN' ? 2 : 1))
+}
+
+// Visual order of a line (UAX #9 rule L2), x positions left to right, and the
+// line's own width. Trailing spaces hang: they take no room.
+function positionLine (line, segments) {
+  const segs = line.segments
+  while (segs.length > 1 && segments[segs[segs.length - 1].index] && segments[segs[segs.length - 1].index].kind === 'space') segs.pop()
+  const levels = resolveLevels(segs.map((ls) => segments[ls.index]), line.direction === 'rtl' ? 1 : 0)
+  const order = segs.map((_, i) => i)
+  for (let lv = Math.max(0, ...levels); lv >= 1; lv--) {
+    let i = 0
+    while (i < order.length) {
+      if (levels[order[i]] < lv) { i++; continue }
+      let j = i
+      while (j < order.length && levels[order[j]] >= lv) j++
+      for (let a = i, b = j - 1; a < b; a++, b--) { const t = order[a]; order[a] = order[b]; order[b] = t }
+      i = j
+    }
+  }
+  let x = 0
+  for (const idx of order) {
+    segs[idx].x = x
+    segs[idx].level = levels[idx]
+    x += segs[idx].width
+  }
+  line.contentWidth = x
+  line.width = x + (line.truncated ? (line.ellipsisWidth || 0) : 0)
 }
 
 /**
@@ -82,7 +158,10 @@ function layoutText (prepared, maxWidth, maxHeight) {
 
     // Trailing space hanging (from pretext): spaces past the edge don't trigger wrap
     if (seg.kind === 'space' && currentLine.width + segWidth > maxWidth) {
-      // Hang the space — add to line but don't count in width
+      // Hang the space — add to line but don't count in width. It is still a
+      // break opportunity: without this the next overflow rewound to an
+      // EARLIER space and pushed a word that fitted down to the next line.
+      pendingBreak = { segIndex: i, lineWidth: currentLine.width, lineSegCount: currentLine.segments.length }
       currentLine.segments.push({ index: i, width: segWidth })
       continue
     }
@@ -151,14 +230,17 @@ function layoutText (prepared, maxWidth, maxHeight) {
         pendingBreak = null
 
         // Start new line, replay from segment after the break
-        const newDirection = getLineDirection(segments, segIndex + 1)
+        const newDirection = currentLine.direction
         currentLine = { segments: [], width: 0, direction: newDirection }
         i = segIndex // loop will i++ to segIndex + 1
         continue
       }
 
-      // No pending break — try overflow-wrap at grapheme boundaries
-      if (prepared.computeGraphemeWidths) {
+      // No pending break — overflow-wrap at grapheme boundaries, but only for
+      // a segment that cannot fit a line of its own. One that can simply
+      // moves down whole (splitting it tore glued punctuation off its word:
+      // "谢谢 / ！”").
+      if (prepared.computeGraphemeWidths && segWidth > maxWidth) {
         const remainingWidth = currentLine.width === 0 ? maxWidth : maxWidth - currentLine.width
         const gData = prepared.computeGraphemeWidths(seg)
         if (gData && gData.widths.length > 1) {
@@ -184,7 +266,7 @@ function layoutText (prepared, maxWidth, maxHeight) {
 
             // Loop-split remainder across as many lines as needed
             var remCursor = fitCount
-            var remDirection = getLineDirection(segments, i)
+            var remDirection = currentLine.direction
             currentLine = { segments: [], width: 0, direction: remDirection }
 
             while (remCursor < gData.texts.length) {
@@ -227,7 +309,7 @@ function layoutText (prepared, maxWidth, maxHeight) {
       lineY += lineHeight
 
       // Start new line with current segment
-      const newDirection = getLineDirection(segments, i)
+      const newDirection = currentLine.direction
       currentLine = { segments: [], width: 0, direction: newDirection }
 
       if (seg.kind !== 'space') {
@@ -251,6 +333,11 @@ function layoutText (prepared, maxWidth, maxHeight) {
     // Add segment to current line
     currentLine.segments.push({ index: i, width: segWidth })
     currentLine.width += segWidth
+
+    // Spaceless break opportunity after this segment (CJK, Thai…)
+    if (canBreakBetween(seg, segments[i + 1])) {
+      pendingBreak = { segIndex: i, lineWidth: currentLine.width, lineSegCount: currentLine.segments.length }
+    }
   }
 
   // Finalize last line
@@ -260,20 +347,11 @@ function layoutText (prepared, maxWidth, maxHeight) {
     lines.push(currentLine)
   }
 
-  // Compute x positions for each segment within its line
+  // Visual (bidi) order + x positions; the block is as wide as its widest line
+  maxLineWidth = 0
   for (const line of lines) {
-    let x = 0
-    // Also compute actual content width (excluding trailing spaces)
-    let contentWidth = 0
-    for (const seg of line.segments) {
-      seg.x = x
-      x += seg.width
-      const srcSeg = segments[seg.index]
-      if (srcSeg && srcSeg.kind !== 'space') {
-        contentWidth = x
-      }
-    }
-    line.contentWidth = contentWidth || line.width
+    positionLine(line, segments)
+    if (line.width > maxLineWidth) maxLineWidth = line.width
   }
 
   const totalHeight = lines.length > 0 ? lines[lines.length - 1].y + descent : 0
@@ -294,6 +372,7 @@ function applyTruncation (line, prepared, maxWidth) {
   // Empty line (e.g. truncation hit at a \n\n boundary) — nothing to trim
   if (line.segments.length === 0) {
     line.width = 0
+    line.ellipsisWidth = 0
     line.truncated = true
     return
   }
@@ -331,6 +410,7 @@ function applyTruncation (line, prepared, maxWidth) {
   }
   // The ellipsis is part of the line: the canvas must be wide enough for it
   line.width = totalWidth + ellipsisWidth
+  line.ellipsisWidth = ellipsisWidth
   line.truncated = true
 }
 

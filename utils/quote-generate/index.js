@@ -15,9 +15,9 @@ const { drawQuote } = require('./composer')
 const { applySpoiler } = require('./spoiler')
 const { drawLabel } = require('./canvas-utils')
 const { fontMetrics, loadCustomEmojiImage } = require('./text-prepare')
-const { resolveAccent } = require('./accent-colors')
+const { resolveAccent, peerColorIndex } = require('./accent-colors')
 const { loadIcons, drawVoiceRow, drawDocumentRow, drawAudioRow, formatDuration } = require('./attachments')
-const { ColorContrast, lightOrDark, colorLuminance } = require('./color')
+const { lightOrDark, colorLuminance, ensureContrast } = require('./color')
 const { NAME_COLORS_LIGHT, NAME_COLORS_DARK } = require('./constants')
 const { getStyle } = require('./styles')
 const { drawCard, drawTopicLine, drawStoryRing } = require('./cards')
@@ -68,25 +68,27 @@ class QuoteGenerate {
     scale = scale || 2
     if (!Number.isFinite(scale) || scale < 1) scale = 1
     if (scale > 20) scale = 20
-    width = Math.max(1, (width || 512) * scale)
+    // `width` is the width of the WHOLE quote (avatar column + bubble + shadow
+    // margin), so a 512 request really fits a 512px sticker at 1:1. Everything
+    // below works with the content width: what is left inside the bubble.
+    const outerWidth = Math.max(1, (width || 512) * scale)
+    const chrome = (style.avatar + style.avatarGap + 2 * style.space.inset.x + style.shadowPad) * scale
+    width = Math.max(160 * scale, outerWidth - chrome)
     height = Math.max(1, (height || 512) * scale)
+    const maxLines = Math.max(1, Math.min(style.maxLines, Number(message.maxLines) || style.maxLines))
 
     const backStyle = lightOrDark(backgroundColorOne)
     const nameColorArray = backStyle === 'light' ? NAME_COLORS_LIGHT : NAME_COLORS_DARK
-
-    let nameIndex = 1
-    if (message.from && message.from.id) nameIndex = Math.abs(message.from.id) % 7
+    const bubbleColors = [backgroundColorOne, backgroundColorTwo]
 
     // Telegram accent color (from.accentColorId) wins over the id-derived one.
+    // Either way the color is kept as is unless it truly fails on this bubble.
     const lightBubble = backStyle === 'light'
     const senderAccent = resolveAccent(message.from && message.from.accentColorId, lightBubble)
-    let nameColor = senderAccent ? senderAccent[0] : nameColorArray[nameIndex]
-
-    const colorContrast = new ColorContrast()
-    const contrast = colorContrast.getContrastRatio(colorLuminance(backgroundColorOne, 0.55), nameColor)
-    if (contrast > 90 || contrast < 30) {
-      nameColor = colorContrast.adjustContrast(colorLuminance(backgroundColorTwo, 0.55), nameColor)
-    }
+    const nameColor = ensureContrast(
+      senderAccent ? senderAccent[0] : nameColorArray[peerColorIndex(message.from && message.from.id)],
+      bubbleColors, style.nameContrast
+    )
 
     // Name is noticeably smaller than the message text (like Telegram), so
     // the eye lands on the content first.
@@ -103,14 +105,23 @@ class QuoteGenerate {
         length: name.length
       }]
 
+      // Emoji status: a placeholder emoji carries the custom-emoji entity. It
+      // is appended only once the image is in hand — when the lookup fails
+      // there is simply no status (the old code left a 🤡 next to the name).
+      let hasStatus = false
       if (message.from.emoji_status) {
-        name += ' \uD83E\uDD21'
-        nameEntities.push({
-          type: 'custom_emoji',
-          offset: name.length - 2,
-          length: 2,
-          custom_emoji_id: message.from.emoji_status
-        })
+        const statusId = String(message.from.emoji_status)
+        const statusImage = await loadCustomEmojiImage(statusId, this.telegram).catch(() => null)
+        if (statusImage) {
+          name += ' ' + STATUS_PLACEHOLDER
+          nameEntities.push({
+            type: 'custom_emoji',
+            offset: name.length - STATUS_PLACEHOLDER.length,
+            length: STATUS_PLACEHOLDER.length,
+            custom_emoji_id: statusId
+          })
+          hasStatus = true
+        }
       }
 
       try {
@@ -122,14 +133,15 @@ class QuoteGenerate {
         // emoji image is in the canvas — source-in would tint it into a
         // flat silhouette (emoji status or regular emoji in the name).
         const nameHasEmoji = emojiDb.searchFromText({ input: name, fixCodePoints: true }).length > 0
-        if (style.nameGradient && !message.from.emoji_status && !nameHasEmoji) {
-          nameCanvas = gradientTint(nameCanvas, nameColor, colorLuminance(nameColor, 0.25))
+        // The far end moves away from the bubble color, never toward it.
+        if (style.nameGradient && !hasStatus && !nameHasEmoji) {
+          nameCanvas = gradientTint(nameCanvas, nameColor, colorLuminance(nameColor, lightBubble ? -0.14 : 0.25))
         }
       } catch (error) {
         console.error('Failed to render name:', error.message, error.stack)
         // Retry without entities (drop emoji status etc)
         try {
-          const plainName = name.replace(/\s*\uD83E\uDD21$/, '') // strip emoji placeholder
+          const plainName = hasStatus ? name.slice(0, -(STATUS_PLACEHOLDER.length + 1)) : name
           nameCanvas = await drawMultilineText(
             plainName, [{ type: 'bold', offset: 0, length: plainName.length }],
             nameSize, nameColor, 0, nameSize, width, nameSize, emojiBrand, this.telegram
@@ -165,6 +177,82 @@ class QuoteGenerate {
       }
     }
 
+    let mediaCanvas = null
+    let mediaType = null
+    let maxMediaSize = null
+
+    if (bigEmoji) {
+      mediaCanvas = bigEmoji
+      mediaType = 'sticker'
+      maxMediaSize = Math.max(bigEmoji.width, bigEmoji.height)
+    } else if (hasAlbum) {
+      // Several photos/videos sent together: one mosaic canvas (see album.js).
+      maxMediaSize = outerWidth * 2 / 3
+      try {
+        mediaCanvas = await drawAlbum(message.album.slice(0, MAX_ITEMS), {
+          maxWidth: maxMediaSize, scale, style, telegram: this.telegram, download: downloadMediaImage, spoiler: !!message.hasMediaSpoiler
+        })
+        if (mediaCanvas) mediaType = 'album'
+        else console.warn('Failed to download album, skipping')
+      } catch (error) {
+        console.warn('Error building album:', error.message)
+      }
+    } else if (message.media) {
+      let media, type
+      let crop = !!message.mediaCrop
+
+      if (message.media.url) {
+        type = 'url'
+        media = message.media.url
+      } else {
+        type = 'id'
+        media = pickPhotoSize(message.media, outerWidth * 2 / 3)
+      }
+
+      // Media caps at ⅔ of the quote width (like Telegram photos). The caption
+      // wraps to the media, never the other way round.
+      maxMediaSize = outerWidth * 2 / 3
+
+      if (media && media.is_animated) {
+        if (media.thumb) {
+          media = media.thumb
+          maxMediaSize = maxMediaSize / 2
+        } else {
+          media = null
+        }
+      }
+
+      try {
+        mediaCanvas = await downloadMediaImage(media, maxMediaSize, type, crop, this.telegram)
+        if (mediaCanvas && message.hasMediaSpoiler) {
+          // "Tap to reveal" media: veil it so nothing is recognizable.
+          mediaCanvas = await applySpoiler(mediaCanvas, scale)
+        }
+        if (mediaCanvas) {
+          mediaType = message.mediaType
+        } else {
+          console.warn('Failed to download media image, skipping')
+        }
+      } catch (error) {
+        console.warn('Error downloading media image:', error.message)
+      }
+    }
+
+    // Caption width follows the media it sits under (same fit as the composer),
+    // with a floor so a narrow portrait doesn't squeeze the text into a column.
+    let textWidth = width
+    if (mediaCanvas && !bigEmoji && mediaType !== 'sticker' && mediaType !== 'video_note') {
+      let shown = mediaCanvas.width * (maxMediaSize / mediaCanvas.height)
+      if (shown >= maxMediaSize) shown = maxMediaSize
+      textWidth = Math.min(width, Math.max(shown - 2 * style.space.inset.x * scale, style.minCaption * scale))
+    }
+    // Text inside an accent block (quote) or a code block is narrower by the
+    // block's own padding, so the bubble never outgrows the quote width.
+    const blk = style.block
+    const quoteWidth = textWidth - (blk.padL + blk.padRIcon) * scale
+    const codeSize = style.fonts.code * scale
+    const codeWidth = textWidth - 2 * style.code.padX * scale
+
     let textCanvas
     let textBlocks = null
     // Rich Message blocks (rich.js) replace the plain text; on failure the
@@ -179,24 +267,26 @@ class QuoteGenerate {
         // Blockquote entities split the text into plain/quote runs, each
         // rendered separately so the composer can give quotes the accent
         // block treatment.
-        const parts = splitByBlockquotes(text, message.entities)
+        const parts = splitBlocks(text, message.entities)
         if (parts) {
           textBlocks = []
-          let linesLeft = style.maxLines // the cap spans all runs of the message
+          let linesLeft = maxLines // the cap spans all runs of the message
           for (const part of parts) {
             if (linesLeft <= 0) break
+            const size = part.code ? codeSize : fontSize
+            const wrap = part.code ? codeWidth : (part.quote || message.isQuote) ? quoteWidth : textWidth
             const canvas = await drawMultilineText(
-              part.text, part.entities, fontSize, textColor,
-              0, fontSize, width, Math.min(height - fontSize, maxTextHeight(fontSize, linesLeft)), emojiBrand, this.telegram
+              part.text, part.entities, size, textColor,
+              0, size, wrap, Math.min(height - size, maxTextHeight(size, linesLeft)), emojiBrand, this.telegram
             )
-            textBlocks.push({ canvas, quote: part.quote })
-            linesLeft -= countLines(canvas, fontSize)
+            textBlocks.push({ canvas, quote: part.quote, code: part.code })
+            linesLeft -= countLines(canvas, size)
           }
-          textCanvas = textBlocks[0] && textBlocks[0].canvas // width hints below
+          textCanvas = textBlocks[0] && textBlocks[0].canvas
         } else {
           textCanvas = await drawMultilineText(
             text, message.entities, fontSize, textColor,
-            0, fontSize, width, Math.min(height - fontSize, maxTextHeight(fontSize, style.maxLines)), emojiBrand, this.telegram
+            0, fontSize, message.isQuote ? quoteWidth : textWidth, Math.min(height - fontSize, maxTextHeight(fontSize, maxLines)), emojiBrand, this.telegram
           )
         }
       } catch (error) {
@@ -206,7 +296,7 @@ class QuoteGenerate {
           textBlocks = null
           textCanvas = await drawMultilineText(
             text, [], fontSize, textColor,
-            0, fontSize, width, Math.min(height - fontSize, maxTextHeight(fontSize, style.maxLines)), emojiBrand, this.telegram
+            0, fontSize, message.isQuote ? quoteWidth : textWidth, Math.min(height - fontSize, maxTextHeight(fontSize, maxLines)), emojiBrand, this.telegram
           )
         } catch (retryError) {
           console.error('Failed to render plain text fallback:', retryError.message)
@@ -231,9 +321,17 @@ class QuoteGenerate {
     if (message.replyMessage && message.replyMessage.name && (message.replyMessage.text || replyHasMedia)) {
       try {
         const chatId = message.replyMessage.chatId || 0
-        const replyNameIndex = Math.abs(chatId) % 7
         const replyAccent = resolveAccent(message.replyMessage.accentColorId, lightBubble)
-        const replyNameColor = replyAccent ? replyAccent[0] : nameColorArray[replyNameIndex]
+        const replyNameColor = ensureContrast(
+          replyAccent ? replyAccent[0] : nameColorArray[peerColorIndex(chatId)],
+          bubbleColors, style.nameContrast
+        )
+        // The chip lives inside the bubble: its texts get what is left after
+        // the chip padding and the media thumbnail.
+        const replyHasThumb = !!(message.replyMessage.media && (message.replyMessage.media.fileId || message.replyMessage.media.kind === 'story'))
+        const replyWidth = width - (blk.padL + blk.padR) * scale -
+          (replyHasThumb ? (style.replyThumb + blk.thumbGap) * scale : 0) -
+          (bigEmoji || message.mediaType === 'sticker' || message.mediaType === 'video_note' ? 2 * style.space.chip * scale : 0)
 
         const replyName = typeof message.replyMessage.name === 'string' ? message.replyMessage.name : String(message.replyMessage.name)
         const replyText = message.replyMessage.text
@@ -243,7 +341,7 @@ class QuoteGenerate {
         const replyNameFontSize = style.fonts.replyName * scale
         const replyNameCanvas = await drawMultilineText(
           replyName, 'bold', replyNameFontSize, replyNameColor,
-          0, replyNameFontSize, width * 0.9, replyNameFontSize, emojiBrand, this.telegram
+          0, replyNameFontSize, replyWidth, replyNameFontSize, emojiBrand, this.telegram
         )
 
         const replyTextFontSize = style.fonts.replyText * scale
@@ -253,7 +351,7 @@ class QuoteGenerate {
           ? await drawMultilineText(
             replyText, message.replyMessage.entities || [],
             replyTextFontSize, textColor,
-            0, replyTextFontSize, width * 0.9, replyTextFontSize, emojiBrand, this.telegram
+            0, replyTextFontSize, replyWidth, replyTextFontSize, emojiBrand, this.telegram
           )
           : null
 
@@ -293,78 +391,9 @@ class QuoteGenerate {
       }
     }
 
-    let mediaCanvas = null
-    let mediaType = null
-    let maxMediaSize = null
-
-    if (bigEmoji) {
-      mediaCanvas = bigEmoji
-      mediaType = 'sticker'
-      maxMediaSize = Math.max(bigEmoji.width, bigEmoji.height)
-    } else if (hasAlbum) {
-      // Several photos/videos sent together: one mosaic canvas (see album.js).
-      maxMediaSize = width * 2 / 3
-      if (message.text && textCanvas && maxMediaSize < textCanvas.width) maxMediaSize = textCanvas.width
-      try {
-        mediaCanvas = await drawAlbum(message.album.slice(0, MAX_ITEMS), {
-          maxWidth: maxMediaSize, scale, style, telegram: this.telegram, download: downloadMediaImage, spoiler: !!message.hasMediaSpoiler
-        })
-        if (mediaCanvas) mediaType = 'album'
-        else console.warn('Failed to download album, skipping')
-      } catch (error) {
-        console.warn('Error building album:', error.message)
-      }
-    } else if (message.media) {
-      let media, type
-      let crop = !!message.mediaCrop
-
-      if (message.media.url) {
-        type = 'url'
-        media = message.media.url
-      } else {
-        type = 'id'
-        if (message.media.length > 1) {
-          // BUG FIX: was message.media.pop() which mutated input
-          media = crop ? message.media[1] : message.media[message.media.length - 1]
-        } else {
-          media = message.media[0]
-        }
-      }
-
-      // Media caps at ⅔ of the target width (like Telegram photos). `width`
-      // already carries the scale factor; the old `width / 3 * scale` only
-      // matched this at scale 2 and ballooned at higher scales.
-      maxMediaSize = width * 2 / 3
-      if (message.text && textCanvas && maxMediaSize < textCanvas.width) maxMediaSize = textCanvas.width
-
-      if (media && media.is_animated) {
-        if (media.thumb) {
-          media = media.thumb
-          maxMediaSize = maxMediaSize / 2
-        } else {
-          media = null
-        }
-      }
-
-      try {
-        mediaCanvas = await downloadMediaImage(media, maxMediaSize, type, crop, this.telegram)
-        if (mediaCanvas && message.hasMediaSpoiler) {
-          // "Tap to reveal" media: veil it so nothing is recognizable.
-          mediaCanvas = await applySpoiler(mediaCanvas, scale)
-        }
-        if (mediaCanvas) {
-          mediaType = message.mediaType
-        } else {
-          console.warn('Failed to download media image, skipping')
-        }
-      } catch (error) {
-        console.warn('Error downloading media image:', error.message)
-      }
-    }
-
     // Row-style attachments (rendered inside the bubble, like Telegram).
     let attachment = null
-    const attachMaxW = width * 2 / 3
+    const attachMaxW = Math.min(width, outerWidth * 2 / 3)
     if (message.voice && typeof message.voice === 'object') {
       attachment = drawVoiceRow(
         message.voice.waveform, message.voice.duration,
@@ -474,20 +503,39 @@ function gradientTint (canvas, colorFrom, colorTo) {
   return canvas
 }
 
+// Placeholder emoji that carries the emoji-status entity (one UTF-16 unit).
+const STATUS_PLACEHOLDER = '\u2B50'
+
+// Photo sizes arrive smallest → largest. Take the smallest one that still
+// covers the slot (the 1280px original is wasted on a ~680px slot); entries
+// without dimensions fall back to the largest.
+function pickPhotoSize (list, need) {
+  if (!Array.isArray(list)) return list || null // a bare file id / PhotoSize
+  if (list.length === 0) return null
+  if (list.length === 1) return list[0]
+  const sized = list.filter((m) => m && Number(m.width) > 0 && Number(m.height) > 0)
+  if (sized.length !== list.length) return list[list.length - 1]
+  const sorted = sized.slice().sort((a, b) => a.width * a.height - b.width * b.height)
+  return sorted.find((m) => Math.max(m.width, m.height) >= need) || sorted[sorted.length - 1]
+}
+
+const BLOCK_TYPES = { blockquote: 'quote', expandable_blockquote: 'quote', pre: 'code' }
+
 /**
- * Splits text into plain/quote runs around blockquote entities. Returns
- * null when there are none (the common case — render as a single canvas).
- * Entity offsets are UTF-16 code units, which is exactly how JS slices.
+ * Splits text into plain / quote / code runs around blockquote and `pre`
+ * entities. Returns null when there are none (the common case — render as a
+ * single canvas). Entity offsets are UTF-16 code units, which is exactly how
+ * JS slices.
  */
-function splitByBlockquotes (text, entities) {
+function splitBlocks (text, entities) {
   if (!Array.isArray(entities)) return null
-  const quotes = entities
-    .filter((e) => e.type === 'blockquote' || e.type === 'expandable_blockquote')
+  const blocks = entities
+    .filter((e) => e && BLOCK_TYPES[e.type] && Number.isInteger(e.offset) && e.length > 0 && e.offset < text.length)
     .sort((a, b) => a.offset - b.offset)
-  if (quotes.length === 0) return null
+  if (blocks.length === 0) return null
 
   const sliceEntities = (start, end) => entities
-    .filter((e) => e.type !== 'blockquote' && e.type !== 'expandable_blockquote')
+    .filter((e) => e && !BLOCK_TYPES[e.type] && Number.isInteger(e.offset) && Number.isInteger(e.length))
     .filter((e) => e.offset < end && e.offset + e.length > start)
     .map((e) => {
       const from = Math.max(e.offset, start)
@@ -497,18 +545,31 @@ function splitByBlockquotes (text, entities) {
 
   const parts = []
   let pos = 0
-  for (const q of quotes) {
-    if (q.offset < pos) continue // overlapping quotes — keep the first
+  for (const q of blocks) {
+    if (q.offset < pos) continue // overlapping blocks — keep the first
     if (q.offset > pos) {
-      const plain = text.slice(pos, q.offset).replace(/\n+$/, '')
-      if (plain) parts.push({ text: plain, entities: sliceEntities(pos, q.offset), quote: false })
+      const raw = text.slice(pos, q.offset)
+      const lead = raw.length - raw.replace(/^\n+/, '').length
+      const plain = raw.slice(lead).replace(/\n+$/, '')
+      if (plain.trim()) parts.push({ text: plain, entities: sliceEntities(pos + lead, pos + lead + plain.length), quote: false })
     }
-    parts.push({ text: text.slice(q.offset, q.offset + q.length), entities: sliceEntities(q.offset, q.offset + q.length), quote: true })
-    pos = q.offset + q.length
+    const end = Math.min(text.length, q.offset + q.length)
+    if (BLOCK_TYPES[q.type] === 'code') {
+      // A code block keeps its indentation; only the blank edges go.
+      const raw = text.slice(q.offset, end)
+      const lead = raw.length - raw.replace(/^\n+/, '').length
+      const code = raw.slice(lead).replace(/\s+$/, '')
+      if (code) parts.push({ text: code, entities: [{ type: 'pre', offset: 0, length: code.length }], quote: false, code: true })
+    } else {
+      parts.push({ text: text.slice(q.offset, end), entities: sliceEntities(q.offset, end), quote: true })
+    }
+    pos = end
   }
   if (pos < text.length) {
-    const tail = text.slice(pos).replace(/^\n+/, '')
-    if (tail) parts.push({ text: tail, entities: sliceEntities(pos, text.length), quote: false })
+    const raw = text.slice(pos)
+    const lead = raw.length - raw.replace(/^\n+/, '').length
+    const tail = raw.slice(lead)
+    if (tail.trim()) parts.push({ text: tail, entities: sliceEntities(pos + lead, text.length), quote: false })
   }
   return parts.length > 0 ? parts : null
 }

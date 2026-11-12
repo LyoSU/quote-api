@@ -5,6 +5,7 @@ const LRU = require('lru-cache')
 const runes = require('runes')
 const loadImageFromUrl = require('../image-load-url')
 const { AVATAR_COLORS } = require('./constants')
+const { peerColorIndex } = require('./accent-colors')
 
 const avatarCache = new LRU({
   // Bounded by decoded bytes, not entries: Telegram photos range 160–640px
@@ -14,6 +15,14 @@ const avatarCache = new LRU({
   length: (img) => (img.width || 1) * (img.height || 1) * 4,
   maxAge: 1000 * 60 * 5
 })
+
+// "This peer has no photo" memo. Without it every quote of a photo-less user
+// repeated getChat (and the userpic fallback fetch) per message. Short TTL: a
+// transient failure or a freshly set photo recovers within a minute.
+const noPhotoCache = new LRU({ max: 5000, maxAge: 1000 * 60 })
+// Concurrent lookups of one peer (the same sender several times in a quote)
+// share a single download.
+const inFlight = new Map()
 
 function avatarImageLetters (letters, color) {
   const size = 500
@@ -39,6 +48,15 @@ function avatarImageLetters (letters, color) {
 }
 
 async function downloadAvatarImage (user, telegram) {
+  const key = !user.synthetic && user.id != null ? `id:${user.id}` : null
+  if (key === null) return resolveAvatarImage(user, telegram)
+  if (inFlight.has(key)) return inFlight.get(key)
+  const p = resolveAvatarImage(user, telegram).finally(() => inFlight.delete(key))
+  inFlight.set(key, p)
+  return p
+}
+
+async function resolveAvatarImage (user, telegram) {
   let avatarImage
 
   let nameLetters
@@ -56,11 +74,17 @@ async function downloadAvatarImage (user, telegram) {
 
   const cacheKey = user.synthetic ? `syn:${user.id}:${nameLetters}` : user.id != null ? user.id : `noId:${user.username || nameLetters}`
   const avatarImageCached = avatarCache.get(cacheKey)
-  const nameIndex = user.id != null ? Math.abs(user.id) % 7 : 0
+  const nameIndex = user.id != null ? peerColorIndex(user.id) : 0
   const avatarColor = AVATAR_COLORS[nameIndex]
 
   if (avatarImageCached) {
     return avatarImageCached
+  }
+
+  const knownNoPhoto = noPhotoCache.get(cacheKey)
+  if (knownNoPhoto && !(user.photo && (user.photo.url || user.photo.big_file_id))) {
+    // The stored letters only stand in when this request carries no name.
+    return avatarImageLetters(nameLetters && nameLetters !== '?' ? nameLetters : knownNoPhoto, avatarColor)
   }
 
   if (user.photo && user.photo.url) {
@@ -136,7 +160,9 @@ async function downloadAvatarImage (user, telegram) {
   // Final fallback — initials avatar
   if (!avatarImage) {
     try {
-      // Not cached: a transient failure must not pin letters for 5 minutes
+      // The image is not cached (a transient failure must not pin letters for
+      // 5 minutes) — only the fact, briefly, so the lookups aren't repeated.
+      noPhotoCache.set(cacheKey, nameLetters)
       avatarImage = avatarImageLetters(nameLetters, avatarColor)
     } catch (error) {
       console.warn('Failed to create letters avatar:', error.message)
@@ -152,7 +178,12 @@ async function drawAvatar (user, telegram) {
     const avatarImage = await downloadAvatarImage(user, telegram)
 
     if (avatarImage) {
-      const avatarSize = avatarImage.naturalHeight || avatarImage.height
+      // Square cover crop (a non-square picture used to be squashed), capped:
+      // the avatar is drawn ~100px, a 640px source only costs time.
+      const srcW = avatarImage.naturalWidth || avatarImage.width
+      const srcH = avatarImage.naturalHeight || avatarImage.height
+      const side = Math.min(srcW, srcH)
+      const avatarSize = Math.min(side, 320)
 
       const canvas = createCanvas(avatarSize, avatarSize)
       const canvasCtx = canvas.getContext('2d')
@@ -162,7 +193,9 @@ async function drawAvatar (user, telegram) {
       canvasCtx.save()
       canvasCtx.clip()
       canvasCtx.closePath()
-      canvasCtx.drawImage(avatarImage, 0, 0, avatarSize, avatarSize)
+      canvasCtx.imageSmoothingEnabled = true
+      canvasCtx.imageSmoothingQuality = 'high'
+      canvasCtx.drawImage(avatarImage, (srcW - side) / 2, (srcH - side) / 2, side, side, 0, 0, avatarSize, avatarSize)
       canvasCtx.restore()
 
       return canvas

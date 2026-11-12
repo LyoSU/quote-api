@@ -46,4 +46,16 @@ function luminance (hex) {
   return (0.2126 * (n >> 16) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255
 }
 
-module.exports = { resolveAccent, LIGHT, DARK }
+// Telegram colors a peer by its BARE id modulo 7. Bot API ids of channels and
+// supergroups carry a -100 prefix (-1001234567890 → 1234567890); taking
+// abs(id) % 7 of the prefixed id lands one color off (10^12 % 7 === 1).
+function peerColorIndex (id) {
+  const n = Number(id)
+  if (!Number.isFinite(n) || n === 0) return 1
+  if (n > 0) return n % 7
+  const digits = String(Math.abs(n))
+  const bare = digits.length >= 13 && digits.startsWith('100') ? Number(digits.slice(3)) : Math.abs(n)
+  return bare % 7
+}
+
+module.exports = { resolveAccent, peerColorIndex, LIGHT, DARK }

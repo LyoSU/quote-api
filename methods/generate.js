@@ -213,6 +213,80 @@ function watermarkColor (pal) {
   return pal.dark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.38)'
 }
 
+// ---- Sticker sizing --------------------------------------------------------
+// A sticker is at most 512×512 and Telegram shows it small (~190pt on a phone),
+// so the only thing that keeps a quote readable is how few pixels the text
+// loses on the way into that box. The design size is 1:1 — a 512-wide quote
+// with 24px text — and these numbers bound how far a quote may drift from it.
+const STICKER = {
+  side: 512,
+  downPadding: 75, // transparent strip under the quote: Telegram's time badge lands there
+  maxUpscale: 1.2, // a one-word quote is padded on the right instead of blown up
+  minScale: 0.75, // text never goes below 24 × 0.75 = 18px …
+  lineHeight: 28.8, // … which bounds how many text lines a sticker can hold
+  charsPerLine: 30, // rough average for a full-width line of 24px text
+  minLines: 3
+}
+
+// Height (logical px) a message takes besides its text lines — a rough model,
+// only used to split the line budget.
+function messageOverhead (m) {
+  let h = 44 // bubble padding + gap to the next bubble
+  if (m.groupPos === 'single' || m.groupPos === 'first') h += 32 // name line
+  if (m.replyMessage) h += 62
+  if (m.forward) h += 26
+  if (m.media || (Array.isArray(m.album) && m.album.length)) h += 250
+  if (m.voice || m.document || m.audio) h += 56
+  return h
+}
+
+function estimateLines (m) {
+  const text = typeof m.text === 'string' ? m.text : ''
+  if (!text) return 0
+  return text.split('\n').reduce((n, row) => n + Math.max(1, Math.ceil(row.length / STICKER.charsPerLine)), 0)
+}
+
+// The 16-line cap is per message; three long messages used to stack into a
+// 900px column squeezed to 12px text. For a sticker the lines are a shared
+// budget: every message keeps what it needs while the total fits, otherwise
+// the longest ones are cut first (water-filling), never below minLines.
+function allocateLines (messages, maxLines) {
+  const usable = (STICKER.side - STICKER.downPadding) / STICKER.minScale
+  const overhead = messages.reduce((sum, m) => sum + messageOverhead(m), 0)
+  const budget = Math.floor((usable - overhead) / STICKER.lineHeight)
+  const need = messages.map((m) => Math.min(maxLines, estimateLines(m)))
+  if (need.reduce((a, b) => a + b, 0) <= budget) return
+  const floor = need.map((n) => Math.min(n, STICKER.minLines))
+  let cap = maxLines
+  while (cap > STICKER.minLines && need.reduce((sum, n, i) => sum + Math.max(floor[i], Math.min(n, cap)), 0) > budget) cap--
+  messages.forEach((m, i) => { if (need[i] > cap) m.maxLines = Math.max(STICKER.minLines, cap) })
+}
+
+// canvas.toBuffer('raw') is premultiplied BGRA in native byte order; sharp
+// wants straight RGBA. One pass over the pixels beats a PNG encode + decode.
+function canvasToSharp (canvas) {
+  const src = canvas.toBuffer('raw')
+  const out = Buffer.allocUnsafe(src.length)
+  for (let i = 0; i < src.length; i += 4) {
+    const a = src[i + 3]
+    if (a === 255) {
+      out[i] = src[i + 2]
+      out[i + 1] = src[i + 1]
+      out[i + 2] = src[i]
+      out[i + 3] = 255
+    } else if (a === 0) {
+      out[i] = out[i + 1] = out[i + 2] = out[i + 3] = 0
+    } else {
+      const k = 255 / a
+      out[i] = Math.min(255, Math.round(src[i + 2] * k))
+      out[i + 1] = Math.min(255, Math.round(src[i + 1] * k))
+      out[i + 2] = Math.min(255, Math.round(src[i] * k))
+      out[i + 3] = a
+    }
+  }
+  return sharp(out, { raw: { width: canvas.width, height: canvas.height, channels: 4 } })
+}
+
 module.exports = async (parm) => {
   if (!parm) return { error: 'query_empty' }
   if (!Array.isArray(parm.messages) || parm.messages.length < 1) return { error: 'messages_empty' }
@@ -260,6 +334,9 @@ module.exports = async (parm) => {
     validMessages[avatarTop ? start : end].avatar = wanted
     start = end + 1
   }
+
+  // Sticker: the text lines of all messages share one budget.
+  if (!parm.type || parm.type === 'quote') allocateLines(validMessages, getStyle(parm.style).maxLines)
 
   // Generate quotes with concurrency limit to avoid Telegram API rate limits
   const CONCURRENCY = 3
@@ -358,35 +435,24 @@ module.exports = async (parm) => {
   if (type !== 'image' && type !== 'stories' && canvasQuote.height / scale > 1024) type = 'png'
 
   if (type === 'quote') {
-    const downPadding = 75
-    const maxWidth = 512
-    const maxHeight = 512
+    const { side, downPadding, maxUpscale } = STICKER
+    const srcW = canvasQuote.width
+    const srcH = canvasQuote.height
 
-    // A short quote would be upscaled to fill 512px and look gigantic next to
-    // a long one. Pad it with transparent space on the right (content stays
-    // left-aligned, like a chat) so the upscale never exceeds ~1.3x.
-    const minLogicalWidth = Math.round(maxWidth / 1.3)
-    let stickerSource = canvasQuote
-    if (canvasQuote.height <= canvasQuote.width && canvasQuote.width < minLogicalWidth * scale) {
-      stickerSource = createCanvas(minLogicalWidth * scale, canvasQuote.height)
-      stickerSource.getContext('2d').drawImage(canvasQuote, 0, 0)
-    }
+    // One resample, straight from the canvas pixels. The quote fits 512 wide
+    // and (512 − padding) tall; a short quote would be blown up to fill the
+    // width and look gigantic next to a long one, so its box is padded with
+    // transparent space on the right instead (content stays left-aligned,
+    // like a chat) and the upscale never exceeds maxUpscale.
+    const boxW = Math.max(srcW, Math.round(side / maxUpscale * scale))
+    const k = Math.min(side / boxW, (side - downPadding) / srcH)
+    const outW = Math.max(1, Math.min(side, Math.round(srcW * k)))
+    const outH = Math.max(1, Math.min(side - downPadding, Math.round(srcH * k)))
+    const padRight = Math.max(0, Math.min(side, Math.round(boxW * k)) - outW)
 
-    const imageQuoteSharp = sharp(stickerSource.toBuffer())
-
-    if (stickerSource.height > stickerSource.width) imageQuoteSharp.resize({ height: maxHeight })
-    else imageQuoteSharp.resize({ width: maxWidth })
-
-    const canvasImage = await loadImage(await imageQuoteSharp.toBuffer())
-
-    const canvasPadding = createCanvas(canvasImage.width, canvasImage.height + downPadding)
-    const canvasPaddingCtx = canvasPadding.getContext('2d')
-    canvasPaddingCtx.drawImage(canvasImage, 0, 0)
-
-    const imageSharp = sharp(canvasPadding.toBuffer())
-
-    if (canvasPadding.height >= canvasPadding.width) imageSharp.resize({ height: maxHeight })
-    else imageSharp.resize({ width: maxWidth })
+    const imageSharp = canvasToSharp(canvasQuote)
+      .resize({ width: outW, height: outH, fit: 'fill', kernel: 'lanczos3' })
+      .extend({ bottom: downPadding, right: padRight, background: { r: 0, g: 0, b: 0, alpha: 0 } })
 
     if (format === 'png') quoteImage = await imageSharp.png().toBuffer()
     else quoteImage = await imageSharp.webp({ lossless: true, force: true }).toBuffer()
@@ -416,7 +482,7 @@ module.exports = async (parm) => {
     canvasPicCtx.shadowColor = 'rgba(0, 0, 0, 0)'
 
     canvasPicCtx.fillStyle = watermarkColor(wp)
-    canvasPicCtx.font = `${8 * scale}px Noto Sans`
+    canvasPicCtx.font = `${8 * scale}px NotoSans`
     canvasPicCtx.textAlign = 'right'
     canvasPicCtx.fillText('@QuotLyBot', canvasPic.width - 25, canvasPic.height - 25)
 
@@ -461,7 +527,7 @@ module.exports = async (parm) => {
     canvasPicCtx.shadowBlur = 0
 
     canvasPicCtx.fillStyle = watermarkColor(storyWp)
-    canvasPicCtx.font = '22px Noto Sans'
+    canvasPicCtx.font = '22px NotoSans'
     canvasPicCtx.textAlign = 'center'
     canvasPicCtx.fillText('@QuotLyBot', canvasPic.width / 2, canvasPic.height - 56)
 

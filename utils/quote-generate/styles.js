@@ -77,7 +77,11 @@ const glass = {
   avatarTop: 0, // avatar drop from the bubble top (avatarAlign 'top')
   // Type scale, logical px. Main text is 24: reply ≈0.8×, name ≈0.83×, micro
   // text (tag, via, forward label, badges, row meta) never below 0.6×.
-  fonts: { name: 20, replyName: 19, replyText: 19, micro: 15 },
+  fonts: { name: 20, replyName: 19, replyText: 19, micro: 15, code: 20 },
+  nameContrast: 3, // WCAG floor for sender / reply names against the bubble (bold ≥ 19px)
+  minCaption: 260, // a caption never wraps narrower than this, however slim the media
+  // `pre` code block: monospace on a faint tint of the text color.
+  code: { padX: 12, padY: 10, fill: 0.07, radius: BLOCK_RADIUS },
   microAlpha: 0.65, // muted secondary text (row meta, member tag)
   // Accent block — the modern-Telegram rounded tinted block used for both
   // the reply preview and the partial-quote body: solid bar on the left,
@@ -151,7 +155,8 @@ const classic = {
   name: 'classic',
   minWidth: 0,
   avatarTop: 4,
-  fonts: { name: 22, replyName: 20, replyText: 20, micro: 15 },
+  fonts: { name: 22, replyName: 20, replyText: 20, micro: 15, code: 20 },
+  code: { ...glass.code, radius: 4 },
   block: { ...glass.block, padY: 4, padR: 4, radius: 0, tint: 0, gap: 8, emojiPattern: false },
   glass: 0,
   tail: false,

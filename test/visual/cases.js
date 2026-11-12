@@ -30,10 +30,10 @@ const messages = {
     text: 'Жирний курсив підкреслений закреслений code_inline посилання @mention #hashtag спойлер',
     entities: [
       { type: 'bold', offset: 0, length: 6 }, { type: 'italic', offset: 7, length: 6 },
-      { type: 'underline', offset: 14, length: 11 }, { type: 'strikethrough', offset: 26, length: 11 },
-      { type: 'code', offset: 38, length: 11 }, { type: 'text_link', offset: 50, length: 9, url: 'https://x.com' },
-      { type: 'mention', offset: 60, length: 8 }, { type: 'hashtag', offset: 69, length: 8 },
-      { type: 'spoiler', offset: 78, length: 7 }
+      { type: 'underline', offset: 14, length: 12 }, { type: 'strikethrough', offset: 27, length: 11 },
+      { type: 'code', offset: 39, length: 11 }, { type: 'text_link', offset: 51, length: 9, url: 'https://x.com' },
+      { type: 'mention', offset: 61, length: 8 }, { type: 'hashtag', offset: 70, length: 8 },
+      { type: 'spoiler', offset: 79, length: 7 }
     ]
   })],
   pre: [base({ text: 'Дивись:\nfunction hello() {\n  return 42\n}', entities: [{ type: 'pre', offset: 8, length: 32, language: 'js' }] })],

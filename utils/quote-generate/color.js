@@ -162,6 +162,47 @@ function hslToHex (h, s, l) {
   return rgbToHex([Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)])
 }
 
+// WCAG relative luminance / contrast ratio (1…21) of two hex colors.
+function relativeLuminance (hex) {
+  const lin = (c) => {
+    c /= 255
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  }
+  const [r, g, b] = hexToRgb(hex)
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
+
+function contrastRatio (a, b) {
+  const x = relativeLuminance(a)
+  const y = relativeLuminance(b)
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
+}
+
+/**
+ * Returns `fg` untouched when it already reads on every background, else the
+ * same hue pushed AWAY from the background (darker on light, lighter on dark)
+ * just far enough to reach `min`. (The old ColorContrast.adjustContrast pulled
+ * every color toward mid brightness, which made names paler on white.)
+ */
+function ensureContrast (fg, backgrounds, min = 3) {
+  fg = normalizeColor(fg)
+  if (typeof fg !== 'string' || fg[0] !== '#') return fg
+  const bgs = backgrounds.map(normalizeColor).filter((c) => typeof c === 'string' && c[0] === '#')
+  if (bgs.length === 0) return fg
+  const worst = (c) => Math.min(...bgs.map((b) => contrastRatio(c, b)))
+  if (worst(fg) >= min) return fg
+  const bgLum = bgs.reduce((sum, b) => sum + relativeLuminance(b), 0) / bgs.length
+  const dir = bgLum > 0.35 ? -1 : 1
+  let [h, s, l] = hexToHsl(fg)
+  let best = fg
+  for (let i = 0; i < 50; i++) {
+    l = Math.min(1, Math.max(0, l + dir * 0.02))
+    best = hslToHex(h, s, l)
+    if (worst(best) >= min || l <= 0 || l >= 1) break
+  }
+  return best
+}
+
 module.exports = {
-  ColorContrast, hexToRgb, rgbToHex, normalizeColor, colorLuminance, lightOrDark, parseBackgroundColor, hexToHsl, hslToHex
+  ColorContrast, hexToRgb, rgbToHex, normalizeColor, colorLuminance, lightOrDark, parseBackgroundColor, hexToHsl, hslToHex, relativeLuminance, contrastRatio, ensureContrast
 }

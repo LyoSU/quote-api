@@ -49,6 +49,7 @@ function leaf (canvas, opts = {}) {
     w,
     h: (opts.h !== undefined ? opts.h : canvas.height) - trimT - trimB,
     bleed: !!opts.bleed,
+    alignEnd: !!opts.alignEnd, // right-to-left text: hugs the trailing edge of a wider column
     paint: opts.paint || null
   }
 }
@@ -140,6 +141,7 @@ function place (n, x, y, stretchW) {
       const c = n.children[i]
       let cx = x + n.pad.l
       if (c.bleed) cx = x + Math.max(0, (n.w - c.w) / 2) // full-width child, centered
+      else if (c.alignEnd && c.w < innerW) cx += innerW - c.w
       else if (n.align === 'center' && c.w < innerW) cx += (innerW - c.w) / 2
       cy += gapBefore(n, c, i)
       place(c, cx, cy, innerW)

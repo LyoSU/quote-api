@@ -2,7 +2,6 @@
 
 const { loadImage } = require('canvas')
 const sharp = require('sharp')
-const { Jimp, JimpMime } = require('jimp')
 const smartcrop = require('smartcrop-sharp')
 const loadImageFromUrl = require('../image-load-url')
 const { execFile } = require('child_process')
@@ -46,6 +45,9 @@ function extractVideoFrame (buffer) {
   })
 }
 
+// Frame of the `crop` preview (w / h).
+const PREVIEW_ASPECT = { landscape: 16 / 9, portrait: 1 }
+
 async function downloadMediaImage (media, mediaSize, type, crop, telegram) {
   type = type || 'id'
   crop = crop !== undefined ? crop : true
@@ -85,7 +87,7 @@ async function downloadMediaImage (media, mediaSize, type, crop, telegram) {
       try {
         const imageSharp = sharp(load)
         const imageMetadata = await imageSharp.metadata()
-        const sharpPng = await imageSharp.png({ lossless: true, force: true }).toBuffer()
+        const sharpPng = await imageSharp.png().toBuffer()
 
         if (!imageMetadata || !imageMetadata.width || !imageMetadata.height || !sharpPng) {
           try {
@@ -99,16 +101,24 @@ async function downloadMediaImage (media, mediaSize, type, crop, telegram) {
         let croppedImage
 
         if (imageMetadata.format === 'webp') {
+          // Stickers: drop the transparent margin so the art fills its slot.
           try {
-            const jimpImage = await Jimp.read(sharpPng)
-            croppedImage = await jimpImage.autocrop().getBuffer(JimpMime.png)
-          } catch (jimpError) {
-            console.warn('Failed to process webp with Jimp, using original:', jimpError.message)
-            croppedImage = sharpPng
+            croppedImage = await sharp(sharpPng).trim().png().toBuffer()
+          } catch (trimError) {
+            croppedImage = sharpPng // nothing to trim (uniform image)
           }
         } else {
+          // `crop` flag: a preview crop like Twitter's — a fixed frame placed
+          // on the most salient part of the picture (smartcrop), 16:9 for
+          // landscape and square shots, 1:1 for portraits. (The target used
+          // to be `mediaSize × source height`: an aspect ratio that depended
+          // on the file's resolution.)
           try {
-            const smartcropResult = await smartcrop.crop(sharpPng, { width: mediaSize, height: imageMetadata.height })
+            const { width: iw, height: ih } = imageMetadata
+            const aspect = iw >= ih ? PREVIEW_ASPECT.landscape : PREVIEW_ASPECT.portrait
+            const cw = Math.round(Math.min(iw, ih * aspect))
+            const ch = Math.round(Math.min(ih, cw / aspect))
+            const smartcropResult = await smartcrop.crop(sharpPng, { width: cw, height: ch })
             const cropArea = smartcropResult.topCrop
             // Create fresh sharp instance for extract (pipeline not reusable after toBuffer)
             croppedImage = await sharp(load).extract({
@@ -116,7 +126,7 @@ async function downloadMediaImage (media, mediaSize, type, crop, telegram) {
               height: cropArea.height,
               left: cropArea.x,
               top: cropArea.y
-            }).png({ lossless: true, force: true }).toBuffer()
+            }).png().toBuffer()
           } catch (cropError) {
             console.warn('Failed to crop image, using original:', cropError.message)
             croppedImage = sharpPng

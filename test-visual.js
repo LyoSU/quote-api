@@ -57,6 +57,9 @@ async function loadGenerate (origin) {
   }
   Telegram.prototype.getUserProfilePhotos = async () => ({ photos: [] })
   Telegram.prototype.getChat = async () => ({})
+  // Same fonts as the server (app.js): without this every case rendered in
+  // the system fallback font and the baselines never showed the real thing.
+  await require('./utils/quote-generate').loadFonts()
   return require('./methods/generate')
 }
 

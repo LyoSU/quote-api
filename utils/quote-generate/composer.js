@@ -134,6 +134,7 @@ function drawQuote (options) {
   const flushTop = flushable && !nameCanvas && !(isForward && forwardLabel) && !reply
 
   let mediaNode = null
+  let mediaCover = false // set below: the media fills a wider bubble by cropping
   if (mediaCanvas) {
     const maxMediaSize = media.maxSize
     let mediaWidth = mediaCanvas.width * (maxMediaSize / mediaCanvas.height)
@@ -169,11 +170,12 @@ function drawQuote (options) {
           // roundImage clips in SOURCE pixel space; the leaf then scales the
           // result down to n.w×n.h — so the radii must scale up by the same
           // factor or hi-res photos end up with visually smaller corners.
-          const k = n.canvas.width / n.w
+          const src = mediaCover ? coverCrop(n.canvas, n.w / n.h) : n.canvas
+          const k = src.width / n.w
           const rSrc = typeof mediaRadius === 'number'
             ? mediaRadius * k
             : { tl: mediaRadius.tl * k, tr: mediaRadius.tr * k, br: mediaRadius.br * k, bl: mediaRadius.bl * k }
-          ctx.drawImage(roundImage(n.canvas, rSrc), n.x, n.y, n.w, n.h)
+          ctx.drawImage(roundImage(src, rSrc), n.x, n.y, n.w, n.h)
         }
         // Video/GIF overlays are painted in destination space so their size
         // doesn't depend on the source media resolution.
@@ -187,24 +189,27 @@ function drawQuote (options) {
   // padded by the bubble, never flush.
   const attachmentNode = attachment ? leaf(attachment.canvas) : null
 
+  // Right-to-left text hugs the right edge when the bubble is wider than it.
+  const textLeaf = (c) => leaf(c, { role: 'text', alignEnd: !!c.rtl })
   let textNode = null
   if (Array.isArray(textBlocks) && textBlocks.length > 0 && isQuote) {
     // Partial quote whose text also has blockquote entities: every run goes
     // inside the one quote frame (no nested frames), nothing is dropped.
-    const runs = textBlocks.map((b) => leaf(b.canvas, { role: 'text' }))
-    textNode = accentBlock(P, s, accent, { icon: true, children: [box({ dir: 'col', role: 'text', gap: stackGap, children: runs })] })
+    const runs = textBlocks.map((b) => textLeaf(b.canvas))
+    textNode = accentBlock(P, s, accent, { icon: true, children: [box({ dir: 'col', role: 'text', stretch: true, gap: stackGap, children: runs })] })
   } else if (Array.isArray(textBlocks) && textBlocks.length > 0) {
-    // Text with blockquote entities: plain runs and quote runs stack in one
-    // column; each quote run gets the accent block treatment.
+    // Text with block entities: plain runs, quotes (accent block) and code
+    // (tinted monospace block) stack in one column.
     const parts = textBlocks.map((b) => {
       if (b.quote) return accentBlock(P, s, accent, { icon: true, children: [leaf(b.canvas)] })
-      return leaf(b.canvas, { role: 'text' })
+      if (b.code) return codeBlock(P, s, background.textColor || '#fff', b.canvas)
+      return textLeaf(b.canvas)
     })
-    textNode = box({ dir: 'col', role: 'text', gap: stackGap, children: parts })
+    textNode = box({ dir: 'col', role: 'text', stretch: true, gap: stackGap, children: parts })
   } else if (text) {
     textNode = isQuote
       ? accentBlock(P, s, accent, { icon: true, children: [leaf(text)] })
-      : leaf(text, { role: 'text' })
+      : textLeaf(text)
   }
 
   // Media runs edge to edge: when the bubble is wider than the photo (a long
@@ -221,6 +226,12 @@ function drawQuote (options) {
     if (need > mediaNode.w && need <= mediaNode.w * 1.25) {
       mediaNode.h *= need / mediaNode.w
       mediaNode.w = need
+    } else if (need > mediaNode.w && mediaType !== 'album') {
+      // Much narrower than the bubble (a slim portrait over a caption): fill
+      // the width and crop the picture to it, like Telegram does — a photo
+      // floating between two bubble-colored bars reads as a layout bug.
+      mediaNode.w = need
+      mediaCover = true
     }
   }
 
@@ -368,6 +379,26 @@ function applyShadow (ctx, P, s) {
   ctx.shadowOffsetY = s(P.shadow.y)
 }
 
+// Crops an image/canvas to `aspect` (w/h), cover fit. Faces sit high in a
+// portrait, so a little more comes off the bottom than the top.
+function coverCrop (img, aspect) {
+  let sw = img.width
+  let sh = sw / aspect
+  if (sh > img.height) {
+    sh = img.height
+    sw = sh * aspect
+  }
+  sw = Math.max(1, Math.round(sw))
+  sh = Math.max(1, Math.round(sh))
+  if (sw === img.width && sh === img.height) return img
+  const out = createCanvas(sw, sh)
+  const ctx = out.getContext('2d')
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) * 0.4, sw, sh, 0, 0, sw, sh)
+  return out
+}
+
 // Center-crops an image/canvas to a square (cover fit) for round/thumb media.
 function coverSquare (img) {
   const side = Math.min(img.width, img.height)
@@ -378,6 +409,23 @@ function coverSquare (img) {
   ctx.imageSmoothingQuality = 'high'
   ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, side, side)
   return out
+}
+
+// `pre` code block: the monospace run on a faint tint of the text color, as
+// wide as the column it sits in (like Telegram's code container).
+function codeBlock (P, s, textColor, canvas) {
+  const c = P.code
+  return box({
+    stretch: true,
+    pad: { t: s(c.padY), r: s(c.padX), b: s(c.padY), l: s(c.padX) },
+    bg: (ctx, n) => {
+      ctx.save()
+      ctx.globalAlpha = c.fill
+      ctx.drawImage(drawRoundRect(textColor, n.w, n.h, s(c.radius), 0), n.x, n.y)
+      ctx.restore()
+    },
+    children: [leaf(canvas)]
+  })
 }
 
 // The modern-Telegram accent block: rounded backdrop tinted with the accent

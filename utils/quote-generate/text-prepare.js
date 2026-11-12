@@ -97,7 +97,10 @@ function buildStyledChars (text, entities) {
           ? 'mention'
           : entity.type
 
-      if (entity.type === 'custom_emoji') {
+      // One malformed entity (offset past the text) must not throw and cost
+      // the whole message its formatting.
+      if (!entity || !Number.isInteger(entity.offset) || !Number.isInteger(entity.length)) continue
+      if (entity.type === 'custom_emoji' && styledChars[entity.offset]) {
         styledChars[entity.offset].customEmojiId = entity.custom_emoji_id
       }
 
@@ -176,18 +179,19 @@ async function loadEmojiImages (emojis, emojiBrand) {
   return localMap
 }
 
-// Load custom emoji stickers via Telegram API
-async function loadCustomEmojis (customEmojiIds, telegram) {
+// Custom emoji thumbnails by id. Bounded cache of promises shared by every
+// caller (message text, emoji status, reply-chip pattern): one
+// getCustomEmojiStickers call per batch of unknown ids, concurrent requests
+// for the same id share the lookup, failures are not cached.
+const customEmojiCache = new Map()
+const CUSTOM_EMOJI_CACHE_MAX = 500
+const CUSTOM_EMOJI_BATCH = 200 // Bot API limit per call
+
+async function fetchCustomEmojis (ids, telegram) {
   const result = {}
-  if (customEmojiIds.length === 0 || !telegram) return result
-
-  const stickers = await telegram.callApi('getCustomEmojiStickers', {
-    custom_emoji_ids: customEmojiIds
-  }).catch(() => null)
-
-  if (!stickers) return result
-
-  const promises = stickers.map(async sticker => {
+  const stickers = await telegram.callApi('getCustomEmojiStickers', { custom_emoji_ids: ids }).catch(() => null)
+  if (!Array.isArray(stickers)) return result
+  await Promise.all(stickers.map(async (sticker) => {
     // Bot API 6.6 renamed `thumb` → `thumbnail`; accept both.
     const thumb = sticker.thumbnail || sticker.thumb
     if (!thumb || !thumb.file_id) return
@@ -195,11 +199,35 @@ async function loadCustomEmojis (customEmojiIds, telegram) {
     if (!fileLink) return
     const data = await loadImageFromUrl(fileLink).catch(() => null)
     if (!data) return
-    const png = await sharp(data).png({ lossless: true, force: true }).toBuffer()
+    const png = await sharp(data).png().toBuffer().catch(() => null)
+    if (!png) return
     result[sticker.custom_emoji_id] = await loadImage(png).catch(() => null)
-  })
+  })).catch(() => {})
+  return result
+}
 
-  await Promise.all(promises).catch(() => {})
+async function loadCustomEmojis (customEmojiIds, telegram) {
+  const result = {}
+  if (!telegram) return result
+  const ids = [...new Set(customEmojiIds.filter((id) => id !== undefined && id !== null).map(String))]
+  if (ids.length === 0) return result
+
+  const missing = ids.filter((id) => !customEmojiCache.has(id))
+  for (let i = 0; i < missing.length; i += CUSTOM_EMOJI_BATCH) {
+    const chunk = missing.slice(i, i + CUSTOM_EMOJI_BATCH)
+    const batch = fetchCustomEmojis(chunk, telegram).catch(() => ({}))
+    for (const id of chunk) {
+      const p = batch.then((m) => m[id] || null)
+      customEmojiCache.set(id, p)
+      p.then((img) => { if (!img && customEmojiCache.get(id) === p) customEmojiCache.delete(id) })
+    }
+  }
+  while (customEmojiCache.size > CUSTOM_EMOJI_CACHE_MAX) customEmojiCache.delete(customEmojiCache.keys().next().value)
+
+  await Promise.all(ids.map(async (id) => {
+    const img = await (customEmojiCache.get(id) || Promise.resolve(null))
+    if (img) result[id] = img
+  }))
   return result
 }
 
@@ -301,6 +329,7 @@ function splitCJKSegments (segments, fontSize) {
 
     const graphemes = [...graphemeSegmenter.segment(seg.text)]
     if (graphemes.length <= 1) {
+      seg.cjk = true
       result.push(seg)
       continue
     }
@@ -317,6 +346,7 @@ function splitCJKSegments (segments, fontSize) {
           // Each CJK grapheme gets its own segment
           for (let j = runStart; j < g; j++) {
             result.push({
+              cjk: true, // a line may break before/after it (see text-layout)
               text: graphemes[j].segment,
               kind: 'text',
               styles: [...seg.styles],
@@ -351,6 +381,13 @@ function splitCJKSegments (segments, fontSize) {
   return result
 }
 
+// Every character of `text` belongs to one of the sets (runs like "！”" too).
+function allIn (text, setA, setB) {
+  if (!text) return false
+  for (const ch of text) if (!setA.has(ch) && !(setB && setB.has(ch))) return false
+  return true
+}
+
 // Merge trailing punctuation into preceding text segment (from pretext)
 function mergePunctuation (segments) {
   const result = []
@@ -361,8 +398,7 @@ function mergePunctuation (segments) {
     // Check if this segment is left-sticky punctuation that should merge with previous
     if (
       seg.kind === 'text' &&
-      seg.text.length === 1 &&
-      LEFT_STICKY_PUNCTUATION.has(seg.text) &&
+      allIn(seg.text, LEFT_STICKY_PUNCTUATION, KINSOKU_START) &&
       result.length > 0
     ) {
       const prev = result[result.length - 1]
@@ -392,8 +428,7 @@ function applyKinsoku (segments) {
     // Merge kinsoku-start chars into preceding segment
     if (
       seg.kind === 'text' &&
-      seg.text.length === 1 &&
-      KINSOKU_START.has(seg.text) &&
+      allIn(seg.text, KINSOKU_START, LEFT_STICKY_PUNCTUATION) &&
       result.length > 0
     ) {
       const prev = result[result.length - 1]
@@ -408,14 +443,14 @@ function applyKinsoku (segments) {
     // Merge kinsoku-end chars with following segment — create new merged segment
     if (
       seg.kind === 'text' &&
-      seg.text.length === 1 &&
-      KINSOKU_END.has(seg.text) &&
+      allIn(seg.text, KINSOKU_END) &&
       i + 1 < segments.length
     ) {
       const next = segments[i + 1]
       if (next.kind === 'text' && seg.styles.toString() === next.styles.toString()) {
         // Create a new segment with the merged text, don't mutate input
         segments[i + 1] = {
+          cjk: !!(next.cjk || seg.cjk),
           text: seg.text + next.text,
           kind: next.kind,
           styles: [...next.styles],
@@ -536,19 +571,10 @@ async function prepareText (text, entities, fontSize, emojiBrand, telegram) {
   }
 }
 
-// One custom-emoji thumbnail by id (reply-chip background pattern). Bounded
-// cache + shared in-flight lookup; failures are not cached.
-const customEmojiCache = new Map()
-const CUSTOM_EMOJI_CACHE_MAX = 200
+// One custom-emoji thumbnail by id (emoji status, reply-chip pattern).
 function loadCustomEmojiImage (id, telegram) {
   if (!id || typeof id !== 'string' || !telegram) return Promise.resolve(null)
-  const hit = customEmojiCache.get(id)
-  if (hit) return hit
-  const p = loadCustomEmojis([id], telegram).then((m) => m[id] || null, () => null)
-  customEmojiCache.set(id, p)
-  if (customEmojiCache.size > CUSTOM_EMOJI_CACHE_MAX) customEmojiCache.delete(customEmojiCache.keys().next().value)
-  p.then((img) => { if (!img) customEmojiCache.delete(id) })
-  return p
+  return loadCustomEmojis([id], telegram).then((m) => m[id] || null, () => null)
 }
 
 module.exports = { prepareText, graphemeSegmenter, getMeasureCtx, fontMetrics, loadCustomEmojiImage }

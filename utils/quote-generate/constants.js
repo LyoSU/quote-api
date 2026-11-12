@@ -16,7 +16,16 @@ const BREAK_REGEX = /<br>|\n|\r/
 const SPACE_REGEX = /[\f\n\r\t\v\u0020\u1680\u2000-\u200a\u2028\u2029\u205f\u3000]/
 const CJK_REGEX = /[\u1100-\u11ff\u2e80-\u2eff\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\u3100-\u312f\u3130-\u318f\u3190-\u319f\u31a0-\u31bf\u31c0-\u31ef\u31f0-\u31ff\u3200-\u32ff\u3300-\u33ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff]/
 const RTL_REGEX = /[\u0591-\u07FF\u200F\u202B\u202E\uFB1D-\uFDFD\uFE70-\uFEFC]/
-const NEUTRAL_REGEX = /[\u0001-\u0040\u005B-\u0060\u007B-\u00BF\u00D7\u00F7\u02B9-\u02FF\u2000-\u2BFF\u2010-\u2029\u202C\u202F-\u2BFF\u1F300-\u1F5FF\u1F600-\u1F64F]/
+// Strong left-to-right text: any letter that is not a strong RTL one. (The old
+// NEUTRAL_REGEX had `\u1F300-\u1F5FF` without the `u` flag — that parses as
+// the range `0-\u1F5F`, so Latin and Cyrillic counted as "neutral" and one
+// RTL word anywhere in a message flipped every line.)
+const LTR_STRONG_REGEX = /\p{L}/u
+// Digits and number punctuation only (weak: follows the surrounding run).
+const NUMBER_REGEX = /^[\d\u0660-\u0669\u06F0-\u06F9][\d\u0660-\u0669\u06F0-\u06F9.,:%/+\-\u066B\u066C]*$/
+// Scripts written without spaces (Thai, Lao, Myanmar, Khmer): lines may break
+// between the dictionary words Intl.Segmenter returns.
+const SEA_REGEX = /[\u0E00-\u0EFF\u1000-\u109F\u1780-\u17FF]/
 
 const ENTITY_TYPES_MONOSPACE = ['pre', 'code', 'pre_code']
 const ENTITY_TYPES_MENTION = ['mention', 'text_mention', 'hashtag', 'email', 'phone_number', 'bot_command', 'url', 'text_link']
@@ -36,7 +45,11 @@ const LEFT_STICKY_PUNCTUATION = new Set([
   '\uFF0E', // fullwidth period ．
   '\uFF01', // fullwidth exclamation ！
   '\uFF09', // fullwidth right paren ）
-  '\uFF3D' // fullwidth right bracket ］
+  '\uFF3D', // fullwidth right bracket ］
+  '\uFF1A', // fullwidth colon ：
+  '\uFF1B', // fullwidth semicolon ；
+  '\uFF1F', // fullwidth question ？
+  '\u300D', '\u300F', '\u3011', '\u300B', '\u3009' // closing CJK brackets
 ])
 
 // Kinsoku Shori: characters prohibited at line start (closing marks, prolonged sound)
@@ -68,7 +81,9 @@ module.exports = {
   SPACE_REGEX: SPACE_REGEX,
   CJK_REGEX: CJK_REGEX,
   RTL_REGEX: RTL_REGEX,
-  NEUTRAL_REGEX: NEUTRAL_REGEX,
+  LTR_STRONG_REGEX: LTR_STRONG_REGEX,
+  NUMBER_REGEX: NUMBER_REGEX,
+  SEA_REGEX: SEA_REGEX,
   ENTITY_TYPES_MONOSPACE: ENTITY_TYPES_MONOSPACE,
   ENTITY_TYPES_MENTION: ENTITY_TYPES_MENTION,
   EMOJI_SCALE: EMOJI_SCALE,

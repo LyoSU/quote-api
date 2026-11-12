@@ -28,7 +28,6 @@
     "canvas": "^2.8.0",
     "dotenv": "^7.0.0",
     "emoji-db": "^16.0.1",
-    "jimp": "^1.6.0",
     "koa": "^2.16.4",
     "koa-bodyparser": "^4.2.1",
     "koa-logger": "^3.2.1",
