@@ -73,7 +73,12 @@ async function resolveAvatarImage (user, telegram) {
   }
 
   const cacheKey = user.synthetic ? `syn:${user.id}:${nameLetters}` : user.id != null ? user.id : `noId:${user.username || nameLetters}`
-  const avatarImageCached = avatarCache.get(cacheKey)
+  // The decoded image is keyed by the photo too: a new profile picture (a new
+  // file id from the caller) must miss at once instead of showing the old one
+  // until the entry expires.
+  const photoId = user.photo && (user.photo.big_file_unique_id || user.photo.big_file_id || user.photo.url)
+  const imageKey = photoId ? `${cacheKey}|${photoId}` : cacheKey
+  const avatarImageCached = avatarCache.get(imageKey)
   const nameIndex = user.id != null ? peerColorIndex(user.id) : 0
   const avatarColor = AVATAR_COLORS[nameIndex]
 
@@ -93,7 +98,7 @@ async function resolveAvatarImage (user, telegram) {
     avatarImage = await loadImageFromUrl(user.photo.url)
       .then((buffer) => loadImage(buffer))
       .catch(() => null)
-    if (avatarImage) avatarCache.set(cacheKey, avatarImage)
+    if (avatarImage) avatarCache.set(imageKey, avatarImage)
   }
 
   if (!avatarImage) {
@@ -149,7 +154,7 @@ async function resolveAvatarImage (user, telegram) {
       }
 
       if (avatarImage) {
-        avatarCache.set(cacheKey, avatarImage)
+        avatarCache.set(imageKey, avatarImage)
       }
     } catch (error) {
       console.warn('Error getting user photo:', error.message)
