@@ -1,4 +1,5 @@
 const { createCanvas } = require('canvas')
+const { fontFamily } = require('./constants')
 
 // Draws the bubble path. When tailSize > 0, the bottom-left corner
 // becomes a tail: flat bottom extending left, rounded top curving up.
@@ -246,7 +247,7 @@ function drawLabel (text, fontSize, color, opts = {}) {
   // Lazy require — canvas-utils is loaded by layout-box before text-prepare.
   const { fontMetrics } = require('./text-prepare')
   const { ascent, descent } = fontMetrics(fontSize)
-  const font = `${opts.bold ? 'bold ' : ''}${fontSize}px NotoSans`
+  const font = `${opts.bold ? 'bold ' : ''}${fontSize}px ${fontFamily(text)}`
   const measure = createCanvas(1, 1).getContext('2d')
   measure.font = font
   const m = measure.measureText(text)

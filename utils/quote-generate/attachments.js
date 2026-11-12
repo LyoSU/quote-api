@@ -10,6 +10,7 @@ const { createCanvas, loadImage } = require('canvas')
 const sharp = require('sharp')
 const { drawLabel, setOptical } = require('./canvas-utils')
 const { glass } = require('./styles')
+const { fontFamily } = require('./constants')
 
 // Official Material Design icons (Apache-2.0), vendored as-is from
 // @material-design-icons/svg into assets/icons/. Rasterized once at 256px
@@ -335,7 +336,7 @@ function drawAudioRow (audio, accent, textColor, scale, maxWidth, thumb) {
 function fitLabel (text, fontSize, bold, maxW, mode) {
   if (!maxW || maxW <= 0) return text
   const ctx = createCanvas(1, 1).getContext('2d')
-  ctx.font = `${bold ? 'bold ' : ''}${fontSize}px NotoSans`
+  ctx.font = `${bold ? 'bold ' : ''}${fontSize}px ${fontFamily(text)}`
   const width = (t) => ctx.measureText(t).width
   if (width(text) <= maxW) return text
 

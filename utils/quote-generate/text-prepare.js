@@ -14,7 +14,8 @@ const { loadBrand } = require('../emoji-image')
 const {
   BREAK_REGEX, SPACE_REGEX, CJK_REGEX,
   ENTITY_TYPES_MONOSPACE, ENTITY_TYPES_MENTION,
-  EMOJI_SCALE, LEFT_STICKY_PUNCTUATION, KINSOKU_START, KINSOKU_END
+  EMOJI_SCALE, LEFT_STICKY_PUNCTUATION, KINSOKU_START, KINSOKU_END,
+  fontFamily
 } = require('./constants')
 
 // Shared segmenters (singletons, like pretext)
@@ -67,9 +68,9 @@ function fontMetrics (fontSize) {
 }
 
 // Resolve the font string for a set of styles
-function resolveFont (styles, fontSize) {
+function resolveFont (styles, fontSize, text = '') {
   let fontType = ''
-  let fontName = 'NotoSans'
+  let fontName = fontFamily(text)
 
   if (styles.includes('bold')) fontType += 'bold '
   if (styles.includes('italic')) fontType += 'italic '
@@ -308,7 +309,7 @@ function pushSegment (segments, styledChars, start, end, fontSize, emojiSize, em
     text,
     kind,
     styles: [...first.styles],
-    font: resolveFont(first.styles, fontSize),
+    font: resolveFont(first.styles, fontSize, text),
     emojiImage,
     emojiCode,
     customEmojiId,

@@ -73,7 +73,19 @@ const KINSOKU_END = new Set([
   '\u2018', '\u201C'
 ])
 
+// Arabic-script text (Arabic, Persian, Urdu, …) is set in Vazirmatn — the
+// typeface Telegram itself uses for it — instead of the Noto fallback. The
+// choice is per text run, by content: Vazirmatn also carries Latin glyphs, so
+// listing it as a fallback family would restyle Latin wherever the primary
+// family is resolved by fontconfig rather than registered from a file.
+const ARABIC_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/
+const FONT_FAMILY = 'NotoSans'
+const FONT_FAMILY_ARABIC = 'Vazirmatn'
+const fontFamily = (text) => ARABIC_REGEX.test(text) ? FONT_FAMILY_ARABIC : FONT_FAMILY
+
 module.exports = {
+  ARABIC_REGEX: ARABIC_REGEX,
+  fontFamily: fontFamily,
   NAME_COLORS_LIGHT: NAME_COLORS_LIGHT,
   NAME_COLORS_DARK: NAME_COLORS_DARK,
   AVATAR_COLORS: AVATAR_COLORS,
