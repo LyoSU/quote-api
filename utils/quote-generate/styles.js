@@ -55,7 +55,7 @@ const glass = {
   // so the same token always reads as the same distance.
   space: {
     inset: INSET, // bubble edge → visible content
-    stackTight: 12, // text → text: name/forward label → message text (≈ a line of rhythm)
+    stackTight: 14, // text → text: name/forward label → message text — wider than the gap between text lines, so the name reads as a header
     stack: 12, // anything ↔ block: reply chip, quote, media, attachment row
     inline: 8, // side by side: name ↔ tag/via, icon ↔ label
     chip: CHIP // sticker reply chip padding
@@ -170,9 +170,18 @@ const classic = {
 
 const STYLES = { glass, classic }
 
-// Unknown / missing name → glass.
-function getStyle (name) {
-  return Object.prototype.hasOwnProperty.call(STYLES, name) ? STYLES[name] : glass
+// Picture layout (image / stories): the avatar sits at the TOP, next to the
+// name, with the tail on that corner — like a post on t.me. In a long quote a
+// bottom avatar ends up many lines away from the name it belongs to.
+const PICTURE = {}
+for (const [key, style] of Object.entries(STYLES)) {
+  PICTURE[key] = style.avatarAlign === 'top' ? style : { ...style, avatarAlign: 'top' }
+}
+
+// Unknown / missing name → glass. `picture` selects the picture layout.
+function getStyle (name, picture = false) {
+  const key = Object.prototype.hasOwnProperty.call(STYLES, name) ? name : 'glass'
+  return picture ? PICTURE[key] : STYLES[key]
 }
 
 module.exports = { STYLES, getStyle, glass, classic, concentric }

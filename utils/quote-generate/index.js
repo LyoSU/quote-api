@@ -64,7 +64,7 @@ class QuoteGenerate {
 
   async generate (backgroundColorOne, backgroundColorTwo, message, width, height, scale, emojiBrand) {
     await loadIcons() // warm white icon sprites (no-op after first call)
-    const style = getStyle(message.style) // unknown / missing → glass
+    const style = getStyle(message.style, !!message.picture) // unknown / missing → glass
     scale = scale || 2
     if (!Number.isFinite(scale) || scale < 1) scale = 1
     if (scale > 20) scale = 20

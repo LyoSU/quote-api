@@ -122,7 +122,7 @@ function wallpaperPalette (color, dark) {
         ? ['#fec496', '#dd6cb9', '#962fbf', '#4f5bd5']
         : [hslToHex(h + 40, 0.65, 0.7), hslToHex(h + 10, 0.6, 0.62), hslToHex(h - 25, 0.6, 0.56), hslToHex(h - 55, 0.6, 0.62)],
       glow: 0.05, // the gradient itself, barely there, under the doodles
-      alpha: 0.42 // gradient-colored doodles
+      alpha: 0.28 // gradient-colored doodles: a texture, quieter than the bubble's edge
     }
   }
   // A deep yellow is olive: the two deeper stops of a yellow/orange bubble
@@ -311,7 +311,7 @@ async function drawBackdrop (canvas, pal, variant, tileWidth) {
 
 // Watermark color adapts to the wallpaper: light on dark, dark on light
 function watermarkColor (pal) {
-  return pal.dark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.38)'
+  return pal.dark ? 'rgba(255, 255, 255, 0.62)' : 'rgba(0, 0, 0, 0.45)'
 }
 
 // Ambient shadow under the quote. On a light wallpaper it is a deeper shade
@@ -442,6 +442,9 @@ module.exports = async function generate (parm) {
 
   const background = parseBackgroundColor(parm.backgroundColor)
 
+  // image / stories are pictures to share: avatar at the top (styles.js).
+  const picture = parm.type === 'image' || parm.type === 'stories'
+
   // Normalize all messages first (sync, no I/O)
   const validMessages = parm.messages.filter(Boolean)
   for (const message of validMessages) {
@@ -449,13 +452,14 @@ module.exports = async function generate (parm) {
     // Style preset ('glass' | 'classic' …) is per request; the renderer reads
     // it per message. Unknown values fall back to the default in styles.js.
     if (parm.style) message.style = String(parm.style)
+    message.picture = picture
   }
 
   // Same-sender runs render with grouped corners (small radii between
   // neighbours), like consecutive messages in Telegram. The avatar (and with
   // it the bubble tail) belongs to the LAST message of a group only — the
   // reserved left column keeps the other bubbles aligned.
-  const avatarTop = getStyle(parm.style).avatarAlign === 'top'
+  const avatarTop = getStyle(parm.style, picture).avatarAlign === 'top'
   for (let i = 0; i < validMessages.length; i++) {
     const prevSame = i > 0 && validMessages[i - 1].chatId === validMessages[i].chatId
     const nextSame = i < validMessages.length - 1 && validMessages[i + 1].chatId === validMessages[i].chatId

@@ -253,9 +253,10 @@ function drawQuote (options) {
     const one = background.colorOne
     const two = background.colorTwo
     const glassLw = s(P.glass) // 0 → flat fill
+    const tailTop = P.avatarAlign === 'top'
     const rect = one === two
-      ? drawRoundRect(one, n.w, n.h, radii, tailSize, glassLw)
-      : drawGradientRoundRect(one, two, n.w, n.h, radii, tailSize, glassLw)
+      ? drawRoundRect(one, n.w, n.h, radii, tailSize, glassLw, tailTop)
+      : drawGradientRoundRect(one, two, n.w, n.h, radii, tailSize, glassLw, tailTop)
     ctx.save()
     // A soft neutral drop shadow lifts the sticker off any chat wallpaper.
     applyShadow(ctx, P, s)

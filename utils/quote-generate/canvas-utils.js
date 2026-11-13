@@ -5,7 +5,8 @@ const { fontFamily } = require('./constants')
 // becomes a tail: flat bottom extending left, rounded top curving up.
 // `r` is a single radius or per-corner {tl, tr, br, bl} (grouped bubbles
 // flatten the corners that face their neighbours, like Telegram).
-function bubblePath (ctx, w, h, r, tailSize) {
+// `tailTop` mirrors the tail to the top-left corner (avatar at the top).
+function bubblePath (ctx, w, h, r, tailSize, tailTop = false) {
   let { tl, tr, br, bl } = typeof r === 'number' ? { tl: r, tr: r, br: r, bl: r } : r
   const cap = (v) => Math.min(v, w / 2, h / 2)
   tl = cap(tl)
@@ -14,6 +15,17 @@ function bubblePath (ctx, w, h, r, tailSize) {
   bl = cap(bl)
 
   ctx.beginPath()
+  if (tailSize > 0 && tailTop) {
+    // Top edge starts FLAT left of the bubble; the curve closes the path.
+    ctx.moveTo(-tailSize, 0)
+    ctx.arcTo(w, 0, w, h, tr)
+    ctx.arcTo(w, h, 0, h, br)
+    ctx.arcTo(0, h, 0, 0, bl)
+    ctx.lineTo(0, tl)
+    ctx.bezierCurveTo(0, tl * 0.3, -tailSize * 0.4, 0, -tailSize, 0)
+    ctx.closePath()
+    return
+  }
   ctx.moveTo(tl, 0)
   // top-right corner
   ctx.arcTo(w, 0, w, h, tr)
@@ -46,14 +58,14 @@ function bubblePath (ctx, w, h, r, tailSize) {
 // Frosted-glass finish over the bubble fill: a hairline inner border plus a
 // light top edge that fades out — both clipped to the bubble path so they
 // follow the corners and the tail. `lw` is the hairline width in device px.
-function paintGlass (ctx, w, h, r, tailSize, lw) {
+function paintGlass (ctx, w, h, r, tailSize, lw, tailTop) {
   ctx.save()
-  bubblePath(ctx, w, h, r, tailSize)
+  bubblePath(ctx, w, h, r, tailSize, tailTop)
   ctx.clip()
 
   // Uniform hairline border. Stroke is centered on the path; with the clip
   // active only the inner half remains, so double the width.
-  bubblePath(ctx, w, h, r, tailSize)
+  bubblePath(ctx, w, h, r, tailSize, tailTop)
   ctx.lineWidth = lw * 2
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.09)'
   ctx.stroke()
@@ -68,20 +80,20 @@ function paintGlass (ctx, w, h, r, tailSize, lw) {
   ctx.restore()
 }
 
-function drawRoundRect (color, w, h, r, tailSize = 0, glassLw = 0) {
+function drawRoundRect (color, w, h, r, tailSize = 0, glassLw = 0, tailTop = false) {
   const extraLeft = tailSize > 0 ? Math.ceil(tailSize * 0.8) : 0
   const canvas = createCanvas(w + extraLeft, h)
   const ctx = canvas.getContext('2d')
   ctx.translate(extraLeft, 0)
   ctx.fillStyle = color
-  bubblePath(ctx, w, h, r, tailSize)
+  bubblePath(ctx, w, h, r, tailSize, tailTop)
   ctx.fill()
-  if (glassLw > 0) paintGlass(ctx, w, h, r, tailSize, glassLw)
+  if (glassLw > 0) paintGlass(ctx, w, h, r, tailSize, glassLw, tailTop)
   canvas._tailOffset = extraLeft
   return canvas
 }
 
-function drawGradientRoundRect (colorOne, colorTwo, w, h, r, tailSize = 0, glassLw = 0) {
+function drawGradientRoundRect (colorOne, colorTwo, w, h, r, tailSize = 0, glassLw = 0, tailTop = false) {
   const extraLeft = tailSize > 0 ? Math.ceil(tailSize * 0.8) : 0
   const canvas = createCanvas(w + extraLeft, h)
   const ctx = canvas.getContext('2d')
@@ -90,9 +102,9 @@ function drawGradientRoundRect (colorOne, colorTwo, w, h, r, tailSize = 0, glass
   gradient.addColorStop(0, colorOne)
   gradient.addColorStop(1, colorTwo)
   ctx.fillStyle = gradient
-  bubblePath(ctx, w, h, r, tailSize)
+  bubblePath(ctx, w, h, r, tailSize, tailTop)
   ctx.fill()
-  if (glassLw > 0) paintGlass(ctx, w, h, r, tailSize, glassLw)
+  if (glassLw > 0) paintGlass(ctx, w, h, r, tailSize, glassLw, tailTop)
   canvas._tailOffset = extraLeft
   return canvas
 }
