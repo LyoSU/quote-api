@@ -32,6 +32,8 @@ function drawQuote (options) {
     nameColor,
     senderTag,
     senderTagRole, // 'owner' | 'admin' | 'member' (default)
+    tag, // pre-rendered tag canvas (drawTag) — wins over senderTag
+    maxWidth, // content width of the widest possible bubble, canvas px
     viaBot, // pre-rendered "via @bot" canvas (or null)
     topic, // pre-rendered forum topic line (cards.js drawTopicLine) or null
     groupPos = 'single', // single | first | middle | last — corners facing a same-sender neighbour flatten
@@ -59,13 +61,15 @@ function drawQuote (options) {
   let headerNode = null
   if (nameCanvas) {
     let tagLeaf = null
-    if (senderTag) {
-      tagLeaf = leaf(drawTag(senderTag, senderTagRole, P, s, background.textColor || '#fff'), { role: 'text' })
+    if (tag || senderTag) {
+      tagLeaf = leaf(tag || drawTag(senderTag, senderTagRole, P, s, background.textColor || '#fff'), { role: 'text' })
     }
-    // The header fits into maxHeader as a whole: the name yields (fades)
-    // first, "via @bot" and the tag always stay visible.
+    // The name is the quote's attribution: it gets the whole bubble width and
+    // is never cut while there is room. The caller already laid it out (with
+    // "…") into what is left beside "via @bot" and the tag; the cap here is
+    // only a safety net for callers that did not.
     const viaLeaf = viaBot ? leaf(viaBot, { role: 'text' }) : null
-    let nameMax = s(P.maxHeader)
+    let nameMax = maxWidth || Infinity
     if (viaLeaf) nameMax -= viaLeaf.w + s(sp.inline)
     if (tagLeaf) nameMax -= tagLeaf.w + s(sp.inline)
     const nameLeaf = leaf(nameCanvas, { role: 'text', maxW: Math.max(s(40), nameMax) })
@@ -81,7 +85,7 @@ function drawQuote (options) {
 
   let forwardNode = null
   if (isForward && forwardLabel) {
-    forwardNode = leaf(drawForwardLabel(forwardLabel, s(P.fonts.micro), accent), { role: 'text', maxW: s(P.maxHeader) })
+    forwardNode = leaf(drawForwardLabel(forwardLabel, s(P.fonts.micro), accent, maxWidth), { role: 'text' })
   }
 
   let replyNode = null
@@ -371,6 +375,13 @@ function drawTag (text, role, P, s, textColor) {
   return setOptical(canvas, 0, 0)
 }
 
+// Width the header row keeps for what sits beside the name ("via @bot", the
+// tag) — the name is laid out into the rest, so it ends with "…" instead of
+// running under its neighbours.
+function headerReserve (P, scale, ...canvases) {
+  return canvases.filter(Boolean).reduce((sum, c) => sum + c.width + P.space.inline * scale, 0)
+}
+
 // Soft drop shadow (no-op for flat styles).
 function applyShadow (ctx, P, s) {
   if (!P.shadow) return
@@ -518,4 +529,4 @@ function paintEmojiPattern (ctx, n, emoji, accent, shape, P, s) {
   ctx.restore()
 }
 
-module.exports = { drawQuote, SP }
+module.exports = { drawQuote, drawTag, headerReserve, SP }

@@ -250,6 +250,19 @@ function drawLabel (text, fontSize, color, opts = {}) {
   const font = `${opts.bold ? 'bold ' : ''}${fontSize}px ${fontFamily(text)}`
   const measure = createCanvas(1, 1).getContext('2d')
   measure.font = font
+  // A one-line label never runs past `maxWidth`: the tail yields to "…".
+  if (opts.maxWidth && measure.measureText(text).width > opts.maxWidth) {
+    const chars = Array.from(text)
+    let lo = 0
+    let hi = chars.length
+    const fit = (n) => chars.slice(0, n).join('').replace(/[\s.,;:!?…]+$/, '') + '…'
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1
+      if (measure.measureText(fit(mid)).width <= opts.maxWidth) lo = mid
+      else hi = mid - 1
+    }
+    text = fit(lo)
+  }
   const m = measure.measureText(text)
 
   const canvas = createCanvas(Math.max(1, Math.ceil(m.width)), Math.max(1, Math.ceil(ascent + descent)))
@@ -261,8 +274,8 @@ function drawLabel (text, fontSize, color, opts = {}) {
   return setOptical(canvas, ascent - capHeight(fontSize, opts.bold), canvas.height - ascent)
 }
 
-function drawForwardLabel (text, fontSize, color) {
-  return drawLabel(text, fontSize, color, { bold: true })
+function drawForwardLabel (text, fontSize, color, maxWidth) {
+  return drawLabel(text, fontSize, color, { bold: true, maxWidth })
 }
 
 module.exports = { drawRoundRect, drawGradientRoundRect, roundImage, drawReplyLine, drawQuoteIcon, drawLabel, drawForwardLabel, inkBounds, capHeight, setOptical }

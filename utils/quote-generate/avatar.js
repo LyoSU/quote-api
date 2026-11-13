@@ -24,6 +24,12 @@ const noPhotoCache = new LRU({ max: 5000, maxAge: 1000 * 60 })
 // share a single download.
 const inFlight = new Map()
 
+// First letter, digit or emoji of a word — quotes, brackets and other
+// punctuation around a name ("Maddyson", «Name», [tag]) are skipped.
+function initial (word) {
+  return runes(String(word || '')).find((r) => /[\p{L}\p{N}\p{So}]/u.test(r)) || ''
+}
+
 function avatarImageLetters (letters, color) {
   const size = 500
   const canvas = createCanvas(size, size)
@@ -61,15 +67,16 @@ async function resolveAvatarImage (user, telegram) {
 
   let nameLetters
   if (user.first_name && user.last_name) {
-    nameLetters = runes(user.first_name)[0] + (runes(user.last_name || '')[0])
+    nameLetters = (initial(user.first_name) + initial(user.last_name)) || runes(user.first_name)[0]
   } else {
     let name = user.first_name || (user.name && user.name !== false && user.name) || user.title || '?'
     if (typeof name !== 'string') name = String(name)
     name = name.toUpperCase()
-    const nameWord = name.split(' ')
+    // Words that are only punctuation ("—", "|") carry no initial.
+    const letters = name.split(/\s+/).map(initial).filter(Boolean)
 
-    if (nameWord.length > 1) nameLetters = runes(nameWord[0])[0] + runes(nameWord[nameWord.length - 1])[0]
-    else nameLetters = runes(nameWord[0])[0]
+    if (letters.length > 1) nameLetters = letters[0] + letters[letters.length - 1]
+    else nameLetters = letters[0] || runes(name)[0] || '?'
   }
 
   const cacheKey = user.synthetic ? `syn:${user.id}:${nameLetters}` : user.id != null ? user.id : `noId:${user.username || nameLetters}`

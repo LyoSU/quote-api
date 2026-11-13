@@ -60,7 +60,7 @@ const glass = {
     inline: 8, // side by side: name ↔ tag/via, icon ↔ label
     chip: CHIP // sticker reply chip padding
   },
-  maxHeader: 300, // header/forward-label width cap — longer names fade out instead of inflating the bubble
+  maxHeader: 300, // forum topic line cap — a muted context line never inflates the bubble (names and forward labels get the full width)
   maxLines: 16, // message text is cut with "…" past this many lines — a sticker must stay readable
   radius: RADIUS,
   radiusGrouped: 7, // corner radius facing a same-sender neighbour bubble

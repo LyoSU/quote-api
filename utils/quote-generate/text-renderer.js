@@ -33,7 +33,11 @@ async function drawMultilineText (text, entities, fontSize, fontColor, textX, te
   // Use shrink-wrap for multi-line text, plain layout for single-line
   const layout = shrinkWrap(prepared, maxWidth, maxHeight)
 
-  return renderText(layout, prepared, fontColor)
+  const canvas = renderText(layout, prepared, fontColor)
+  // Callers that must keep a trailing element visible (the emoji status after
+  // a name) need to know the text was cut with "…".
+  canvas.truncated = !!layout.truncated
+  return canvas
 }
 
 module.exports = { drawMultilineText, getLineDirection }

@@ -65,6 +65,7 @@ const rgba = (hex, alpha) => {
 function backdropPalette (colorOne, colorTwo) {
   const dark = lightOrDark(colorOne) === 'dark'
   let [h, s] = hexToHsl(colorOne)
+  const wall = wallpaperPalette(colorOne, dark)
   if (s < 0.1) {
     h = dark ? 225 : 207
     s = dark ? 0.3 : 0.45
@@ -81,6 +82,7 @@ function backdropPalette (colorOne, colorTwo) {
     s = clamp(s, 0.3, 0.5)
     return {
       dark,
+      wall,
       base: hslToHex(h, s, 0.15),
       edge: hslToHex(h, s, 0.08),
       blobs: [hslToHex(h, s, 0.27), hslToHex(h2, s, 0.24), hslToHex(h3, s, 0.21)],
@@ -92,6 +94,7 @@ function backdropPalette (colorOne, colorTwo) {
   s = clamp(s * 1.6, 0.35, 0.8)
   return {
     dark,
+    wall,
     base: hslToHex(h, s, 0.8),
     edge: hslToHex(h, s, 0.68),
     blobs: [hslToHex(h, s, 0.72), hslToHex(h2, s, 0.88), hslToHex(h3, s, 0.84)],
@@ -99,6 +102,111 @@ function backdropPalette (colorOne, colorTwo) {
     doodle: hslToHex(h, Math.min(s, 0.6), 0.32),
     doodleAlpha: 0.12
   }
+}
+
+// Telegram-style chat wallpaper for the `doodle` backdrop: a four-color
+// freeform gradient with the doodle pattern on top.
+//  • light bubble → the gradient is the wall, doodles are a darker ink of it;
+//    a neutral (white/gray) bubble gets Telegram's own default green set;
+//  • dark bubble → a near-black wall a step darker than the bubble, doodles
+//    are drawn WITH the gradient (Telegram's dark themes), so the frame has
+//    color without ever competing with the bubble.
+// Tinted bubbles derive the four colors from their own hue.
+function wallpaperPalette (color, dark) {
+  const [h, s, l] = hexToHsl(color)
+  const neutral = s < 0.1
+  if (dark) {
+    return {
+      base: neutral ? '#0b0b10' : hslToHex(h, clamp(s, 0.2, 0.4), clamp(l * 0.45, 0.035, 0.07)),
+      colors: neutral
+        ? ['#fec496', '#dd6cb9', '#962fbf', '#4f5bd5']
+        : [hslToHex(h + 40, 0.65, 0.7), hslToHex(h + 10, 0.6, 0.62), hslToHex(h - 25, 0.6, 0.56), hslToHex(h - 55, 0.6, 0.62)],
+      glow: 0.05, // the gradient itself, barely there, under the doodles
+      alpha: 0.42 // gradient-colored doodles
+    }
+  }
+  // A deep yellow is olive: the two deeper stops of a yellow/orange bubble
+  // move toward orange and stay lighter, so the wall reads warm, not khaki.
+  const warm = h >= 25 && h <= 75
+  const deep = warm ? h - 24 : h
+  return {
+    colors: neutral
+      ? ['#dbddbb', '#6ba587', '#d5d88d', '#88b884']
+      : [
+        hslToHex(h - (warm ? 12 : 40), 0.45, 0.84),
+        hslToHex(deep, warm ? 0.55 : 0.34, warm ? 0.68 : 0.58),
+        hslToHex(h - (warm ? 4 : 45), 0.55, 0.77),
+        hslToHex(deep + (warm ? 8 : -15), warm ? 0.5 : 0.32, warm ? 0.74 : 0.66)
+      ],
+    ink: neutral ? '#234a30' : hslToHex(deep, 0.5, 0.22),
+    alpha: 0.2
+  }
+}
+
+// Telegram's freeform gradient: every pixel is a mix of four color points,
+// each weighted by (0.9 − distance)⁴. Computed on a tiny grid and scaled up —
+// the result is smooth by construction.
+const GRADIENT_POINTS = [[0.8, 0.1], [0.35, 0.25], [0.2, 0.9], [0.65, 0.75]]
+function freeformGradient (w, h, colors) {
+  const gw = 96
+  const gh = Math.max(8, Math.min(256, Math.round(gw * h / w)))
+  const small = createCanvas(gw, gh)
+  const sctx = small.getContext('2d')
+  const img = sctx.createImageData(gw, gh)
+  const rgb = colors.map(hexToRgb)
+  for (let y = 0; y < gh; y++) {
+    for (let x = 0; x < gw; x++) {
+      let r = 0; let g = 0; let b = 0; let sum = 0
+      for (let i = 0; i < 4; i++) {
+        const d = Math.max(0, 0.9 - Math.hypot(x / (gw - 1) - GRADIENT_POINTS[i][0], y / (gh - 1) - GRADIENT_POINTS[i][1]))
+        const wgt = d * d * d * d
+        r += rgb[i][0] * wgt; g += rgb[i][1] * wgt; b += rgb[i][2] * wgt; sum += wgt
+      }
+      const o = (y * gw + x) * 4
+      img.data[o] = r / sum; img.data[o + 1] = g / sum; img.data[o + 2] = b / sum; img.data[o + 3] = 255
+    }
+  }
+  sctx.putImageData(img, 0, 0)
+  const out = createCanvas(w, h)
+  const ctx = out.getContext('2d')
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  // Half a source pixel of overscan: the edge row is not stretched into a band.
+  ctx.drawImage(small, 0.5, 0.5, gw - 1, gh - 1, 0, 0, w, h)
+  return out
+}
+
+async function drawWallpaper (canvas, pal, tileWidth) {
+  const ctx = canvas.getContext('2d')
+  const w = canvas.width
+  const h = canvas.height
+  const wall = pal.wall
+  const gradient = freeformGradient(w, h, wall.colors)
+  if (!pal.dark) {
+    ctx.drawImage(gradient, 0, 0)
+    addGrain(canvas, pal.grain)
+    ctx.globalAlpha = wall.alpha
+    ctx.fillStyle = ctx.createPattern(await getPatternTile(tileWidth, wall.ink), 'repeat')
+    ctx.fillRect(0, 0, w, h)
+    ctx.globalAlpha = 1
+    return
+  }
+  ctx.fillStyle = wall.base
+  ctx.fillRect(0, 0, w, h)
+  ctx.globalAlpha = wall.glow
+  ctx.drawImage(gradient, 0, 0)
+  ctx.globalAlpha = 1
+  addGrain(canvas, pal.grain)
+  // Doodles cut out of the gradient.
+  const lines = createCanvas(w, h)
+  const lctx = lines.getContext('2d')
+  lctx.fillStyle = lctx.createPattern(await getPatternTile(tileWidth, '#ffffff'), 'repeat')
+  lctx.fillRect(0, 0, w, h)
+  lctx.globalCompositeOperation = 'source-in'
+  lctx.drawImage(gradient, 0, 0)
+  ctx.globalAlpha = wall.alpha
+  ctx.drawImage(lines, 0, 0)
+  ctx.globalAlpha = 1
 }
 
 // Smooth radial blob that fades to nothing (extra stop avoids a hard falloff)
@@ -150,10 +258,11 @@ async function getPatternTile (tileWidth, color) {
 }
 
 // Backdrop variants:
+//  doodle — Telegram-style wallpaper: freeform gradient + doodles (default)
 //  mesh   — soft multi-point gradient + vignette + grain
-//  doodle — mesh + crisp 1:1 doodle pattern at low opacity (default)
 //  aurora — blurred diagonal color bands + soft bokeh discs
 async function drawBackdrop (canvas, pal, variant, tileWidth) {
+  if (variant === 'doodle') return drawWallpaper(canvas, pal, tileWidth)
   const ctx = canvas.getContext('2d')
   const w = canvas.width
   const h = canvas.height
@@ -198,19 +307,45 @@ async function drawBackdrop (canvas, pal, variant, tileWidth) {
   ctx.fillRect(0, 0, w, h)
 
   addGrain(canvas, pal.grain)
-
-  if (variant === 'doodle') {
-    const tile = await getPatternTile(tileWidth, pal.doodle)
-    ctx.globalAlpha = pal.doodleAlpha
-    ctx.fillStyle = ctx.createPattern(tile, 'repeat')
-    ctx.fillRect(0, 0, w, h)
-    ctx.globalAlpha = 1
-  }
 }
 
 // Watermark color adapts to the wallpaper: light on dark, dark on light
 function watermarkColor (pal) {
   return pal.dark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.38)'
+}
+
+// Ambient shadow under the quote. On a light wallpaper it is a deeper shade
+// of the wall itself: a black shadow grays the pastel around the bubble.
+function ambientShadow (pal, backdrop) {
+  if (pal.dark) return 'rgba(0, 0, 0, 0.3)'
+  return backdrop === 'doodle' && pal.wall.ink ? rgba(pal.wall.ink, 0.2) : 'rgba(0, 0, 0, 0.12)'
+}
+
+// Image mode (a shareable picture on a wallpaper), logical px.
+const IMAGE = {
+  margin: 48, // wallpaper visible around the quote, every side
+  watermark: 11
+}
+
+// Bounding box of the solid part of a quote canvas (the soft shadow is far
+// below the alpha threshold and does not count).
+function visibleBounds (canvas) {
+  const w = canvas.width
+  const h = canvas.height
+  const data = canvas.getContext('2d').getImageData(0, 0, w, h).data
+  let x0 = w; let y0 = h; let x1 = -1; let y1 = -1
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] > 128) {
+        if (x < x0) x0 = x
+        if (x > x1) x1 = x
+        if (y < y0) y0 = y
+        if (y > y1) y1 = y
+      }
+    }
+  }
+  if (x1 < 0) return { x: 0, y: 0, w, h }
+  return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }
 }
 
 // ---- Sticker sizing --------------------------------------------------------
@@ -466,11 +601,13 @@ module.exports = async function generate (parm) {
     if (format === 'png') quoteImage = await imageSharp.png().toBuffer()
     else quoteImage = await imageSharp.webp({ lossless: true, force: true }).toBuffer()
   } else if (type === 'image') {
-    const heightPadding = 75 * scale
-    const widthPadding = 95 * scale
-
-    // Draw canvas-to-canvas directly — no need for toBuffer() -> loadImage() round-trip
-    const canvasPic = createCanvas(canvasQuote.width + widthPadding, canvasQuote.height + heightPadding)
+    // One margin on all four sides, measured from what is VISIBLE (avatar and
+    // bubble edges) — the quote canvas itself carries uneven transparent
+    // slack: shadow room right/below, an empty avatar column when there is
+    // no avatar.
+    const margin = Math.round(IMAGE.margin * scale)
+    const ink = visibleBounds(canvasQuote)
+    const canvasPic = createCanvas(ink.w + 2 * margin, ink.h + 2 * margin)
     const canvasPicCtx = canvasPic.getContext('2d')
 
     const wp = backdropPalette(background.colorOne, background.colorTwo)
@@ -481,19 +618,22 @@ module.exports = async function generate (parm) {
     canvasPicCtx.shadowOffsetX = 0
     canvasPicCtx.shadowOffsetY = 4 * scale
     canvasPicCtx.shadowBlur = 18 * scale
-    canvasPicCtx.shadowColor = wp.dark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.12)'
+    canvasPicCtx.shadowColor = ambientShadow(wp, backdrop)
 
-    canvasPicCtx.drawImage(canvasQuote, widthPadding / 2, heightPadding / 2)
+    canvasPicCtx.drawImage(canvasQuote, margin - ink.x, margin - ink.y)
 
     canvasPicCtx.shadowOffsetX = 0
     canvasPicCtx.shadowOffsetY = 0
     canvasPicCtx.shadowBlur = 0
     canvasPicCtx.shadowColor = 'rgba(0, 0, 0, 0)'
 
+    // Signature: right-aligned to the bubble edge, centered in the bottom
+    // margin — it sits on the layout grid instead of floating in a corner.
     canvasPicCtx.fillStyle = watermarkColor(wp)
-    canvasPicCtx.font = `${8 * scale}px NotoSans`
+    canvasPicCtx.font = `600 ${IMAGE.watermark * scale}px NotoSans`
     canvasPicCtx.textAlign = 'right'
-    canvasPicCtx.fillText('@QuotLyBot', canvasPic.width - 25, canvasPic.height - 25)
+    canvasPicCtx.textBaseline = 'middle'
+    canvasPicCtx.fillText('@QuotLyBot', canvasPic.width - margin, canvasPic.height - margin / 2)
 
     quoteImage = await sharp(canvasPic.toBuffer()).png({ lossless: true, force: true }).toBuffer()
   } else if (type === 'stories') {
@@ -507,7 +647,7 @@ module.exports = async function generate (parm) {
     canvasPicCtx.shadowOffsetX = 0
     canvasPicCtx.shadowOffsetY = 4
     canvasPicCtx.shadowBlur = 20
-    canvasPicCtx.shadowColor = storyWp.dark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.12)'
+    canvasPicCtx.shadowColor = ambientShadow(storyWp, 'doodle')
 
     // Fit the quote to ~80% of the width (up or down) within the max height;
     // lanczos keeps text crisp. The side watermark lives in the free margin.

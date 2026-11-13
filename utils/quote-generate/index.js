@@ -2,7 +2,7 @@
 
 const fs = require('fs')
 const path = require('path')
-const { registerFont, loadImage } = require('canvas')
+const { registerFont, loadImage, createCanvas } = require('canvas')
 const { Telegram } = require('telegraf')
 const loadImageFromUrl = require('../image-load-url')
 const emojiDb = require('../emoji-db')
@@ -11,7 +11,7 @@ const { drawMultilineText } = require('./text-renderer')
 const { drawAvatar } = require('./avatar')
 const { downloadMediaImage } = require('./media')
 const { drawAlbum, MAX_ITEMS } = require('./album')
-const { drawQuote } = require('./composer')
+const { drawQuote, drawTag, headerReserve } = require('./composer')
 const { applySpoiler } = require('./spoiler')
 const { drawLabel } = require('./canvas-utils')
 const { fontMetrics, loadCustomEmojiImage } = require('./text-prepare')
@@ -93,6 +93,18 @@ class QuoteGenerate {
     // Name is noticeably smaller than the message text (like Telegram), so
     // the eye lands on the content first.
     const nameSize = style.fonts.name * scale
+    const themeText = backStyle === 'light' ? '#000' : '#fff'
+
+    // What shares the header row with the name is rendered first: the name is
+    // laid out into the width that is left, so it only ever ends with "…"
+    // when the bubble is already as wide as it can get.
+    const viaBotCanvas = message.viaBot
+      ? drawLabel(`via @${String(message.viaBot).replace(/^@/, '')}`, style.fonts.micro * scale, nameColor, { alpha: 0.8 })
+      : null
+    const tagCanvas = message.senderTag
+      ? drawTag(String(message.senderTag), message.senderTagRole || 'member', style, (v) => v * scale, themeText)
+      : null
+    const nameWidth = Math.max(40 * scale, width - headerReserve(style, scale, viaBotCanvas, tagCanvas))
 
     let nameCanvas
     if (message.from && message.from.name !== false && (message.from.name || message.from.first_name || message.from.last_name)) {
@@ -127,8 +139,23 @@ class QuoteGenerate {
       try {
         nameCanvas = await drawMultilineText(
           name, nameEntities, nameSize, nameColor,
-          0, nameSize, width, nameSize, emojiBrand, this.telegram
+          0, nameSize, nameWidth, nameSize, emojiBrand, this.telegram
         )
+        // A name too long for the row would lose the status with its tail:
+        // cut the name alone and put the status back after the "…".
+        if (hasStatus && nameCanvas.truncated) {
+          const plain = name.slice(0, -(STATUS_PLACEHOLDER.length + 1))
+          const status = await drawMultilineText(
+            STATUS_PLACEHOLDER, [{ type: 'custom_emoji', offset: 0, length: STATUS_PLACEHOLDER.length, custom_emoji_id: String(message.from.emoji_status) }],
+            nameSize, nameColor, 0, nameSize, nameWidth, nameSize, emojiBrand, this.telegram
+          )
+          const gap = Math.round(nameSize * 0.25)
+          const cut = await drawMultilineText(
+            plain, [{ type: 'bold', offset: 0, length: plain.length }], nameSize, nameColor,
+            0, nameSize, Math.max(40 * scale, nameWidth - status.width - gap), nameSize, emojiBrand, this.telegram
+          )
+          nameCanvas = joinRow(cut, status, gap)
+        }
         // Gradient accent on the name (base → lightened). Skipped when any
         // emoji image is in the canvas — source-in would tint it into a
         // flat silhouette (emoji status or regular emoji in the name).
@@ -144,7 +171,7 @@ class QuoteGenerate {
           const plainName = hasStatus ? name.slice(0, -(STATUS_PLACEHOLDER.length + 1)) : name
           nameCanvas = await drawMultilineText(
             plainName, [{ type: 'bold', offset: 0, length: plainName.length }],
-            nameSize, nameColor, 0, nameSize, width, nameSize, emojiBrand, this.telegram
+            nameSize, nameColor, 0, nameSize, nameWidth, nameSize, emojiBrand, this.telegram
           )
         } catch (_) { /* name is optional — continue without it */ }
       }
@@ -432,17 +459,6 @@ class QuoteGenerate {
     const isForward = !!message.forward
     const forwardLabel = isForward ? (message.forward.label || 'Forwarded message') : null
 
-    // Sender tag (user role in group)
-    const senderTag = message.senderTag || null
-    const senderTagRole = message.senderTagRole || 'member'
-
-    // "via @bot" chip (inline-bot messages)
-    let viaBotCanvas = null
-    if (message.viaBot) {
-      const viaText = `via @${String(message.viaBot).replace(/^@/, '')}`
-      viaBotCanvas = drawLabel(viaText, style.fonts.micro * scale, nameColor, { alpha: 0.8 })
-    }
-
     // Nothing to render — skip this message
     if (!textCanvas && !nameCanvas && !mediaCanvas && !replyData && !attachment) {
       return null
@@ -461,8 +477,8 @@ class QuoteGenerate {
       isForward,
       forwardLabel,
       nameColor,
-      senderTag,
-      senderTagRole,
+      tag: tagCanvas,
+      maxWidth: width,
       viaBot: viaBotCanvas,
       topic: nameCanvas ? await drawTopicLine(message.topic, { scale, style, textColor, accent: nameColor, telegram: this.telegram, emojiBrand }) : null,
       groupPos: message.groupPos || 'single',
@@ -487,6 +503,16 @@ function countLines (canvas, fontSize) {
   if (canvas.width <= 1 && canvas.height <= 1) return 0
   const { ascent, descent } = fontMetrics(fontSize)
   return Math.round((canvas.height - ascent - descent) / (fontSize * 1.2)) + 1
+}
+
+// Two one-line text canvases side by side (same font size → same metric box).
+function joinRow (a, b, gap) {
+  const out = createCanvas(Math.ceil(a.width + gap + b.width), Math.max(a.height, b.height))
+  const ctx = out.getContext('2d')
+  ctx.drawImage(a, 0, 0)
+  ctx.drawImage(b, a.width + gap, 0)
+  if (a.optical) out.optical = a.optical
+  return out
 }
 
 function gradientTint (canvas, colorFrom, colorTo) {
